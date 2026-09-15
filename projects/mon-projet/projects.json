@@ -1,0 +1,2080 @@
+{
+  "source": "https://lmwr.fr/projets",
+  "scraped_at": "2026-09-15",
+  "count": 15,
+  "projects": [
+    {
+      "slug": "aprium-pharmacie",
+      "url": "https://lmwr.fr/aprium-pharmacie",
+      "title": "Penser à celles qui pensent déjà à tout",
+      "tags": [
+        "Publicité",
+        "Branding",
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/P49BqUzxPvoQ01RSe4iayAgh02OrLG02lk7JKHE9BrOtYg.m3u8",
+        "poster": "aprium-pharmacie/Capture_d_e_cran_2026-05-28_a__11.32.07.png",
+        "logo": "aprium-pharmacie/Loog_Aprium_0.png",
+        "poster_light": "light/aprium-pharmacie/Capture_d_e_cran_2026-05-28_a__11.32.07.webp",
+        "logo_light": "light/aprium-pharmacie/Loog_Aprium_0.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas un réseau de pharmacies. C’est un média santé féminin."
+      },
+      "sections": [
+        {
+          "title": "Problématique",
+          "text": "Comment transformer un réseau de pharmacies transactionnel en un véritable média d'accompagnement qui reconnaît et soulage la charge mentale féminine ?"
+        },
+        {
+          "title": "Insight",
+          "text": "Les femmes sont les Ministres de la Santé du foyer : elles gèrent les carnets de vaccination, les rendez-vous et les bobos de tout le monde. Résultat ? Elles sont les dernières sur leur propre liste de priorités. La charge mentale a une conséquence directe : la négligence de leur propre santé."
+        },
+        {
+          "title": "Concrètement",
+          "text": "Une enseigne qui informe, accompagne et donne de la voix à celles qui font pour les autres.\nUn changement de signature de marque : “Penser à celles qui pensent déjà à tout.”\nUnivers visuel repensé : clair, doux, rassurant\nProduits et signalétique conçus pour simplifier le parcours\nCampagne de sensibilisation sur la charge médicale invisible\nMédia digital : contenus utiles, témoignages, prévention\nActivation en point de vente, social, influence"
+        },
+        {
+          "title": "Résultats",
+          "text": "Des contenus incarnés qui engagent:\njusqu’à 332K vues par contenu\n134 % de taux d’engagement\n+7K interactions sur un seul post\nUne notoriété en forte hausse:\n+76 % d’abonnés TikTok\n+48 % de portée Facebook,\n+1,7K abonnés LinkedIn en 6 mois\nUne avance nette sur la concurrence encore figée dans des codes promo et impersonnels."
+        }
+      ],
+      "media": [
+        {
+          "file": "aprium-pharmacie/Capture_d_e_cran_2026-05-28_a__11.32.07.png",
+          "alt": "Aprium - cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Capture%20d%E2%80%99e%CC%81cran%202026-05-28%20a%CC%80%2011.32.07.png",
+          "file_light": "light/aprium-pharmacie/Capture_d_e_cran_2026-05-28_a__11.32.07.webp"
+        },
+        {
+          "file": "aprium-pharmacie/Loog_Aprium_0.png",
+          "alt": "Logo Aprium",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Loog%20Aprium_0.png",
+          "file_light": "light/aprium-pharmacie/Loog_Aprium_0.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE1__10_.jpg",
+          "alt": "Video Aprium1",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%2810%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE1__10_.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE2__8_.jpg",
+          "alt": "Video Aprium2",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%288%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE2__8_.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE3__2_.jpg",
+          "alt": "Aprium - Fabrique de Noël",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE3%20%282%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE3__2_.webp"
+        },
+        {
+          "file": "aprium-pharmacie/Frame_90.jpg",
+          "alt": "Aprium visuel gamme",
+          "source": "https://lmwr.fr/sites/default/files/images/Frame%2090.jpg",
+          "file_light": "light/aprium-pharmacie/Frame_90.webp"
+        },
+        {
+          "file": "aprium-pharmacie/Melatonine_ok.jpg",
+          "alt": "Aprium visuel mélatonine",
+          "source": "https://lmwr.fr/sites/default/files/images/Melatonine%20ok.jpg",
+          "file_light": "light/aprium-pharmacie/Melatonine_ok.webp"
+        },
+        {
+          "file": "aprium-pharmacie/HYDRABOOST-GAMME_ok.jpg",
+          "alt": "Aprium visuel hydraboost",
+          "source": "https://lmwr.fr/sites/default/files/images/HYDRABOOST-GAMME%20ok.jpg",
+          "file_light": "light/aprium-pharmacie/HYDRABOOST-GAMME_ok.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE1__11_.jpg",
+          "alt": "Aprium - Influ TROD angine",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%2811%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE1__11_.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE2__9_.jpg",
+          "alt": "Video Aprium5",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%289%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE2__9_.webp"
+        },
+        {
+          "file": "aprium-pharmacie/IMAGE3__3_.jpg",
+          "alt": "Video Aprium6",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE3%20%283%29.jpg",
+          "file_light": "light/aprium-pharmacie/IMAGE3__3_.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/N001G6gPF6J00ZwP00olke25cLAcwDB94irV1JoHhmfQek.m3u8",
+          "file": "aprium-pharmacie/video-N001G6gPF6J00ZwP00olke25cLAcwDB94irV1JoHhmfQek.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/LiTVPP38q0000MbU9LmXCFRcNKfURt016tXsKgKHf01T2Gs.m3u8",
+          "file": "aprium-pharmacie/video-LiTVPP38q0000MbU9LmXCFRcNKfURt016tXsKgKHf01T2Gs.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/XjO5U65ZEv3UM7T7yOc7x4pF9HziROo02ulBDqz9LdZ4.m3u8",
+          "file": "aprium-pharmacie/video-XjO5U65ZEv3UM7T7yOc7x4pF9HziROo02ulBDqz9LdZ4.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/B38lHiqr93rb83jeibw5YjoZGrLiplUFRhj6NyyR1nQ.m3u8",
+          "file": "aprium-pharmacie/video-B38lHiqr93rb83jeibw5YjoZGrLiplUFRhj6NyyR1nQ.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/4bZMz8C345VbtoKY7N2uXIDbd3tM8IwIFJMGx01KMMlo.m3u8",
+          "file": "aprium-pharmacie/video-4bZMz8C345VbtoKY7N2uXIDbd3tM8IwIFJMGx01KMMlo.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/P49BqUzxPvoQ01RSe4iayAgh02OrLG02lk7JKHE9BrOtYg.m3u8",
+          "file": "aprium-pharmacie/video-P49BqUzxPvoQ01RSe4iayAgh02OrLG02lk7JKHE9BrOtYg.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/N00OWin802SQ4uTqo6dImn8xxXJ46FPe6NLMmrOulBAg4.m3u8",
+          "file": "aprium-pharmacie/video-N00OWin802SQ4uTqo6dImn8xxXJ46FPe6NLMmrOulBAg4.mp4"
+        }
+      ],
+      "assets_dir": "aprium-pharmacie"
+    },
+    {
+      "slug": "brets",
+      "url": "https://lmwr.fr/brets",
+      "title": "Ça part en chips !",
+      "tags": [
+        "Publicité",
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/TBU62GVJteU2w8tgzLMl1As9Uu58WS8ApkXtQbDgeWM.m3u8",
+        "poster": "brets/Capture_d__cran_2026-01-12_151311.png",
+        "logo": "brets/LOGO_Brets.png",
+        "poster_light": "light/brets/Capture_d__cran_2026-01-12_151311.webp",
+        "logo_light": "light/brets/LOGO_Brets.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas une chips, c’est un pote."
+      },
+      "sections": [
+        {
+          "title": "Problématique",
+          "text": "Quand on est un petit acteur breton dans un marché aussi installé que celui des PSA (produits salés apéritifs), comment prendre sa place à l’apéro ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "En prenant littéralement sa place a l'apéro.\nOn crée une conversation immédiate en supprimant systématiquement le 4ème mur entre la marque et le consommateur :\nau cinéma, nos publicités discutent avec le public\nsur Netflix, on spoile nos propres pubs comme si on était sur votre canapé\nsur YouTube, on arrive à vous convaincre de ne pas nous skipper\nsur les réseaux, on lance des battles de trends avec une communauté super engagée"
+        },
+        {
+          "title": "Résultats",
+          "text": "N°2 du marché\n23% de parts de marché, devant Vico et talonnant Lay’s\nMarque préférée des français\ndans la catégorie salée (Kantar 2024)"
+        }
+      ],
+      "media": [
+        {
+          "file": "brets/Capture_d__cran_2026-01-12_151311.png",
+          "alt": "brets",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20151311.png",
+          "file_light": "light/brets/Capture_d__cran_2026-01-12_151311.webp"
+        },
+        {
+          "file": "brets/LOGO_Brets.png",
+          "alt": "logo brets",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Brets.png",
+          "file_light": "light/brets/LOGO_Brets.webp"
+        },
+        {
+          "file": "brets/IMAGE1__14_.jpg",
+          "alt": "Video Brets1",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%2814%29.jpg",
+          "file_light": "light/brets/IMAGE1__14_.webp"
+        },
+        {
+          "file": "brets/Brets_-_Fe_te_du_piment.png",
+          "alt": "Brets - Fête du piment",
+          "source": "https://lmwr.fr/sites/default/files/2026-08/Brets%20-%20Fe%CC%82te%20du%20piment.png",
+          "file_light": "light/brets/Brets_-_Fe_te_du_piment.webp"
+        },
+        {
+          "file": "brets/abd11dd2817a86d8c9e140ffa99cc6b68d6178e0.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/abd11dd2817a86d8c9e140ffa99cc6b68d6178e0.jpg",
+          "file_light": "light/brets/abd11dd2817a86d8c9e140ffa99cc6b68d6178e0.webp"
+        },
+        {
+          "file": "brets/IMAGE3_0.jpg",
+          "alt": "Video Brets1",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE3_0.jpg",
+          "file_light": "light/brets/IMAGE3_0.webp"
+        },
+        {
+          "file": "brets/a7ca953eb4a6d82301c1f2a736a55a8b4fb44570.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/a7ca953eb4a6d82301c1f2a736a55a8b4fb44570.jpg",
+          "file_light": "light/brets/a7ca953eb4a6d82301c1f2a736a55a8b4fb44570.webp"
+        },
+        {
+          "file": "brets/Capture_d__cran_2026-04-15_120651.png",
+          "alt": "Brets - ça part en chips",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%27%C3%A9cran%202026-04-15%20120651.png",
+          "file_light": "light/brets/Capture_d__cran_2026-04-15_120651.webp"
+        },
+        {
+          "file": "brets/Brets_-_Netflix_Infiltration.png",
+          "alt": "Brets - Netflix Infiltration",
+          "source": "https://lmwr.fr/sites/default/files/2026-08/Brets%20-%20Netflix%20Infiltration.png",
+          "file_light": "light/brets/Brets_-_Netflix_Infiltration.webp"
+        },
+        {
+          "file": "brets/BRETS-PASTIS.jpg",
+          "alt": "Brets Pastis",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS-PASTIS.jpg",
+          "file_light": "light/brets/BRETS-PASTIS.webp"
+        },
+        {
+          "file": "brets/IMAGE2_1.jpg",
+          "alt": "Video Aligot",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2_1.jpg",
+          "file_light": "light/brets/IMAGE2_1.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_19.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_03_2025_%C2%A9MARY_DEVINAT_WEB_19.jpg",
+          "file_light": "light/brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_19.webp"
+        },
+        {
+          "file": "brets/Capture_d__cran_2026-04-15___11.33.48.png",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/Capture%20d%E2%80%99%C3%A9cran%202026-04-15%20%C3%A0%2011.33.48.png",
+          "file_light": "light/brets/Capture_d__cran_2026-04-15___11.33.48.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_09_2024__MARY_DEVINAT_16.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_09_2024_%C2%A9MARY_DEVINAT_16.jpg",
+          "file_light": "light/brets/BRETS_RS_09_2024__MARY_DEVINAT_16.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_07_2024__MARY_DEVINAT_9.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_07_2024_%C2%A9MARY_DEVINAT_9.jpg",
+          "file_light": "light/brets/BRETS_RS_07_2024__MARY_DEVINAT_9.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_17.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_03_2025_%C2%A9MARY_DEVINAT_WEB_17.jpg",
+          "file_light": "light/brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_17.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_8.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_03_2025_%C2%A9MARY_DEVINAT_WEB_8.jpg",
+          "file_light": "light/brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_8.webp"
+        },
+        {
+          "file": "brets/147A3025.jpg",
+          "alt": "BRETS",
+          "source": "https://lmwr.fr/sites/default/files/images/147A3025.jpg",
+          "file_light": "light/brets/147A3025.webp"
+        },
+        {
+          "file": "brets/5_copie.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/5%20copie.jpg",
+          "file_light": "light/brets/5_copie.webp"
+        },
+        {
+          "file": "brets/BRETS_06_2025__MARY_DEVINAT_18.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_06_2025_%C2%A9MARY_DEVINAT_18.jpg",
+          "file_light": "light/brets/BRETS_06_2025__MARY_DEVINAT_18.webp"
+        },
+        {
+          "file": "brets/Capture_d__cran_2026-04-15___11.33.26.png",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/Capture%20d%E2%80%99%C3%A9cran%202026-04-15%20%C3%A0%2011.33.26.png",
+          "file_light": "light/brets/Capture_d__cran_2026-04-15___11.33.26.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_20.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_03_2025_%C2%A9MARY_DEVINAT_WEB_20.jpg",
+          "file_light": "light/brets/BRETS_RS_03_2025__MARY_DEVINAT_WEB_20.webp"
+        },
+        {
+          "file": "brets/BRETS_RS_07_2024__MARY_DEVINAT_4.jpg",
+          "alt": "Brets",
+          "source": "https://lmwr.fr/sites/default/files/images/BRETS_RS_07_2024_%C2%A9MARY_DEVINAT_4.jpg",
+          "file_light": "light/brets/BRETS_RS_07_2024__MARY_DEVINAT_4.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/QttBPmt01Dvn2RirhXUTcLMnHstu7j3XJc3IY00BymP028.m3u8",
+          "file": "brets/video-QttBPmt01Dvn2RirhXUTcLMnHstu7j3XJc3IY00BymP028.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/3zBimo3qrb7vEqnZjS015ltoLI5g6iLGY8LnoG56URRI.m3u8",
+          "file": "brets/video-3zBimo3qrb7vEqnZjS015ltoLI5g6iLGY8LnoG56URRI.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/XToOG8LC02bUrJfBPvYJTlw02EwNF6nle69u2DXa302aPM.m3u8",
+          "file": "brets/video-XToOG8LC02bUrJfBPvYJTlw02EwNF6nle69u2DXa302aPM.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ntZ7ILijH02bR028C01yBUDg102K4idFRSEN61401KBieIS00.m3u8",
+          "file": "brets/video-ntZ7ILijH02bR028C01yBUDg102K4idFRSEN61401KBieIS00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ku3ZylSS8XmwOUifLROtPW4q3wu7V01b01CquzgNi8YGA.m3u8",
+          "file": "brets/video-ku3ZylSS8XmwOUifLROtPW4q3wu7V01b01CquzgNi8YGA.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Ge4kAkmJ7Mdg3kAD8cIOTbi5LEN01aHHRmkyjuZp2e2M.m3u8",
+          "file": "brets/video-Ge4kAkmJ7Mdg3kAD8cIOTbi5LEN01aHHRmkyjuZp2e2M.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/TBU62GVJteU2w8tgzLMl1As9Uu58WS8ApkXtQbDgeWM.m3u8",
+          "file": "brets/video-TBU62GVJteU2w8tgzLMl1As9Uu58WS8ApkXtQbDgeWM.mp4"
+        }
+      ],
+      "assets_dir": "brets"
+    },
+    {
+      "slug": "comite-martiniquais-du-tourisme",
+      "url": "https://lmwr.fr/comite-martiniquais-du-tourisme",
+      "title": "La Martinique, elle vous M !",
+      "tags": [],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/006zcxTtL47dA6pqB00hD9A6xKA4iDW7TS7A8U01GuGhzE.m3u8",
+        "poster": "comite-martiniquais-du-tourisme/Martinique_-_Cover.png",
+        "logo": "comite-martiniquais-du-tourisme/LOGO_Martinique.png",
+        "poster_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Cover.webp",
+        "logo_light": "light/comite-martiniquais-du-tourisme/LOGO_Martinique.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas une destination.\nC’est une relation."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Dans un monde saturé d’images paradisiaques, toutes les destinations soleil finissent par se ressembler.\nLe problème n’est plus d’être belle. C’est d’être ressentie."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment faire émerger la Martinique dans un marché ultra concurrentiel, en passant d’une destination “carte postale” à une expérience émotionnelle et vivante, toute l’année ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Transformer la communication en expérience relationnelle continue.\nUne idée mère : “La Martinique, elle vous M”\nUne plateforme qui fait de la destination une entité vivante :\nelle vous attend, vous surprend, prend soin de vous, vous marque.\nUne stratégie d’attractivité continue : Sortir des campagnes “one shot” pour installer une présence toute l’année, connectée aux tensions réelles (météo, fatigue, routine).\nUn écosystème cohérent : Publicité × Social × Hub digital pour faire naître le désir, le nourrir, le convertir."
+        },
+        {
+          "title": "Déploiement",
+          "text": "Social media natif : Vidéo-first, codes plateformes (hook, trends, UGC), Productions avec créateurs locaux\nPromesse : “Découvrez la Martinique à travers ceux qui la vivent.”\nHub digital expérientiel : Plateforme multisite évolutive, Contenus inspirationnels + conversion, CRM & data + agent de voyage IA\nObjectif : transformer l’envie en projet de voyage."
+        },
+        {
+          "title": "Résultats",
+          "text": "Business & visibilité : 500k à 1M de visiteurs en 10 ans, +45% de trafic SEO en 12 mois\nSocial : +20K abonnés Instagram, +20M comptes atteints, +13M vues vidéo\nImage : Une destination perçue comme : plus authentique, plus humaine, plus expérientielle"
+        }
+      ],
+      "media": [
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Cover.png",
+          "alt": "Martinique - Cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Cover.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Cover.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/LOGO_Martinique.png",
+          "alt": "Logo Martinique",
+          "source": "https://lmwr.fr/sites/default/files/2026-02/LOGO%20Martinique.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/LOGO_Martinique.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Yole.png",
+          "alt": "Martinique - Yole",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Yole.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Yole.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Ponton.png",
+          "alt": "Martinique - Ponton",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Ponton.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Ponton.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Gastronomie.png",
+          "alt": "Martinique - Gastronomie",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Gastronomie.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Gastronomie.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Film.png",
+          "alt": "Martinique - Film",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Film.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Film.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__1.jpg",
+          "alt": "CMT - Campagne beauté 1",
+          "source": "https://lmwr.fr/sites/default/files/images/CMT%20-%20Campagne%20beaute%CC%81%201.jpg",
+          "file_light": "light/comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__1.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__2.jpg",
+          "alt": "CMT - Campagne beauté 2",
+          "source": "https://lmwr.fr/sites/default/files/images/CMT%20-%20Campagne%20beaute%CC%81%202.jpg",
+          "file_light": "light/comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__2.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__3.jpg",
+          "alt": "CMT - Campagne beauté 3",
+          "source": "https://lmwr.fr/sites/default/files/images/CMT%20-%20Campagne%20beaute%CC%81%203.jpg",
+          "file_light": "light/comite-martiniquais-du-tourisme/CMT_-_Campagne_beaute__3.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Les_oeuvres.png",
+          "alt": "Martinique - Les oeuvres",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Les%20oeuvres.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Les_oeuvres.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/Martinique_-_Les_statues.png",
+          "alt": "Martinique - Les statues",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Martinique%20-%20Les%20statues.png",
+          "file_light": "light/comite-martiniquais-du-tourisme/Martinique_-_Les_statues.webp"
+        },
+        {
+          "file": "comite-martiniquais-du-tourisme/CMT_-_Martinique_Trail_Tour.jpg",
+          "alt": "CMT - Martinique Trail Tour",
+          "source": "https://lmwr.fr/sites/default/files/images/CMT%20-%20Martinique%20Trail%20Tour.jpg",
+          "file_light": "light/comite-martiniquais-du-tourisme/CMT_-_Martinique_Trail_Tour.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/g2qfZ011Gx02MrK01uSAmH50101x8ucAroh4jMxjyfTvgKpM.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-g2qfZ011Gx02MrK01uSAmH50101x8ucAroh4jMxjyfTvgKpM.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Tcx02XXM8VVC4x01yhD77ySiswLGQC100UDBl3WZ7tahlk.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-Tcx02XXM8VVC4x01yhD77ySiswLGQC100UDBl3WZ7tahlk.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/I55haWg902a7BBmzkfvw8oxWtEtq00KHOEPQWS1GkjZqo.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-I55haWg902a7BBmzkfvw8oxWtEtq00KHOEPQWS1GkjZqo.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/fLR00DD74DTJfGPiFiluYtGJOyHpg028qjtRTqdioBVl00.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-fLR00DD74DTJfGPiFiluYtGJOyHpg028qjtRTqdioBVl00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/006zcxTtL47dA6pqB00hD9A6xKA4iDW7TS7A8U01GuGhzE.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-006zcxTtL47dA6pqB00hD9A6xKA4iDW7TS7A8U01GuGhzE.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/TcRFbMt5yTV02rI97ljhze3cHkPLvXlfJkjvIHISAEvQ.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-TcRFbMt5yTV02rI97ljhze3cHkPLvXlfJkjvIHISAEvQ.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/9BA02G95xf1eJE8hgjZb8WFCW6VJpUEXREdNQlI2lJZQ.m3u8",
+          "file": "comite-martiniquais-du-tourisme/video-9BA02G95xf1eJE8hgjZb8WFCW6VJpUEXREdNQlI2lJZQ.mp4"
+        }
+      ],
+      "assets_dir": "comite-martiniquais-du-tourisme"
+    },
+    {
+      "slug": "corsica-ferries",
+      "url": "https://lmwr.fr/corsica-ferries",
+      "title": "Augmentez votre pouvoir de vacances",
+      "tags": [
+        "Publicité",
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/uldWkIwyZG3oJy9EYfGlRSiGofPM58NU018nnZxTIzSg.m3u8",
+        "poster": "corsica-ferries/Capture_d__cran_2026-01-12_160124.png",
+        "logo": "corsica-ferries/LOGO_Corsica_Ferries.png",
+        "poster_light": "light/corsica-ferries/Capture_d__cran_2026-01-12_160124.webp",
+        "logo_light": "light/corsica-ferries/LOGO_Corsica_Ferries.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n'est pas des bateaux,\nce sont des vacances augmentées."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Prendre le bateau est souvent perçu comme une contrainte logistique lente face à la rapidité de l'avion. Mais l'avion impose une dictature du bagage et du trajet 'sous vide', amputant les vacances de leur liberté de mouvement une fois sur place."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment transformer la perception de la traversée en mer (perçue comme lente) en un avantage compétitif de \"vacances augmentées\" et sans contraintes ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Transformer la traversée en \"sas de décompression\" et le navire en coffre-fort de votre pouvoir d'achat (emmenez tout, dépensez moins), des vacances augmentées.\nUn nouveau discours chapeau, sur plusieurs années et plusieurs campagnes, revalorisant à la fois de nouveaux services et une offre existante.\nDispositif de communication 360 sur plusieurs années.\nDéveloppement de nouveaux services digitaux pour orienter les consommateurs vers les meilleures offres prix et suggérer tout le potentiel d’économies possible lorsque l’on peut emmener tout ce que l’on souhaite à bord."
+        },
+        {
+          "title": "Résultats image",
+          "text": "+10pts d’items positifs en e-reputation, entre 2023 et 2022\n+8 entre 2024 et 2023\nUne campagne qui s’inscrit dans le cadre d’une stratégie de reconquête d’image forte après des années de perturbation post Covid ayant entrainées des insatisfactions clients, liées à des retards ou annulations de voyages."
+        },
+        {
+          "title": "Résultats Business",
+          "text": "+5% de CA en 2023 vs 22\n+6% de CA en 2024 vs 23"
+        }
+      ],
+      "media": [
+        {
+          "file": "corsica-ferries/Capture_d__cran_2026-01-12_160124.png",
+          "alt": "corsica ferries",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20160124.png",
+          "file_light": "light/corsica-ferries/Capture_d__cran_2026-01-12_160124.webp"
+        },
+        {
+          "file": "corsica-ferries/LOGO_Corsica_Ferries.png",
+          "alt": "logo corsica ferries",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Corsica%20Ferries.png",
+          "file_light": "light/corsica-ferries/LOGO_Corsica_Ferries.webp"
+        },
+        {
+          "file": "corsica-ferries/Capture_d_e_cran_2026-05-27_a__15.08.39.png",
+          "alt": "Corsica Ferries - Film corpo",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Capture%20d%E2%80%99e%CC%81cran%202026-05-27%20a%CC%80%2015.08.39.png",
+          "file_light": "light/corsica-ferries/Capture_d_e_cran_2026-05-27_a__15.08.39.webp"
+        },
+        {
+          "file": "corsica-ferries/Chien_1.jpg",
+          "alt": "Corsica - Traversée à poil",
+          "source": "https://lmwr.fr/sites/default/files/images/Chien%201.jpg",
+          "file_light": "light/corsica-ferries/Chien_1.webp"
+        },
+        {
+          "file": "corsica-ferries/IMAGE2__7_.jpg",
+          "alt": "Video Corsica 1",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%287%29.jpg",
+          "file_light": "light/corsica-ferries/IMAGE2__7_.webp"
+        },
+        {
+          "file": "corsica-ferries/Maman.jpg",
+          "alt": "Corsica - Maman",
+          "source": "https://lmwr.fr/sites/default/files/images/Maman.jpg",
+          "file_light": "light/corsica-ferries/Maman.webp"
+        },
+        {
+          "file": "corsica-ferries/MOCKUP_CORSICA_1_2_copie_1.jpg",
+          "alt": "Corsica Ferries - Go Yellow",
+          "source": "https://lmwr.fr/sites/default/files/images/MOCKUP%20CORSICA%201%202%20copie%201.jpg",
+          "file_light": "light/corsica-ferries/MOCKUP_CORSICA_1_2_copie_1.webp"
+        },
+        {
+          "file": "corsica-ferries/Corsica_Ferries_-_Comparez___Embarquez_0.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/Corsica%20Ferries%20-%20Comparez%20%3A%20Embarquez_0.jpg",
+          "file_light": "light/corsica-ferries/Corsica_Ferries_-_Comparez___Embarquez_0.webp"
+        },
+        {
+          "file": "corsica-ferries/Corsica_Ferries_-_Film_Banana_Boat.png",
+          "alt": "Corsica Ferries - Film Banana Boat",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Corsica%20Ferries%20-%20Film%20Banana%20Boat.png",
+          "file_light": "light/corsica-ferries/Corsica_Ferries_-_Film_Banana_Boat.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/uicezrvLP8jpL3ryOYXQqNkbp2PspigJehhRWztmiZ8.m3u8",
+          "file": "corsica-ferries/video-uicezrvLP8jpL3ryOYXQqNkbp2PspigJehhRWztmiZ8.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/z01NjtR2VZ1Jn2q006cxGqYWjwwlEfm3EmsMH02WLET4zc.m3u8",
+          "file": "corsica-ferries/video-z01NjtR2VZ1Jn2q006cxGqYWjwwlEfm3EmsMH02WLET4zc.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/LNzRZ027zjxI44FJ2t53EcmJ00ZnRfxdf6N02ECoOJj001o.m3u8",
+          "file": "corsica-ferries/video-LNzRZ027zjxI44FJ2t53EcmJ00ZnRfxdf6N02ECoOJj001o.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/uldWkIwyZG3oJy9EYfGlRSiGofPM58NU018nnZxTIzSg.m3u8",
+          "file": "corsica-ferries/video-uldWkIwyZG3oJy9EYfGlRSiGofPM58NU018nnZxTIzSg.mp4"
+        }
+      ],
+      "assets_dir": "corsica-ferries"
+    },
+    {
+      "slug": "crt-provence-tourisme",
+      "url": "https://lmwr.fr/crt-provence-tourisme",
+      "title": "Enjoy the unexpected",
+      "tags": [
+        "Publicité",
+        "Branding"
+      ],
+      "meta_description": null,
+      "hero": {
+        "poster": "crt-provence-tourisme/MyProvence_-_VISUELS_CASE_ente_te.jpg",
+        "logo": "crt-provence-tourisme/LOGO_MyProvence.png",
+        "poster_light": "light/crt-provence-tourisme/MyProvence_-_VISUELS_CASE_ente_te.webp",
+        "logo_light": "light/crt-provence-tourisme/LOGO_MyProvence.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas une destination connue, c’est une journée inattendue."
+      },
+      "sections": [
+        {
+          "title": "Problématique",
+          "text": "Comment faire d’une destination trop connue une destination encore à découvrir ?"
+        },
+        {
+          "title": "Insight",
+          "text": "La Provence n’a pas de problème d’image — elle en a trop. Lavande, cigales, calanques : le territoire est prisonnier de ses propres clichés. Les voyageurs y viennent avec une carte postale en tête et repartent sans avoir rien vécu d’inattendu. Pourtant, c’est précisément là que se cache son pouvoir de séduction le plus fort."
+        },
+        {
+          "title": "Concrètement",
+          "text": "Nous avons redéfini le concept créatif de la marque « Provence Enjoy the Unexpected » autour d’une mécanique simple et infiniment déclinable : chaque voyage inattendu commence par quelque chose d’attendu.\n« It all started with a game of pétanque. »\nSaint-Tropez dévoile une intimité de bord de mer.\n« It all started with a ticket to ride. »\nL'Arles-Camargue révèle ses chevaux blancs au crépuscule.\n« It all started with a Cézanne art show. »\nAix-en-Provence ouvre sur la Sainte-Victoire et une peintre en plein air.\nLe « P » de Provence devient un signal visuel fort — conteneur du point de départ attendu, révélateur de l’image inattendue."
+        },
+        {
+          "title": "Résultats",
+          "text": "« Provence Enjoy the Unexpected »\nRedéfinition du concept créatif de la marque.\nCampagne de co-branding internationale\navec des acteurs majeurs comme Expedia et Explore France pour booster les réservations.\nCréation d'une Tool Box\npour assurer la cohérence graphique du concept sur tous les supports.\nDispositif Motion Design\nde 10 à 15 secondes conçu spécifiquement pour le DOOH et les plateformes sociales.\nDéploiement international\ndans les hubs de voyage pour capter le voyageur là où il se trouve (affichage grand format 4x3, gares, aéroports et bannières digitales)."
+        }
+      ],
+      "media": [
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_VISUELS_CASE_ente_te.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20VISUELS%20CASE%20ente%CC%82te.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_VISUELS_CASE_ente_te.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/LOGO_MyProvence.png",
+          "alt": "LOGO MyProvence",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/LOGO%20MyProvence.png",
+          "file_light": "light/crt-provence-tourisme/LOGO_MyProvence.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Ticket_to_ride_1.png",
+          "alt": "MyProvence - Ticket to ride 1",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Ticket%20to%20ride%201.png",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Ticket_to_ride_1.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Ticket_to_ride_2.png",
+          "alt": "MyProvence - Ticket to ride 2",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Ticket%20to%20ride%202.png",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Ticket_to_ride_2.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_VISUELS_CASE_0.png",
+          "alt": "MyProvence - pique-nique",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20VISUELS%20CASE_0.png",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_VISUELS_CASE_0.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Grape_escape_1.jpg",
+          "alt": "MyProvence - Grape escape 1",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Grape%20escape%201.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Grape_escape_1.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Grape_escape_2.jpg",
+          "alt": "MyProvence - Grape escape 2",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Grape%20escape%202.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Grape_escape_2.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_IMAGE1.jpg",
+          "alt": "MyProvence - bateau",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20IMAGE1.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_IMAGE1.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Ce_zanne_2.jpg",
+          "alt": "MyProvence - Cézanne 1",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Ce%CC%81zanne%202.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Ce_zanne_2.webp"
+        },
+        {
+          "file": "crt-provence-tourisme/MyProvence_-_Ce_zanne_1.jpg",
+          "alt": "MyProvence - Cézanne 2",
+          "source": "https://lmwr.fr/sites/default/files/images/MyProvence%20-%20Ce%CC%81zanne%201.jpg",
+          "file_light": "light/crt-provence-tourisme/MyProvence_-_Ce_zanne_1.webp"
+        }
+      ],
+      "videos": [],
+      "assets_dir": "crt-provence-tourisme"
+    },
+    {
+      "slug": "dartigny",
+      "url": "https://lmwr.fr/dartigny",
+      "title": "On fête quoi\naujourd'hui ?",
+      "tags": [
+        "Publicité"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/bXYvzsWLGFDQsOc00aiiaQXEy6PGtwRXknO01O02sH00lMY.m3u8",
+        "poster": "dartigny/ENTETE_COVER.png",
+        "logo": "dartigny/LOGO.png",
+        "poster_light": "light/dartigny/ENTETE_COVER.webp",
+        "logo_light": "light/dartigny/LOGO.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est plus une boisson pour fêter l’occasion, c’est une occasion de faire la fête."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "À trop vouloir singer le champagne, d’Artigny (leader du vin pétillant sans alcool) a hérité de ses freins à la consommation : une image grand soir et une consommation… avec modération, réservée aux grandes occasions."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment détacher la bulle sans alcool du calendrier des grandes occasions pour l'ancrer dans les célébrations spontanées du quotidien ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "En augmentant la fréquence de célébration avec un nouveau discours de communication.\nUne marque rafraîchie à travers une nouvelle copy TV qui célèbre le quotidien : “ d’Artigny, on fête quoi aujourd’hui ? ”"
+        }
+      ],
+      "media": [
+        {
+          "file": "dartigny/ENTETE_COVER.png",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/ENTETE%20COVER.png",
+          "file_light": "light/dartigny/ENTETE_COVER.webp"
+        },
+        {
+          "file": "dartigny/LOGO.png",
+          "alt": "LOGO DARTIGNY",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/LOGO.png",
+          "file_light": "light/dartigny/LOGO.webp"
+        },
+        {
+          "file": "dartigny/PUB_COVER.png",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/PUB%20COVER.png",
+          "file_light": "light/dartigny/PUB_COVER.webp"
+        },
+        {
+          "file": "dartigny/VISUEL1.jpg",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/images/VISUEL1.jpg",
+          "file_light": "light/dartigny/VISUEL1.webp"
+        },
+        {
+          "file": "dartigny/VIDEO1_COVER.png",
+          "alt": "D'Artigny - carré",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/VIDEO1%20COVER.png",
+          "file_light": "light/dartigny/VIDEO1_COVER.webp"
+        },
+        {
+          "file": "dartigny/CAPSULE1_COVER.png",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/CAPSULE1%20COVER.png",
+          "file_light": "light/dartigny/CAPSULE1_COVER.webp"
+        },
+        {
+          "file": "dartigny/CAPSULE2_COVER.png",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/CAPSULE2%20COVER.png",
+          "file_light": "light/dartigny/CAPSULE2_COVER.webp"
+        },
+        {
+          "file": "dartigny/CAPSULE3_COVER.png",
+          "alt": "dartigny",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/CAPSULE3%20COVER.png",
+          "file_light": "light/dartigny/CAPSULE3_COVER.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/KBAc32qzgxsKubX7Ge02007o7rPPVjrbbxRhKpGwbUz2M.m3u8",
+          "file": "dartigny/video-KBAc32qzgxsKubX7Ge02007o7rPPVjrbbxRhKpGwbUz2M.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/k7e008mX02B02ve6DRJkFplj7IS6XsDWKFXRG018Ts1oY3U.m3u8",
+          "file": "dartigny/video-k7e008mX02B02ve6DRJkFplj7IS6XsDWKFXRG018Ts1oY3U.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/I3OPcEeSJr3Z1QzF00lp6A1wmMEuHxQRBylLJ5q3Hn3A.m3u8",
+          "file": "dartigny/video-I3OPcEeSJr3Z1QzF00lp6A1wmMEuHxQRBylLJ5q3Hn3A.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Sw7N01USDP8DC3HmcJX62QYaCXFp3S7P89ncqN01Xpkvc.m3u8",
+          "file": "dartigny/video-Sw7N01USDP8DC3HmcJX62QYaCXFp3S7P89ncqN01Xpkvc.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/VdeOhNNmZK4M2iiMAsF5lRHMIvDq4nT4frCMSlsu8cE.m3u8",
+          "file": "dartigny/video-VdeOhNNmZK4M2iiMAsF5lRHMIvDq4nT4frCMSlsu8cE.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/bXYvzsWLGFDQsOc00aiiaQXEy6PGtwRXknO01O02sH00lMY.m3u8",
+          "file": "dartigny/video-bXYvzsWLGFDQsOc00aiiaQXEy6PGtwRXknO01O02sH00lMY.mp4"
+        }
+      ],
+      "assets_dir": "dartigny"
+    },
+    {
+      "slug": "fleury-michon",
+      "url": "https://lmwr.fr/fleury-michon",
+      "title": "L'inspiration au quotidien",
+      "tags": [
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/ScU3IX65HaLPXC1sZImKy9ZJCRmFxfMRqIsf8Hiaf3s.m3u8",
+        "poster": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.34.09.png",
+        "logo": "fleury-michon/Logo_Fleury_Michon.png",
+        "poster_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.34.09.webp",
+        "logo_light": "light/fleury-michon/Logo_Fleury_Michon.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "En transformant des produits du quotidien en accélérateurs de créativité et de complicité. Fleury Michon, ce n’est pas juste du jambon, c’est une source d’inspiration quotidienne."
+      },
+      "sections": [
+        {
+          "title": "Problématique",
+          "text": "Quand on est une marque achetée par habitude mais pas toujours choisie par conviction dans les rayons, comment capter l’attention et devenir une marque considérée pour la qualité et la créativité de ses produits ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "On déploie une stratégie de contenus vidéo ultra-rythmée sur Instagram, TikTok et Facebook, articulée autour de formats puissants :\nles vidéos recettes : du contenu food ultra-gourmand, simple et rapide, qui intègre naturellement l'ensemble de la gamme au cœur de la cuisine de tous les jours.\nles vidéos concepts : des formats natifs et décalés où les produits répondent avec humour aux insights de la vie quotidienne, en s'appropriant parfaitement les codes de TikTok.\nDes activations pop : à l'image du lancement des tranches végé curry-cumin, propulsé par la production de contenus exclusifs autour d'un DJ set inédit... au cœur d'une boulangerie."
+        },
+        {
+          "title": "Résultats",
+          "text": "Une stratégie qui capte immédiatement l'attention et retient l'audience.\nLes campagnes affichent des hook rates (taux d'accroche) et des hold rates (taux de complétion) largement au-dessus des benchmarks.\nC’est aussi un carton plein sur TikTok avec un lancement réussi affichant plus de 9 millions de vues cumulées et 20K likes en seulement 3 mois.\nLa marque s'impose comme un acteur créatif, innovant et complice dans le feed des Français."
+        }
+      ],
+      "media": [
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.34.09.png",
+          "alt": "Fleury Michon - cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.34.09.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.34.09.webp"
+        },
+        {
+          "file": "fleury-michon/Logo_Fleury_Michon.png",
+          "alt": "Logo Fleury Michon",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Logo%20Fleury%20Michon.png",
+          "file_light": "light/fleury-michon/Logo_Fleury_Michon.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.47.29.png",
+          "alt": "Fleury Michon - plat préparé post-pilates",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.47.29.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.47.29.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-08-06_a__12.41.02.png",
+          "alt": "Fleury Michon - dégustation à l'aveugle",
+          "source": "https://lmwr.fr/sites/default/files/2026-08/Capture%20d%E2%80%99e%CC%81cran%202026-08-06%20a%CC%80%2012.41.02.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-08-06_a__12.41.02.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.48.06.png",
+          "alt": "Fleury Michon - chips de surimi",
+          "source": "https://lmwr.fr/sites/default/files/2026-08/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.48.06.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.48.06.webp"
+        },
+        {
+          "file": "fleury-michon/Fleury_Michon_-_Curry.jpg",
+          "alt": "Fleury Michon - Curry",
+          "source": "https://lmwr.fr/sites/default/files/images/Fleury%20Michon%20-%20Curry.jpg",
+          "file_light": "light/fleury-michon/Fleury_Michon_-_Curry.webp"
+        },
+        {
+          "file": "fleury-michon/Fleury_Michon_-_E_ve_nement.jpg",
+          "alt": "Fleury Michon - Évènement",
+          "source": "https://lmwr.fr/sites/default/files/images/Fleury%20Michon%20-%20E%CC%81ve%CC%80nement.jpg",
+          "file_light": "light/fleury-michon/Fleury_Michon_-_E_ve_nement.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.52.09.png",
+          "alt": "Fleury Michon - Aftermovie",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.52.09.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.52.09.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.51.16.png",
+          "alt": "Fleury Michon - Micro-trottoir dégustation event",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.51.16.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.51.16.webp"
+        },
+        {
+          "file": "fleury-michon/Capture_d_e_cran_2026-07-06_a__12.51.41.png",
+          "alt": "Fleury Michon - Micro-trottoir event",
+          "source": "https://lmwr.fr/sites/default/files/2026-07/Capture%20d%E2%80%99e%CC%81cran%202026-07-06%20a%CC%80%2012.51.41.png",
+          "file_light": "light/fleury-michon/Capture_d_e_cran_2026-07-06_a__12.51.41.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/lZtZDnuIkQhZfJsdUtsq8Dt2PTWsal9ikVtxRRvO1X00.m3u8",
+          "file": "fleury-michon/video-lZtZDnuIkQhZfJsdUtsq8Dt2PTWsal9ikVtxRRvO1X00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/MbWfMg00pI44t327TlEKNtdnL01g008a00O00p1003JxmDo5M.m3u8",
+          "file": "fleury-michon/video-MbWfMg00pI44t327TlEKNtdnL01g008a00O00p1003JxmDo5M.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/JFuaB55FnrHktHuMZIg1xZeXp2Hn6i00e68ulqxpBQ7w.m3u8",
+          "file": "fleury-michon/video-JFuaB55FnrHktHuMZIg1xZeXp2Hn6i00e68ulqxpBQ7w.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/c2qfE6viUN2Ub00Xw9M6vj01RF1v9294g3HToG4Gw02o01k.m3u8",
+          "file": "fleury-michon/video-c2qfE6viUN2Ub00Xw9M6vj01RF1v9294g3HToG4Gw02o01k.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/YOibb4REHm51jgoOeOWy2MsjDeoHIbb98Ae8fqn101eg.m3u8",
+          "file": "fleury-michon/video-YOibb4REHm51jgoOeOWy2MsjDeoHIbb98Ae8fqn101eg.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ScU3IX65HaLPXC1sZImKy9ZJCRmFxfMRqIsf8Hiaf3s.m3u8",
+          "file": "fleury-michon/video-ScU3IX65HaLPXC1sZImKy9ZJCRmFxfMRqIsf8Hiaf3s.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Vvw0101thN4arx02ypcW02NFtSj4VeAUvrIf0100E7Tu00LhVI.m3u8",
+          "file": "fleury-michon/video-Vvw0101thN4arx02ypcW02NFtSj4VeAUvrIf0100E7Tu00LhVI.mp4"
+        }
+      ],
+      "assets_dir": "fleury-michon"
+    },
+    {
+      "slug": "ker-cadelac",
+      "url": "https://lmwr.fr/ker-cadelac",
+      "title": "Le plaisir n'attend pas",
+      "tags": [
+        "Publicité"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/d3I2rQl00D78LyO9pXE5KNwKvYVHDqEFyD48w006slWGs.m3u8",
+        "poster": "ker-cadelac/Capture_d__cran_2026-01-12_155907.png",
+        "logo": "ker-cadelac/LOGO_0.png",
+        "poster_light": "light/ker-cadelac/Capture_d__cran_2026-01-12_155907.webp",
+        "logo_light": "light/ker-cadelac/LOGO_0.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas juste « la marque du goûter », c’est la complice de toutes les envies sucrées."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Ker Cadélac est partout dans nos placards, mais rarement dans nos esprits. Comment lui donner un visage et en faire la complice de tous nos plaisirs sucrés ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "En s’appuyant sur la réalité produit (large gamme de pâtisseries moelleuses, savoir-faire artisanal, disponibilité en GMS) et sur une vérité universelle (« une envie sucrée, ça ne se contrôle pas »), la marque signe « Ker Cadélac, le plaisir n’attend pas ».\nLes films montrent des scènes dans lesquelles chacun peut se projeter : un goûter improvisé avec sa grand-mère, un encas bien mérité après une course. Filmés en point de vue immersif avec un rtyhme fluide et entraînant, ils insufflent modernité et énergie à la marque, tout en ancrant Ker Cadélac dans les petites pauses gourmandes du quotidien"
+        }
+      ],
+      "media": [
+        {
+          "file": "ker-cadelac/Capture_d__cran_2026-01-12_155907.png",
+          "alt": "KER CADELAC",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20155907.png",
+          "file_light": "light/ker-cadelac/Capture_d__cran_2026-01-12_155907.webp"
+        },
+        {
+          "file": "ker-cadelac/LOGO_0.png",
+          "alt": "KER CADELAC",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/LOGO_0.png",
+          "file_light": "light/ker-cadelac/LOGO_0.webp"
+        },
+        {
+          "file": "ker-cadelac/IMAGE1__3_.jpg",
+          "alt": "Ker Cadélac - Film Joggeuse",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%283%29.jpg",
+          "file_light": "light/ker-cadelac/IMAGE1__3_.webp"
+        },
+        {
+          "file": "ker-cadelac/IMAGE1__4_.jpg",
+          "alt": "Video Ker Cadelac2",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%284%29.jpg",
+          "file_light": "light/ker-cadelac/IMAGE1__4_.webp"
+        },
+        {
+          "file": "ker-cadelac/IMAGE2__3_.jpg",
+          "alt": "Video Ker Cadelac3",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%283%29.jpg",
+          "file_light": "light/ker-cadelac/IMAGE2__3_.webp"
+        },
+        {
+          "file": "ker-cadelac/IMAGE1__5_.jpg",
+          "alt": "Ker Cadélac - Film Cuisine",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%285%29.jpg",
+          "file_light": "light/ker-cadelac/IMAGE1__5_.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/XmOvyIsfmxLw6z4W026D36UihXN61cUvCCskzYv01ng8Y.m3u8",
+          "file": "ker-cadelac/video-XmOvyIsfmxLw6z4W026D36UihXN61cUvCCskzYv01ng8Y.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ifT02IRAAwpcyJAeqFYN2WJwZSf4Vv4VjbcWwrHe7hLk.m3u8",
+          "file": "ker-cadelac/video-ifT02IRAAwpcyJAeqFYN2WJwZSf4Vv4VjbcWwrHe7hLk.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/UyLxK2Jd3w02mtZm00mUo5Ao2M01Da02RKgRgeTwsm22W00U.m3u8",
+          "file": "ker-cadelac/video-UyLxK2Jd3w02mtZm00mUo5Ao2M01Da02RKgRgeTwsm22W00U.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/d3I2rQl00D78LyO9pXE5KNwKvYVHDqEFyD48w006slWGs.m3u8",
+          "file": "ker-cadelac/video-d3I2rQl00D78LyO9pXE5KNwKvYVHDqEFyD48w006slWGs.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/6LydepTJGtie00nR4ta59LPH9fAHkhr1OeBV9qZzsegM.m3u8",
+          "file": "ker-cadelac/video-6LydepTJGtie00nR4ta59LPH9fAHkhr1OeBV9qZzsegM.mp4"
+        }
+      ],
+      "assets_dir": "ker-cadelac"
+    },
+    {
+      "slug": "le-guerandais",
+      "url": "https://lmwr.fr/le-guerandais",
+      "title": "Le sel devient aventure",
+      "tags": [
+        "Publicité",
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/WTzDm02hw1Ql6JxJYgZorm02Hi8zchMpApEmwUYW1M9FM.m3u8",
+        "poster": "le-guerandais/Capture_d__cran_2026-01-12_154045.png",
+        "logo": "le-guerandais/LOGO_Guerandais.png",
+        "poster_light": "light/le-guerandais/Capture_d__cran_2026-01-12_154045.webp",
+        "logo_light": "light/le-guerandais/LOGO_Guerandais.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n'est pas du chlorure de sodium,\nc'est une aventure brute."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Le sel est le produit le plus banalisé de la cuisine : il est blanc, en poudre, et on l'achète par réflexe de survie gustative. Pourtant, le sel de Guérande est le seul ingrédient qui contient encore de l'océan, du vent et de la sueur d'artisan."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment débana­liser un produit du quotidien comme le sel et en faire un vecteur d’inspiration et de désir ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Nous avons construit une communication qui sort le Guérandais de son marais… sans jamais l’en détacher.\nAutour de son triptyque fondateur — le sel, les marais, l’humain — nous avons imaginé une campagne qui révèle :\nLes personnalités fortes de la coopérative, avec un storytelling humain et authentique,\nLe territoire vivant des marais de Guérande, entre océan, caractère breton et biodiversité,\nLes cuisiniers passionnés qui partagent le goût du vrai et des traditions.\nÀ travers une présence sociale active, des contenus inspirants, des campagnes TV, des activations magasins et un travail d’influence ciblé, nous avons réaffirmé Le Guérandais comme une marque patrimoniale, humaine et vivante."
+        },
+        {
+          "title": "Résultats",
+          "text": "Une prise de parole plus émotionnelle et aspirante autour d’un produit simple,\nUne image de marque renforcée, ancrée dans la tradition et tournée vers l’inspiration,\nUn engagement digital renforcé, grâce à des activations au plus près des acteurs du territoire,\nUne notoriété assistée passée de 20 à 40 points en 5 ans.\nUne marque devenue leader du rayon sel en quelques années."
+        }
+      ],
+      "media": [
+        {
+          "file": "le-guerandais/Capture_d__cran_2026-01-12_154045.png",
+          "alt": "le guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20154045.png",
+          "file_light": "light/le-guerandais/Capture_d__cran_2026-01-12_154045.webp"
+        },
+        {
+          "file": "le-guerandais/LOGO_Guerandais.png",
+          "alt": "logo guerandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Guerandais.png",
+          "file_light": "light/le-guerandais/LOGO_Guerandais.webp"
+        },
+        {
+          "file": "le-guerandais/LeGuerandais-LMWR-Printemps-17_2.jpg",
+          "alt": "le guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/LeGuerandais-LMWR-Printemps-17%202.jpg",
+          "file_light": "light/le-guerandais/LeGuerandais-LMWR-Printemps-17_2.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d__cran_2025-12-22___10.21.07.png",
+          "alt": "le guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/Capture%20d%E2%80%99%C3%A9cran%202025-12-22%20%C3%A0%2010.21.07.png",
+          "file_light": "light/le-guerandais/Capture_d__cran_2025-12-22___10.21.07.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d__cran_2026-04-15_162705.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%27%C3%A9cran%202026-04-15%20162705.png",
+          "file_light": "light/le-guerandais/Capture_d__cran_2026-04-15_162705.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d__cran_2026-04-15_162912.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%27%C3%A9cran%202026-04-15%20162912.png",
+          "file_light": "light/le-guerandais/Capture_d__cran_2026-04-15_162912.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d__cran_2026-04-15_163020.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%27%C3%A9cran%202026-04-15%20163020.png",
+          "file_light": "light/le-guerandais/Capture_d__cran_2026-04-15_163020.webp"
+        },
+        {
+          "file": "le-guerandais/IMAGE1__13_.jpg",
+          "alt": "Le Guérandais - Film",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%2813%29.jpg",
+          "file_light": "light/le-guerandais/IMAGE1__13_.webp"
+        },
+        {
+          "file": "le-guerandais/LeGuerandais-LMWR-Ete-2.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/LeGuerandais-LMWR-Ete-2.jpg",
+          "file_light": "light/le-guerandais/LeGuerandais-LMWR-Ete-2.webp"
+        },
+        {
+          "file": "le-guerandais/LeGuerandais-LMWR-Ete-8.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/LeGuerandais-LMWR-Ete-8.jpg",
+          "file_light": "light/le-guerandais/LeGuerandais-LMWR-Ete-8.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d_e_cran_2026-04-15_a__16.41.16.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%E2%80%99e%CC%81cran%202026-04-15%20a%CC%80%2016.41.16.png",
+          "file_light": "light/le-guerandais/Capture_d_e_cran_2026-04-15_a__16.41.16.webp"
+        },
+        {
+          "file": "le-guerandais/Cover.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/Cover.jpg",
+          "file_light": "light/le-guerandais/Cover.webp"
+        },
+        {
+          "file": "le-guerandais/Capture_d_e_cran_2026-04-15_a__16.41.40.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/Capture%20d%E2%80%99e%CC%81cran%202026-04-15%20a%CC%80%2016.41.40.png",
+          "file_light": "light/le-guerandais/Capture_d_e_cran_2026-04-15_a__16.41.40.webp"
+        },
+        {
+          "file": "le-guerandais/1.1.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/1.1.jpg",
+          "file_light": "light/le-guerandais/1.1.webp"
+        },
+        {
+          "file": "le-guerandais/1.2_COVER.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/1.2%20COVER.png",
+          "file_light": "light/le-guerandais/1.2_COVER.webp"
+        },
+        {
+          "file": "le-guerandais/1.3.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/1.3.jpg",
+          "file_light": "light/le-guerandais/1.3.webp"
+        },
+        {
+          "file": "le-guerandais/2.1.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/2.1.jpg",
+          "file_light": "light/le-guerandais/2.1.webp"
+        },
+        {
+          "file": "le-guerandais/2.2.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/2.2.jpg",
+          "file_light": "light/le-guerandais/2.2.webp"
+        },
+        {
+          "file": "le-guerandais/2.3.jpeg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/2.3.jpeg",
+          "file_light": "light/le-guerandais/2.3.webp"
+        },
+        {
+          "file": "le-guerandais/3.1.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/3.1.jpg",
+          "file_light": "light/le-guerandais/3.1.webp"
+        },
+        {
+          "file": "le-guerandais/3.2_COVER.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/3.2%20COVER.png",
+          "file_light": "light/le-guerandais/3.2_COVER.webp"
+        },
+        {
+          "file": "le-guerandais/3.3.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/3.3.jpg",
+          "file_light": "light/le-guerandais/3.3.webp"
+        },
+        {
+          "file": "le-guerandais/1.1_COVER.png",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/1.1%20COVER.png",
+          "file_light": "light/le-guerandais/1.1_COVER.webp"
+        },
+        {
+          "file": "le-guerandais/4.2.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/4.2.jpg",
+          "file_light": "light/le-guerandais/4.2.webp"
+        },
+        {
+          "file": "le-guerandais/4.3.jpg",
+          "alt": "Le Guérandais",
+          "source": "https://lmwr.fr/sites/default/files/images/4.3.jpg",
+          "file_light": "light/le-guerandais/4.3.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ItajMcp2r8XddphGiH4YpHmxSIA6xjwHl1Vnc4CDmQs.m3u8",
+          "file": "le-guerandais/video-ItajMcp2r8XddphGiH4YpHmxSIA6xjwHl1Vnc4CDmQs.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/tdkRgr2j6dJMCyF6EPvMPaVHgyQuhzVTOy2lAhDJfCQ.m3u8",
+          "file": "le-guerandais/video-tdkRgr2j6dJMCyF6EPvMPaVHgyQuhzVTOy2lAhDJfCQ.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/7cmAXReYHpdKJ8Oe6CepZGlndDgqPr3600c0217T3cGsI.m3u8",
+          "file": "le-guerandais/video-7cmAXReYHpdKJ8Oe6CepZGlndDgqPr3600c0217T3cGsI.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/NWr00RU0200n014CM4KICOz7ga00OiocM7n14LUHarLAriP00.m3u8",
+          "file": "le-guerandais/video-NWr00RU0200n014CM4KICOz7ga00OiocM7n14LUHarLAriP00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/KrDCwAgBaXBjZeSpPZaeBuvtIoh5zCujNtCGEpbFUBA.m3u8",
+          "file": "le-guerandais/video-KrDCwAgBaXBjZeSpPZaeBuvtIoh5zCujNtCGEpbFUBA.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/WTzDm02hw1Ql6JxJYgZorm02Hi8zchMpApEmwUYW1M9FM.m3u8",
+          "file": "le-guerandais/video-WTzDm02hw1Ql6JxJYgZorm02Hi8zchMpApEmwUYW1M9FM.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Np00SBSTKgaNYKNCv7Vie29lBoUgQLk6IGPGAjFtW102s.m3u8",
+          "file": "le-guerandais/video-Np00SBSTKgaNYKNCv7Vie29lBoUgQLk6IGPGAjFtW102s.mp4"
+        }
+      ],
+      "assets_dir": "le-guerandais"
+    },
+    {
+      "slug": "maison-thiriet",
+      "url": "https://lmwr.fr/maison-thiriet",
+      "title": "Seul le bon crée\nle bonheur",
+      "tags": [
+        "Publicité"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/xqkmIVUUricfW8HHmFR4gcEPxLszut35wRheaocSrOY.m3u8",
+        "poster": "maison-thiriet/Thiriet_vide_o_cover.png",
+        "logo": "maison-thiriet/LOGO_Thiriet.png",
+        "poster_light": "light/maison-thiriet/Thiriet_vide_o_cover.webp",
+        "logo_light": "light/maison-thiriet/LOGO_Thiriet.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "C'est la bonne maison pour ceux\nqui aiment le fait maison."
+      },
+      "sections": [
+        {
+          "title": "Problématique",
+          "text": "Comment ne plus s'excuser d'être un acteur du surgelé, mais de revendiquer la noblesse du nom : Maison Thiriet."
+        },
+        {
+          "title": "Insight",
+          "text": "Pour notre cible, le « fait maison » est l'étalon-or de la cuisine. Le surgelé est perçu comme un simple dépannage fonctionnel, pratique mais dénué d'émotion et de surprise. Pourtant, avec son ADN de cuisinier et son modèle intégré, Maison Thiriet propose des « créations culinaires » qui surpassent les standards du marché."
+        },
+        {
+          "title": "Concrètement",
+          "text": "L'idée est de montrer qu'on n'a pas forcément besoin de « faire maison » pour manger « fait maison ». En majuscule, la Maison devient une signature de qualité artisanale qui libère des injonctions de la cuisine quotidienne.\nEn capitalisant sur la haute gustativité des produits et la signature « Seul le bon crée le bonheur » , la marque déploie une campagne de Noël sous le cri de ralliement : « À tous ceux qui aiment le fait maison : choisissez la bonne Maison ».\nLe Film TV (L'humour au service du goût) : Le spot joue sur le décalage entre l'intention et le résultat des réalisations « maison » traditionnelles de Noël. On y voit des cadeaux touchants mais ratés (des baskets tricotées par une grand-mère, un déguisement de Père Noël bricolé par un papa). Le message est clair : si l'intention compte, seul le bon crée le bonheur. Pour ne pas prendre de risques, on choisit l'expertise de la Maison Thiriet.\nL'Affichage (Le sacre du produit) : Une campagne épurée centrée sur le hero product de la saison : le Mug Glacé. Le visuel sublime cette innovation pâtissière pour susciter une désirabilité immédiate. Le produit est accompagné de l'accroche « Choisissez la bonne Maison », affirmant ainsi le statut de créateur culinaire de la marque."
+        },
+        {
+          "title": "Résultats",
+          "text": "81% d'agrément\nMémorisation d'une personne sur 2\n+ 22 points sur les dimensions d'image"
+        }
+      ],
+      "media": [
+        {
+          "file": "maison-thiriet/Thiriet_vide_o_cover.png",
+          "alt": "Thiriet vidéo cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Thiriet%20vide%CC%81o%20cover.png",
+          "file_light": "light/maison-thiriet/Thiriet_vide_o_cover.webp"
+        },
+        {
+          "file": "maison-thiriet/LOGO_Thiriet.png",
+          "alt": "logo thiriet",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Thiriet.png",
+          "file_light": "light/maison-thiriet/LOGO_Thiriet.webp"
+        },
+        {
+          "file": "maison-thiriet/Thiriet_Papa.png",
+          "alt": "Thiriet Papa",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Thiriet%20Papa.png",
+          "file_light": "light/maison-thiriet/Thiriet_Papa.webp"
+        },
+        {
+          "file": "maison-thiriet/Thiriet_-_4x3.jpg",
+          "alt": "Thiriet - 4x3",
+          "source": "https://lmwr.fr/sites/default/files/images/Thiriet%20-%204x3.jpg",
+          "file_light": "light/maison-thiriet/Thiriet_-_4x3.webp"
+        },
+        {
+          "file": "maison-thiriet/Thiriet_-_Mamie.png",
+          "alt": "Thiriet - Mamie",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Thiriet%20-%20Mamie.png",
+          "file_light": "light/maison-thiriet/Thiriet_-_Mamie.webp"
+        },
+        {
+          "file": "maison-thiriet/Thiriet_-_garcon.jpg",
+          "alt": "Thiriet - garcon",
+          "source": "https://lmwr.fr/sites/default/files/images/Thiriet%20-%20garcon.jpg",
+          "file_light": "light/maison-thiriet/Thiriet_-_garcon.webp"
+        },
+        {
+          "file": "maison-thiriet/Thiriet_-_2m2.jpg",
+          "alt": "Thiriet - 2m2",
+          "source": "https://lmwr.fr/sites/default/files/images/Thiriet%20-%202m2.jpg",
+          "file_light": "light/maison-thiriet/Thiriet_-_2m2.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/xqkmIVUUricfW8HHmFR4gcEPxLszut35wRheaocSrOY.m3u8",
+          "file": "maison-thiriet/video-xqkmIVUUricfW8HHmFR4gcEPxLszut35wRheaocSrOY.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Tj02fmJmCI1ASj9zbqR2r2kNtmvQOEWa21v9AmEyIThk.m3u8",
+          "file": "maison-thiriet/video-Tj02fmJmCI1ASj9zbqR2r2kNtmvQOEWa21v9AmEyIThk.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Ez01weHpfXojGUrh02Q02H02XlwVxkWOG54x8kxA3THWJyI.m3u8",
+          "file": "maison-thiriet/video-Ez01weHpfXojGUrh02Q02H02XlwVxkWOG54x8kxA3THWJyI.mp4"
+        }
+      ],
+      "assets_dir": "maison-thiriet"
+    },
+    {
+      "slug": "malo",
+      "url": "https://lmwr.fr/malo",
+      "title": "Le retour au vrai Yaourt",
+      "tags": [
+        "Publicité"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/LarQXTJEhXw1wF8gTD6nhO9YHeBnGN00uicMWsjMJxDc.m3u8",
+        "poster": "malo/Capture_d__cran_2026-01-12_155523.png",
+        "logo": "malo/LOGO_Malo.png",
+        "poster_light": "light/malo/Capture_d__cran_2026-01-12_155523.webp",
+        "logo_light": "light/malo/LOGO_Malo.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "C’est LE yaourt par excellence."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "À force de vouloir nous vendre des promesses de santé (microbiote), de performance (protéines) ou de luxe (ultra-gourmandise), le rayon crémerie a oublié de nous vendre... un yaourt. Le vrai goût est devenu l'innovation la plus radicale du marché."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment faire de la simplicité historique de Malo une innovation radicale et une preuve de supériorité gustative face à la surenchère marketing ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Un gimmick fort et mémorisable : “T’as jamais mangé de Malo ? T’as jamais mangé de yaourt ! ” qu’on joue :\nen TV\nen affichage\nen digital"
+        },
+        {
+          "title": "Résultats",
+          "text": "+11 points sur les ventes de yaourts nature\n+4,4% de croissance globale marque"
+        }
+      ],
+      "media": [
+        {
+          "file": "malo/Capture_d__cran_2026-01-12_155523.png",
+          "alt": "Malo - Cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20155523.png",
+          "file_light": "light/malo/Capture_d__cran_2026-01-12_155523.webp"
+        },
+        {
+          "file": "malo/LOGO_Malo.png",
+          "alt": "logo malo",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Malo.png",
+          "file_light": "light/malo/LOGO_Malo.webp"
+        },
+        {
+          "file": "malo/IMAGE1__1__0.jpg",
+          "alt": "Malo - 20'",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%281%29_0.jpg",
+          "file_light": "light/malo/IMAGE1__1__0.webp"
+        },
+        {
+          "file": "malo/4b88e08e5d363bdd9c7224d2aea4ab8b99793bcb.png",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/4b88e08e5d363bdd9c7224d2aea4ab8b99793bcb.png",
+          "file_light": "light/malo/4b88e08e5d363bdd9c7224d2aea4ab8b99793bcb.webp"
+        },
+        {
+          "file": "malo/IMAGE1__2_.jpg",
+          "alt": "MALO - Fond bleu",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%282%29.jpg",
+          "file_light": "light/malo/IMAGE1__2_.webp"
+        },
+        {
+          "file": "malo/IMAGE2__2_.jpg",
+          "alt": "MALO - Fond rose",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%282%29.jpg",
+          "file_light": "light/malo/IMAGE2__2_.webp"
+        },
+        {
+          "file": "malo/IMAGE3__1_.jpg",
+          "alt": "Video MALO4",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE3%20%281%29.jpg",
+          "file_light": "light/malo/IMAGE3__1_.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/lwapkKSu5UvlsnvQ6Tiu501NC8w02FM7fich02UmuK5015w.m3u8",
+          "file": "malo/video-lwapkKSu5UvlsnvQ6Tiu501NC8w02FM7fich02UmuK5015w.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/bu30002Hn7QXbLBic00I2a6b9QUK7uguE01EqcNb4iFLXOg.m3u8",
+          "file": "malo/video-bu30002Hn7QXbLBic00I2a6b9QUK7uguE01EqcNb4iFLXOg.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/2Gep02lIntsTLSzymc4DpPTTrXXE6elK01osmyPiDGy8U.m3u8",
+          "file": "malo/video-2Gep02lIntsTLSzymc4DpPTTrXXE6elK01osmyPiDGy8U.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/LarQXTJEhXw1wF8gTD6nhO9YHeBnGN00uicMWsjMJxDc.m3u8",
+          "file": "malo/video-LarQXTJEhXw1wF8gTD6nhO9YHeBnGN00uicMWsjMJxDc.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/8fO00jLj8eqeznIjGCQfxJ8pprEkxt02EaE3021PlanjA8.m3u8",
+          "file": "malo/video-8fO00jLj8eqeznIjGCQfxJ8pprEkxt02EaE3021PlanjA8.mp4"
+        }
+      ],
+      "assets_dir": "malo"
+    },
+    {
+      "slug": "mr-bricolage",
+      "url": "https://lmwr.fr/mr-bricolage",
+      "title": "Faites-le vous même mais pas tout seul",
+      "tags": [
+        "Publicité"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/bKsSWO6GqHJrwRp1YQBD62mE8U8fRbSvYd3ImHMVZqc.m3u8",
+        "poster": "mr-bricolage/Capture_d__cran_2026-01-12_155324.png",
+        "logo": "mr-bricolage/LOGO_Mr_Bricolage.png",
+        "poster_light": "light/mr-bricolage/Capture_d__cran_2026-01-12_155324.webp",
+        "logo_light": "light/mr-bricolage/LOGO_Mr_Bricolage.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas un magasin de bricolage, c’est un matchmaker."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Pour être proche de ces clients il faut les comprendre : saisir leur langage et façon de bricoler, comprendre aussi que lorsqu’ils bricolent ils font plus que ça, ils crééent du lien et se rapprochent."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment passer d'une enseigne de \"produits et outils\" à une marque de \"projets et relations\" dans un marché ultra-concurrentiel focalisé sur le prix ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Quand les concurrents traitent le bricolage comme un moyen Mr.Bricolage en fait une fin transformant ainsi le bricolage par obligation en un bricolage par plaisir: un acte personnel de lien, de faire ensemble, de transmission et de partage pour réparer ou construire les projets comme les relations.\nUn nouveau territoire de communication renouvelé chaque année et faisant du lien de proximité la valeur et le bénéfice central du bricolage.\nAvec la campagne “on vous comprend” nous avons\nCréé une saga publicitaire populaire déployée jusqu’en magasin\nQualifié la valeur de proximité comme une expertise métier de la marque\nRenforcé la préférence de marque via des cautions générationnelles fortes\nAvec la campagne « Le bricolage nous rapproche », nous avons :\nRéaffirmé la singularité de la marque sur un marché concurrentiel et standardisé\nRedonné du sens à l’acte de bricoler en le plaçant comme moyen de créer du lien, de partager, d’échanger\nTravaillé un nouveau discours authentique et chaleureux, ancré dans la vie réelle et la dimension collective de la marque"
+        },
+        {
+          "title": "Résultats",
+          "text": "Des campagnes qui renforcent la notoriété globale de l’enseigne et accompagnent le virage stratégique vers plus de modernité et de proximité.\n40 % des répondants aiment beaucoup la campagne\nL’image de la marque progresse sur les dimensions de proximité, de sympathie et d’utilité\nProgression des indicateurs de préférence commerciale\nTOP2 GSB en top of mind clients potentiels\n+10 millions de vues sur les contenus d’influence\nEnseigne perçue comme la plus humaine du marché"
+        }
+      ],
+      "media": [
+        {
+          "file": "mr-bricolage/Capture_d__cran_2026-01-12_155324.png",
+          "alt": "Mr Bricolage",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20155324.png",
+          "file_light": "light/mr-bricolage/Capture_d__cran_2026-01-12_155324.webp"
+        },
+        {
+          "file": "mr-bricolage/LOGO_Mr_Bricolage.png",
+          "alt": "logo mr bricolage",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Mr%20Bricolage.png",
+          "file_light": "light/mr-bricolage/LOGO_Mr_Bricolage.webp"
+        },
+        {
+          "file": "mr-bricolage/Mr._Bricolage_-_Film_1.png",
+          "alt": "Mr. Bricolage - Film 1",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Mr.%20Bricolage%20-%20Film%201.png",
+          "file_light": "light/mr-bricolage/Mr._Bricolage_-_Film_1.webp"
+        },
+        {
+          "file": "mr-bricolage/Mr._Bricolage_-_Film_2.png",
+          "alt": "Mr. Bricolage - Film 2",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Mr.%20Bricolage%20-%20Film%202.png",
+          "file_light": "light/mr-bricolage/Mr._Bricolage_-_Film_2.webp"
+        },
+        {
+          "file": "mr-bricolage/Mr._Bricolage_-_Ensemble.png",
+          "alt": "Mr. Bricolage - Ensemble",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Mr.%20Bricolage%20-%20Ensemble.png",
+          "file_light": "light/mr-bricolage/Mr._Bricolage_-_Ensemble.webp"
+        },
+        {
+          "file": "mr-bricolage/IMAGE1__7_.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/IMAGE1%20%287%29.jpg",
+          "file_light": "light/mr-bricolage/IMAGE1__7_.webp"
+        },
+        {
+          "file": "mr-bricolage/McFly___Carlito.jpg",
+          "alt": "McFly & Carlito",
+          "source": "https://lmwr.fr/sites/default/files/images/McFly%20%26%20Carlito.jpg",
+          "file_light": "light/mr-bricolage/McFly___Carlito.webp"
+        },
+        {
+          "file": "mr-bricolage/IMAGE1__8_.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/IMAGE1%20%288%29.jpg",
+          "file_light": "light/mr-bricolage/IMAGE1__8_.webp"
+        },
+        {
+          "file": "mr-bricolage/IMAGE2__5_.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/IMAGE2%20%285%29.jpg",
+          "file_light": "light/mr-bricolage/IMAGE2__5_.webp"
+        },
+        {
+          "file": "mr-bricolage/86995868817b124c63723e5a2e8bf10affba975f.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/86995868817b124c63723e5a2e8bf10affba975f.jpg",
+          "file_light": "light/mr-bricolage/86995868817b124c63723e5a2e8bf10affba975f.webp"
+        },
+        {
+          "file": "mr-bricolage/Mr._Bricolage_-_Film_voiture.png",
+          "alt": "Mr. Bricolage - Film voiture",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Mr.%20Bricolage%20-%20Film%20voiture.png",
+          "file_light": "light/mr-bricolage/Mr._Bricolage_-_Film_voiture.webp"
+        },
+        {
+          "file": "mr-bricolage/Mr._Bricolage_-_Brico_partage.png",
+          "alt": "Mr. Bricolage - Brico partage",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Mr.%20Bricolage%20-%20Brico%20partage.png",
+          "file_light": "light/mr-bricolage/Mr._Bricolage_-_Brico_partage.webp"
+        },
+        {
+          "file": "mr-bricolage/Catal_produits.jpg",
+          "alt": "Mr. Bricolage - catalogues",
+          "source": "https://lmwr.fr/sites/default/files/images/Catal%20produits.jpg",
+          "file_light": "light/mr-bricolage/Catal_produits.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/jcn3IYdjmiiIw5ao02n9AgkVEyuUYnR00L6O1oViLmI1Y.m3u8",
+          "file": "mr-bricolage/video-jcn3IYdjmiiIw5ao02n9AgkVEyuUYnR00L6O1oViLmI1Y.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/weEM8012LxwXCNLBQvPtmhi5IH8o9VQcaeiK7ODI01XD00.m3u8",
+          "file": "mr-bricolage/video-weEM8012LxwXCNLBQvPtmhi5IH8o9VQcaeiK7ODI01XD00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/bKsSWO6GqHJrwRp1YQBD62mE8U8fRbSvYd3ImHMVZqc.m3u8",
+          "file": "mr-bricolage/video-bKsSWO6GqHJrwRp1YQBD62mE8U8fRbSvYd3ImHMVZqc.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/IgXLbeeQbX3L2h3GZjWtLyCb4Jj009WqPppRfoNHQV1U.m3u8",
+          "file": "mr-bricolage/video-IgXLbeeQbX3L2h3GZjWtLyCb4Jj009WqPppRfoNHQV1U.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/DGMnzexKIk4ZpuLbWjs8y1ywyiE199VcJDhdIc2xDF00.m3u8",
+          "file": "mr-bricolage/video-DGMnzexKIk4ZpuLbWjs8y1ywyiE199VcJDhdIc2xDF00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/WkmnAlXvfWQHgQISLchlsbNnNToyfSOcxz7FiFWBdk4.m3u8",
+          "file": "mr-bricolage/video-WkmnAlXvfWQHgQISLchlsbNnNToyfSOcxz7FiFWBdk4.mp4"
+        }
+      ],
+      "assets_dir": "mr-bricolage"
+    },
+    {
+      "slug": "noirmoutier",
+      "url": "https://lmwr.fr/noirmoutier",
+      "title": "Vive les \"island breaks\"",
+      "tags": [
+        "Publicité",
+        "Branding"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/AdgRrMZ00I6ETX2tgIad7rZ102sld01dGyyBfDEfUCCgmw.m3u8",
+        "poster": "noirmoutier/Capture_d__cran_2026-01-12_154946.png",
+        "logo": "noirmoutier/LOGO_Noirmoutier.png",
+        "poster_light": "light/noirmoutier/Capture_d__cran_2026-01-12_154946.webp",
+        "logo_light": "light/noirmoutier/LOGO_Noirmoutier.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n’est pas une carte postale, c’est une escapade à la carte."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Comme toutes les destinations littorales françaises, l’île de Noirmoutier souffre du syndrôme des volets fermés. L’île est devenue une résidence secondaire, surfréquentée en juillet/août et désertée le reste de l’année."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment étendre les ailes de saison pour rouvrir ses charmants volets\nbleus ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "On met en lumière une île de Noirmoutier “Original” - originale et originelle, en lui donnant une personnalité affirmée et en faisant valoir ses nombreuses qualités (terre/mer, sportive/contemplative, chic/populaire, etc.).\nÀ la clef :\ndes films touristiques poétiques et singuliers\ndes brochures éditorialisées, qui se lisent comme des magazines\nune communication affinitaire, via des capsules thématiques poussées auprès des bonnes personnes au bon moment (les passionnés de glisse, les runners, les cyclistes, les télétravailleurs, les amoureux…)\nune montée en gamme sur les réseaux\nEn la faisant (re)découvrir :\naux résidents secondaires qui ne la fréquentent que dans leur “routine” vacances\naux néophytes qui ne la connaissent pas\naux jeunes locaux qui la quittent sans jamais l’oublie"
+        }
+      ],
+      "media": [
+        {
+          "file": "noirmoutier/Capture_d__cran_2026-01-12_154946.png",
+          "alt": "noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/Capture%20d%27%C3%A9cran%202026-01-12%20154946.png",
+          "file_light": "light/noirmoutier/Capture_d__cran_2026-01-12_154946.webp"
+        },
+        {
+          "file": "noirmoutier/LOGO_Noirmoutier.png",
+          "alt": "logo noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/2026-01/LOGO%20Noirmoutier.png",
+          "file_light": "light/noirmoutier/LOGO_Noirmoutier.webp"
+        },
+        {
+          "file": "noirmoutier/IMAGE1_copie_2.jpg",
+          "alt": "Video NO1",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20copie%202.jpg",
+          "file_light": "light/noirmoutier/IMAGE1_copie_2.webp"
+        },
+        {
+          "file": "noirmoutier/IMAGE2_copie.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/IMAGE2%20copie.jpg",
+          "file_light": "light/noirmoutier/IMAGE2_copie.webp"
+        },
+        {
+          "file": "noirmoutier/a28006478a714f4a58ff25a736df5a48c6752fe6.png",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/a28006478a714f4a58ff25a736df5a48c6752fe6.png",
+          "file_light": "light/noirmoutier/a28006478a714f4a58ff25a736df5a48c6752fe6.webp"
+        },
+        {
+          "file": "noirmoutier/MIMOSA1.jpg",
+          "alt": "noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/images/MIMOSA1.jpg",
+          "file_light": "light/noirmoutier/MIMOSA1.webp"
+        },
+        {
+          "file": "noirmoutier/MIMOSA2_COVER.png",
+          "alt": "noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/MIMOSA2%20COVER.png",
+          "file_light": "light/noirmoutier/MIMOSA2_COVER.webp"
+        },
+        {
+          "file": "noirmoutier/IMAGE1__15_.jpg",
+          "alt": "Video NO jaune",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE1%20%2815%29.jpg",
+          "file_light": "light/noirmoutier/IMAGE1__15_.webp"
+        },
+        {
+          "file": "noirmoutier/IMAGE2__11_.jpg",
+          "alt": "Video NO BLEU",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE2%20%2811%29.jpg",
+          "file_light": "light/noirmoutier/IMAGE2__11_.webp"
+        },
+        {
+          "file": "noirmoutier/IMAGE3__5_.jpg",
+          "alt": "Video NO ROUGE",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/IMAGE3%20%285%29.jpg",
+          "file_light": "light/noirmoutier/IMAGE3__5_.webp"
+        },
+        {
+          "file": "noirmoutier/LOGO_COVER.png",
+          "alt": "Noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/2026-04/LOGO%20COVER.png",
+          "file_light": "light/noirmoutier/LOGO_COVER.webp"
+        },
+        {
+          "file": "noirmoutier/VISUEL.jpg",
+          "alt": "noirmoutier",
+          "source": "https://lmwr.fr/sites/default/files/images/VISUEL.jpg",
+          "file_light": "light/noirmoutier/VISUEL.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/nXatr75geWDTfifRTA01b00gl7STLeVWdlzKIdTXisbwE.m3u8",
+          "file": "noirmoutier/video-nXatr75geWDTfifRTA01b00gl7STLeVWdlzKIdTXisbwE.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/K5Y7a2LsFzkBf5PnL4l02VRtE7eGS9XT2YsrCzgciY2k.m3u8",
+          "file": "noirmoutier/video-K5Y7a2LsFzkBf5PnL4l02VRtE7eGS9XT2YsrCzgciY2k.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/AdgRrMZ00I6ETX2tgIad7rZ102sld01dGyyBfDEfUCCgmw.m3u8",
+          "file": "noirmoutier/video-AdgRrMZ00I6ETX2tgIad7rZ102sld01dGyyBfDEfUCCgmw.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/SL3rLbzvW97Vt6pCSDf02vkYWBylEii6hMEmjt00pgkO00.m3u8",
+          "file": "noirmoutier/video-SL3rLbzvW97Vt6pCSDf02vkYWBylEii6hMEmjt00pgkO00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/LmGQPfIarOura02LhCi36S3u3eTNFON17ub9Oda8CE01M.m3u8",
+          "file": "noirmoutier/video-LmGQPfIarOura02LhCi36S3u3eTNFON17ub9Oda8CE01M.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/P8sOE4GA4k01iat2H3l9bJaVIzKCZWO2cQfp8Xs01nfXo.m3u8",
+          "file": "noirmoutier/video-P8sOE4GA4k01iat2H3l9bJaVIzKCZWO2cQfp8Xs01nfXo.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/kxMyYP3bqKHBKPZJWibbYwd5buxd8Ti7WyjZZ0293sA00.m3u8",
+          "file": "noirmoutier/video-kxMyYP3bqKHBKPZJWibbYwd5buxd8Ti7WyjZZ0293sA00.mp4"
+        }
+      ],
+      "assets_dir": "noirmoutier"
+    },
+    {
+      "slug": "novo-nordisk",
+      "url": "https://lmwr.fr/novo-nordisk",
+      "title": "La fresque de la maladie obésité",
+      "tags": [],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/aCHG1sGVikqxgSs027gSG8TMu3oE4xqHXIFjbgukj3C8.m3u8",
+        "poster": "novo-nordisk/Capture_d_e_cran_2026-05-27_a__18.47.18.png",
+        "logo": "novo-nordisk/LOGO_Novo.png",
+        "poster_light": "light/novo-nordisk/Capture_d_e_cran_2026-05-27_a__18.47.18.webp",
+        "logo_light": "light/novo-nordisk/LOGO_Novo.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "C’est la fin du dogmatisme médical au profit de l'expérience ludique.\nUn jeu pour briser la posture descendante et créer une intelligence collective."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "L'obésité souffre d'un paradoxe de visibilité : tout le monde pense la connaître parce qu'elle se voit, alors que ses mécanismes réels (génétiques, hormonaux, environnementaux) sont totalement invisibles. On sature les gens d'injonctions nutritionnelles \"Pourquoi tu ne manges pas moins ?”, mais on oublie de leur expliquer la pathologie \"Comment fonctionne ce système complexe ?\"."
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment transformer radicalement le regard des professionnels de santé et du grand public pour passer de la stigmatisation individuelle à la compréhension scientifique et systémique de la maladie ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "L'outil : un jeu de 62 cartes illustrées et 4 plateaux thématiques permettant de réaliser des ateliers d’exploration approfondie de 1h30. L’objectif : mieux connaître tous les attraits de la maladie pour mieux la comprendre et l’appréhender.\nL'atelier en 4 étapes :\nIdentification collective des vérités et des idées reçues\nUtilisation de cartes \"arguments\" sourcées médicalement pour valider ou invalider les choix\nEngagement individuel ou collectif sur une idée reçue à combattre.\nFeedback et remise de \"diplômes\" aux participants.\nÉcosystème de diffusion : un site dédié (fresque-obesite.org), un guide de l'animateur de 24 pages, un MOOC de formation et un kit de communication locale (affiches, kakémonos)."
+        },
+        {
+          "title": "Résultats",
+          "text": "Déploiement terrain : 4470 fresqueurs certifiés en 2025, dont 60 % sont des professionnels de santé, 3900 personnes sensibilisées à la fresque\nEngagement institutionnel : Plus de 120 événements dédiés et plus de 100 organismes (hôpitaux, cliniques, associations) ont déployé l'outil depuis mars 2025.\nVisibilité média : Plus de 5 millions d'impressions via une campagne digitale (Google, LinkedIn, Instagram) et une présence organique sur TF1 et à l'Université de la Terre.\nImpact humain : Des témoignages de patients se sentant \"moins coupables\" et de citoyens réalisant l'étendue de leurs propres biais cognitifs."
+        }
+      ],
+      "media": [
+        {
+          "file": "novo-nordisk/Capture_d_e_cran_2026-05-27_a__18.47.18.png",
+          "alt": "Novo - cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Capture%20d%E2%80%99e%CC%81cran%202026-05-27%20a%CC%80%2018.47.18.png",
+          "file_light": "light/novo-nordisk/Capture_d_e_cran_2026-05-27_a__18.47.18.webp"
+        },
+        {
+          "file": "novo-nordisk/LOGO_Novo.png",
+          "alt": "LOGO Novo",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/LOGO%20Novo.png",
+          "file_light": "light/novo-nordisk/LOGO_Novo.webp"
+        },
+        {
+          "file": "novo-nordisk/Capture_d_e_cran_2026-05-28_a__12.11.32.png",
+          "alt": " Novo Nordisk - teaser",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Capture%20d%E2%80%99e%CC%81cran%202026-05-28%20a%CC%80%2012.11.32.png",
+          "file_light": "light/novo-nordisk/Capture_d_e_cran_2026-05-28_a__12.11.32.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Guide.jpg",
+          "alt": "Novo Nordisk - Guide",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Guide.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Guide.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Affiche_0.jpg",
+          "alt": "Novo Nordisk - Affiche",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Affiche_0.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Affiche_0.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Cartes.jpg",
+          "alt": "Novo Nordisk - Cartes",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Cartes.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Cartes.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Illu_1.jpg",
+          "alt": "Novo Nordisk - Illu 1",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Illu%201.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Illu_1.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Illu_2.jpg",
+          "alt": "Novo Nordisk - Illu 2",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Illu%202.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Illu_2.webp"
+        },
+        {
+          "file": "novo-nordisk/Novo_Nordisk_-_Illu_3.jpg",
+          "alt": "Novo Nordisk - Illu 3",
+          "source": "https://lmwr.fr/sites/default/files/images/Novo%20Nordisk%20-%20Illu%203.jpg",
+          "file_light": "light/novo-nordisk/Novo_Nordisk_-_Illu_3.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/ow016gVqypaJzx1YABdpqDaWoW6DSVfrrB8aBj3Hcp01E.m3u8",
+          "file": "novo-nordisk/video-ow016gVqypaJzx1YABdpqDaWoW6DSVfrrB8aBj3Hcp01E.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/aCHG1sGVikqxgSs027gSG8TMu3oE4xqHXIFjbgukj3C8.m3u8",
+          "file": "novo-nordisk/video-aCHG1sGVikqxgSs027gSG8TMu3oE4xqHXIFjbgukj3C8.mp4"
+        }
+      ],
+      "assets_dir": "novo-nordisk"
+    },
+    {
+      "slug": "vins-de-loire",
+      "url": "https://lmwr.fr/vins-de-loire",
+      "title": "La Loire à boire et à voir",
+      "tags": [
+        "Social Média"
+      ],
+      "meta_description": null,
+      "hero": {
+        "video_hls": "https://stream.mux.com/LawJ2yX02TrAobtiQCIuacRjHTOX3c02rUfn8sITZM5l8.m3u8",
+        "poster": "vins-de-loire/Interloire_-_Cover.png",
+        "logo": "vins-de-loire/LOGO_Interloire.png",
+        "poster_light": "light/vins-de-loire/Interloire_-_Cover.webp",
+        "logo_light": "light/vins-de-loire/LOGO_Interloire.webp"
+      },
+      "intro": {
+        "insight_title": "Pas de côté",
+        "insight": "Ce n'est pas une interprofession,\nc'est un lifestyle."
+      },
+      "sections": [
+        {
+          "title": "Insight",
+          "text": "Alors que la déconsommation de vin s’accélère, notamment chez les plus jeunes, et que les Vins de Loire subissent à l’étranger une concurrence accrue des régions les françaises et internationales les plus connues, comment Interloire (l’interprofession des Vins du Val de Loire) peut-elle tirer son épingle du jeu sur les réseaux sociaux ?"
+        },
+        {
+          "title": "Problématique",
+          "text": "Comment dépoussiérer l'image d'une interprofession viticole pour devenir un média lifestyle désirable et accessible aux nouveaux consommateurs ?"
+        },
+        {
+          "title": "Concrètement",
+          "text": "Interloire s'approprie les codes et la tonalité des média digitaux les plus performants, pour rendre visibile et désirable les Vins de Loire auprès de sa cible de conquête : 20 - 40 ans. Décompléxer le vin, valoriser les étoiles montantes de la région et faire re-découvrir la richesse oenotouristique de la région offrent aux Vins de Loire une posture unique qui leur permet d’émerger."
+        },
+        {
+          "title": "Résultats",
+          "text": "+ 5 millions de comptes atteints en France\n+ 2,5 millions de comptes atteints à l'international\n+ 10 points de taux d'engagement\nUne nouvelle direction qui fait réference dans le monde du vin"
+        }
+      ],
+      "media": [
+        {
+          "file": "vins-de-loire/Interloire_-_Cover.png",
+          "alt": "Interloire - Cover",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20Cover.png",
+          "file_light": "light/vins-de-loire/Interloire_-_Cover.webp"
+        },
+        {
+          "file": "vins-de-loire/LOGO_Interloire.png",
+          "alt": "LOGO Interloire",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/LOGO%20Interloire.png",
+          "file_light": "light/vins-de-loire/LOGO_Interloire.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_Micro_pressoir.png",
+          "alt": "Interloire - Micro pressoir",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20Micro%20pressoir.png",
+          "file_light": "light/vins-de-loire/Interloire_-_Micro_pressoir.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_After_service.png",
+          "alt": "Interloire - After service",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20After%20service.png",
+          "file_light": "light/vins-de-loire/Interloire_-_After_service.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_shake.png",
+          "alt": "Interloire - shake",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20shake.png",
+          "file_light": "light/vins-de-loire/Interloire_-_shake.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_SoMe_0.jpg",
+          "alt": "",
+          "source": "https://lmwr.fr/sites/default/files/images/Interloire%20-%20SoMe_0.jpg",
+          "file_light": "light/vins-de-loire/Interloire_-_SoMe_0.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_sac.jpg",
+          "alt": "Interloire - sac",
+          "source": "https://lmwr.fr/sites/default/files/images/Interloire%20-%20sac.jpg",
+          "file_light": "light/vins-de-loire/Interloire_-_sac.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_vide_o.jpg",
+          "alt": "Interloire - vidéo",
+          "source": "https://lmwr.fr/sites/default/files/images/Interloire%20-%20vide%CC%81o.jpg",
+          "file_light": "light/vins-de-loire/Interloire_-_vide_o.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_Loire_Lovers_Club.png",
+          "alt": "Interloire - Loire Lovers Club",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20Loire%20Lovers%20Club.png",
+          "file_light": "light/vins-de-loire/Interloire_-_Loire_Lovers_Club.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_FOOH_Londres.png",
+          "alt": "Interloire - FOOH Londres",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20FOOH%20Londres.png",
+          "file_light": "light/vins-de-loire/Interloire_-_FOOH_Londres.webp"
+        },
+        {
+          "file": "vins-de-loire/Interloire_-_Voyage_a__vin_a__l_heure.png",
+          "alt": "Interloire - Voyage à vin à l'heure",
+          "source": "https://lmwr.fr/sites/default/files/2026-05/Interloire%20-%20Voyage%20a%CC%80%20vin%20a%CC%80%20l%27heure.png",
+          "file_light": "light/vins-de-loire/Interloire_-_Voyage_a__vin_a__l_heure.webp"
+        }
+      ],
+      "videos": [
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/et67gzvpPuxCacUSui1a9GzUuFal2PSQ2OF4Oxxjwqg.m3u8",
+          "file": "vins-de-loire/video-et67gzvpPuxCacUSui1a9GzUuFal2PSQ2OF4Oxxjwqg.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/mitao00sN1PRfJxMrVTsFV7zrF6IUp5Ad02w8Z01hU02Dt00.m3u8",
+          "file": "vins-de-loire/video-mitao00sN1PRfJxMrVTsFV7zrF6IUp5Ad02w8Z01hU02Dt00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/1S6x2BITC02hRAQ5XCC35JIZOmSn4Y6qe8wRSfkGw88k.m3u8",
+          "file": "vins-de-loire/video-1S6x2BITC02hRAQ5XCC35JIZOmSn4Y6qe8wRSfkGw88k.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/kGuK1IYYvplg02El020001Cbfliz6zIs7oMv6Mca4hLNbH00.m3u8",
+          "file": "vins-de-loire/video-kGuK1IYYvplg02El020001Cbfliz6zIs7oMv6Mca4hLNbH00.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/Pe02HcAU02muZj251Mc8NiSCbvAOa4yrW3nAotriGzkEM.m3u8",
+          "file": "vins-de-loire/video-Pe02HcAU02muZj251Mc8NiSCbvAOa4yrW3nAotriGzkEM.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/LawJ2yX02TrAobtiQCIuacRjHTOX3c02rUfn8sITZM5l8.m3u8",
+          "file": "vins-de-loire/video-LawJ2yX02TrAobtiQCIuacRjHTOX3c02rUfn8sITZM5l8.mp4"
+        },
+        {
+          "type": "hls",
+          "url": "https://stream.mux.com/uubWYk00bydu2MjC17wklmZ5qaUZqTuWWlBJ900M2EKSk.m3u8",
+          "file": "vins-de-loire/video-uubWYk00bydu2MjC17wklmZ5qaUZqTuWWlBJ900M2EKSk.mp4"
+        }
+      ],
+      "assets_dir": "vins-de-loire"
+    }
+  ],
+  "assets": {
+    "originals": "<slug>/…  (fichiers sources pleine résolution)",
+    "light": "light/<slug>/…  (webp, max 1600px, q78)",
+    "videos": "<slug>/video-<muxId>.mp4  (remux HLS→MP4, codecs d'origine)"
+  }
+}

@@ -1,0 +1,220 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; background: #244697; }
+#scene { display: block; width: 100vw; height: 100vh; }
+
+#fps {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none; /* ne doit jamais voler le clic du pointer lock */
+  user-select: none;
+}
+
+#notice {
+  position: fixed;
+  top: 60px;
+  left: 8px;
+  z-index: 10;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(242, 103, 73, 0.9);
+  color: #fff;
+  font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#notice.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+#portal-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  display: none;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 300 34px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+#portal-close.is-visible {
+  display: block;
+}
+
+#portal-close:hover {
+  background: rgba(242, 103, 73, 0.9);
+  transform: scale(1.08);
+}
+
+/* Réticule de visée : l'étoile de la charte lmwr, au centre de l'écran */
+#reticle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 15;
+  width: 22px;
+  height: 24px;
+  margin: -12px 0 0 -11px;
+  fill: #f26749;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Au survol d'une cible, l'étoile passe au bleu de la charte : le corail est
+   déjà la couleur du CTA, garder la même teinte brouillerait la lecture. */
+#reticle.is-hidden {
+  display: none;
+}
+
+#reticle.is-active {
+  opacity: 1;
+  fill: #2970f4;
+  transform: scale(2.1) rotate(15deg);
+}
+
+#reticle-label {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 15;
+  margin-top: 52px; /* entre l'étoile et la flèche de cap, sans les chevaucher */
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #2970f4;
+  color: #fff;
+  font: 600 13px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#reticle-label.is-active {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Niveau de recherche, sous le compteur de FPS */
+#wanted {
+  position: fixed;
+  top: 32px;
+  left: 8px; /* sous le compteur de FPS, loin du bouton de fermeture */
+  z-index: 10;
+  color: #f26749;
+  font: 18px/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 3px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Jauge d'encerclement : se remplit tant que le joueur reste dans la zone */
+#contain {
+  position: fixed;
+  top: 58px;
+  left: 8px;
+  z-index: 10;
+  width: 160px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#contain.is-active {
+  opacity: 1;
+}
+
+#contain-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  background: #f26749;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* Passage en noir et blanc contrasté au moment de la capture */
+#scene {
+  transition: filter 0.9s ease;
+}
+
+#scene.is-busted {
+  filter: grayscale(1) contrast(1.45) brightness(0.92);
+}
+
+/* Fondu au noir, joué après l'envolée de la caméra */
+#fade {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.1s ease;
+}
+
+#fade.is-visible {
+  opacity: 1;
+}
+
+/* Affiché dès la capture, par-dessus le cinématique : le fondu au noir
+   s'installe derrière lui, pas à sa place. */
+#gameover {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+#gameover.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#busted {
+  width: min(70vw, 760px);
+  height: auto;
+}
+
+/* Pendant la capture, l'interface de jeu s'efface : seul le cinématique reste */
+body.is-busted #reticle,
+body.is-busted #reticle-label,
+body.is-busted #fps,
+body.is-busted #wanted,
+body.is-busted #contain,
+body.is-busted #portal-close {
+  display: none;
+}
