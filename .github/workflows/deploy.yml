@@ -1,0 +1,86 @@
+# Publication de la démo sur le lab, à chaque push sur main.
+#
+# Transport rsync sur SSH, par mot de passe. Les deux autres voies sont fermées
+# chez Infomaniak : l'authentification par clé n'est pas disponible sur un site
+# Node.js, et le port FTP est filtré (vérifié : connexion sur 21 en timeout).
+#
+# Générique : le dossier de destination se déduit du nom npm du projet, ce
+# fichier se recopie donc tel quel dans la démo suivante.
+#
+# Secrets à créer (Settings › Secrets and variables › Actions) :
+#   LAB_SSH_HOST         hôte SSH (…ssh.hosting-ik.com)
+#   LAB_SSH_USER         compte SSH
+#   LAB_SSH_PASSWORD     mot de passe
+#   LAB_SSH_KNOWN_HOSTS  facultatif — sortie de `ssh-keyscan <hôte>`, pour
+#                        épingler l'empreinte du serveur (voir plus bas)
+
+name: Déploiement lab
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # publication manuelle depuis l'onglet Actions
+
+concurrency:
+  group: deploy-lab
+  cancel-in-progress: true # un push plus récent rend le précédent caduc
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Le dépôt embarque ~19 Mo de médias (posters, vidéos d'en-tête, WebP des
+      # projets) : ils partent tels quels dans dist/ via public/.
+
+      - name: Nom du projet
+        id: meta
+        run: echo "slug=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      # vite.config.js déduit déjà la base du nom npm ; on la passe malgré tout
+      # pour que le workflow reste explicite sur ce qu'il produit. Sans elle,
+      # les chemins absolus des médias (/projects/…, /busted.png) viseraient la
+      # racine du domaine au lieu du sous-dossier de la démo.
+      - run: BASE_PATH="/${{ steps.meta.outputs.slug }}/" npm run build
+
+      - name: Connaître le serveur
+        env:
+          HOST: ${{ secrets.LAB_SSH_HOST }}
+          KNOWN_HOSTS: ${{ secrets.LAB_SSH_KNOWN_HOSTS }}
+        run: |
+          sudo apt-get install -y --no-install-recommends sshpass
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          # Épingler l'empreinte quand elle est fournie ; sinon la relever au
+          # premier contact. L'épinglage est préférable : sans lui, ce premier
+          # contact est cru sur parole.
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Envoi vers le lab
+        env:
+          # sshpass lit le mot de passe dans l'environnement plutôt que sur la
+          # ligne de commande, où il serait visible des autres processus.
+          SSHPASS: ${{ secrets.LAB_SSH_PASSWORD }}
+          HOST: ${{ secrets.LAB_SSH_HOST }}
+          USER_SSH: ${{ secrets.LAB_SSH_USER }}
+          # lab-projects/ tient les démos à l'écart du code du hub : celui-ci peut être
+          # redéployé sans les emporter. Le rangement ne se voit pas dans l'URL,
+          # le hub sert lab-projects/<slug>/ sur /<slug>/.
+          TARGET: lab.agence-absolu.com/lab-projects/${{ steps.meta.outputs.slug }}
+        run: |
+          sshpass -e ssh "$USER_SSH@$HOST" "mkdir -p '$TARGET'"
+          # --delete purge les bundles de la version précédente ; les noms étant
+          # empreintés, les nouveaux fichiers sont en place avant leur retrait.
+          sshpass -e rsync -az --delete dist/ "$USER_SSH@$HOST:$TARGET/"

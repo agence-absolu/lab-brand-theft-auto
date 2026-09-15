@@ -6,6 +6,12 @@ import { PROJECTS } from './projects.js'
 import { PROJECT_MEDIA, PROJECT_LOGOS, PROJECT_STREAMS } from './project-media.js'
 import './style.css'
 
+// Tous les médias sont servis depuis public/. En production le site vit sous
+// un sous-chemin (/brand-theft-auto/), il faut donc préfixer les URL absolues
+// stockées dans les données. Les URL distantes (flux Mux) passent telles quelles.
+const asset = (path) =>
+  /^https?:/.test(path) ? path : `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
+
 const SKY = new THREE.Color('#244697')
 const SUN = new THREE.Color('#F26749')
 const GROUND = new THREE.Color('#2970F4')
@@ -363,7 +369,7 @@ const projectMaterials = PROJECTS.map((project) => {
 
   // Le poster s'affiche tout de suite, la vidéo prend le relais quand elle
   // a de quoi jouer : jamais de panneau noir en attendant le réseau.
-  const poster = panelTexture(textureLoader.load(project.poster, (t) => {
+  const poster = panelTexture(textureLoader.load(asset(project.poster), (t) => {
     if (material.map === t) coverTexture(t, t.image.width, t.image.height)
   }))
   material.map = poster
@@ -371,7 +377,7 @@ const projectMaterials = PROJECTS.map((project) => {
 
   if (project.video) {
     const video = document.createElement('video')
-    video.src = project.video
+    video.src = asset(project.video)
     video.loop = true
     video.muted = true // sans quoi l'autoplay est refusé par le navigateur
     video.playsInline = true
@@ -913,7 +919,7 @@ let prevHeading = 0    // état précédent, pour l'interpolation du rendu
 // Le rayon de collision suit l'échelle du véhicule
 const carRadius = () => 1.2 * settings.carScale
 
-new GLTFLoader().load(`${import.meta.env.BASE_URL}models/car_1.glb`, (gltf) => {
+new GLTFLoader().load(asset('models/car_1.glb'), (gltf) => {
   const model = gltf.scene
   model.traverse((o) => {
     if (!o.isMesh) return
@@ -965,7 +971,7 @@ let wanted = 1
 const policeCars = []
 let policeTemplate = null
 
-new GLTFLoader().load(`${import.meta.env.BASE_URL}models/car_2.glb`, (gltf) => {
+new GLTFLoader().load(asset('models/car_2.glb'), (gltf) => {
   const model = gltf.scene
   model.traverse((o) => {
     if (!o.isMesh) return
@@ -2204,7 +2210,7 @@ function spawnProjectPlanes(project) {
     mesh.visible = false
     mediaGroup.add(mesh)
 
-    textureLoader.load(url, (texture) => {
+    textureLoader.load(asset(url), (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace
       material.uniforms.uMap.value = texture
       // Proportions réelles du média, une fois connues
@@ -2444,7 +2450,7 @@ function setProjectTitle(project) {
 
   const image = new Image()
   image.onload = () => ready.then(() => render(image))
-  image.src = logoUrl
+  image.src = asset(logoUrl)
 }
 
 // Projection au sol : le même titre, peint sur le plancher, exactement dans
