@@ -951,6 +951,99 @@ function applyCarScale() {
 }
 
 
+
+/* ---------- Dégâts : fumée puis flammes sur le capot ---------- */
+// Un sprite animé par palier. Les planches sont des bandes de vignettes :
+// on ne déplace que les UV, il n'y a donc qu'un seul quad et qu'une texture
+// en mémoire par palier.
+// Les planches ont été recomposées en cellules strictement uniformes
+// (voir tools/atlas.py) : toutes les vignettes tiennent sur une seule ligne,
+// recadrées et calées en bas, donc l'animation ne saute plus.
+const DAMAGE_STAGES = [
+  { file: 'sprites/smoke_1.png', frames: 12, fps: 12, scale: 2.2, ratio: 167 / 172 },
+  { file: 'sprites/smoke_2.png', frames: 12, fps: 12, scale: 2.8, ratio: 169 / 179 },
+  { file: 'sprites/smoke_3.png', frames: 12, fps: 12, scale: 3.4, ratio: 170 / 210 },
+  { file: 'sprites/flamme_sprite.png', frames: 20, fps: 14, scale: 3.2, ratio: 218 / 337 },
+]
+
+// Un quad orienté vers la caméra plutôt qu'un THREE.Sprite : le matériau de
+// sprite n'applique pas la transformation UV de la texture (sa matrice reste
+// l'identité), ce qui affichait la planche entière au lieu d'une vignette.
+const damageGeometry = new THREE.PlaneGeometry(1, 1)
+damageGeometry.translate(0, 0.5, 0) // pivot en bas : la fumée monte du capot
+
+const damageSprite = new THREE.Mesh(
+  damageGeometry,
+  new THREE.MeshBasicMaterial({
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    // Coupe les pixels quasi transparents des planches : sans ça le rectangle
+    // du quad se devine en clair autour de la flamme.
+    alphaTest: 0.12,
+  })
+)
+damageSprite.visible = false
+damageSprite.renderOrder = 5
+scene.add(damageSprite) // hors du carGroup : il fait face à la caméra, pas à la voiture
+
+// Position du capot, dans le repère de la voiture
+const DAMAGE_OFFSET = new THREE.Vector3(0, 0.75, 1.5)
+const _damagePos = new THREE.Vector3()
+
+const damageTextures = []
+let damageStage = -1
+let damageTime = 0
+
+function setDamageStage(stage) {
+  if (stage === damageStage) return
+  damageStage = stage
+
+  if (stage < 0) {
+    damageSprite.visible = false
+    return
+  }
+
+  const preset = DAMAGE_STAGES[stage]
+  if (!damageTextures[stage]) {
+    const texture = textureLoader.load(asset(preset.file))
+    texture.colorSpace = THREE.SRGBColorSpace
+    // Filtrage au plus proche : une planche d'animation se lit vignette par
+    // vignette, comme un dessin animé. Le filtrage linéaire mélangeait les
+    // texels et donnait cette impression de glissement entre les images.
+    texture.magFilter = THREE.NearestFilter
+    texture.minFilter = THREE.NearestFilter
+    texture.generateMipmaps = false
+    // Une seule vignette visible à la fois
+    texture.repeat.set(1 / preset.frames, 1)
+    // Sans ce bridage, le filtrage linéaire va chercher des texels de la
+    // vignette voisine sur les bords et laisse un liseré fantôme.
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+    damageTextures[stage] = texture
+  }
+
+  damageSprite.material.map = damageTextures[stage]
+  damageSprite.material.needsUpdate = true
+  damageSprite.scale.set(preset.scale * preset.ratio, preset.scale, 1)
+  damageSprite.visible = true
+  damageTime = 0
+}
+
+function updateDamageSprite(delta) {
+  if (damageStage < 0 || !damageSprite.visible) return
+
+  const preset = DAMAGE_STAGES[damageStage]
+  damageTime += delta
+
+  const frame = Math.floor(damageTime * preset.fps) % preset.frames
+  damageTextures[damageStage].offset.x = frame / preset.frames
+
+  // Position sur le capot, puis orientation face caméra
+  _damagePos.copy(DAMAGE_OFFSET).applyAxisAngle(THREE.Object3D.DEFAULT_UP, carGroup.rotation.y)
+  damageSprite.position.copy(carGroup.position).addScaledVector(_damagePos, settings.carScale)
+  damageSprite.quaternion.copy(camera.quaternion)
+}
+
 /* ---------- Poursuivants ---------- */
 // Voitures de police semées sur la grille de façon déterministe, puis
 // pilotées par une IA volontairement simple : foncer sur le joueur, glisser
@@ -1151,7 +1244,8 @@ function collideWithPlayer(car) {
 
 // Game over aux chocs : encaisser MAX_HITS tamponnages dans une même
 // séquence — c'est-à-dire entre deux passages de panneau — vaut la capture.
-const MAX_HITS = 4
+const MAX_HITS = 8      // impacts encaissés avant la capture
+const HITS_PER_STAGE = 2 // un palier de dégâts tous les deux impacts
 const HIT_COOLDOWN = 0.6 // secondes avant qu'un nouveau choc soit compté
 let hits = 0
 let hitCooldown = 0
@@ -1161,7 +1255,7 @@ function registerHit() {
   if (gameOver || hitCooldown > 0) return
   hitCooldown = HIT_COOLDOWN
   hits += 1
-  updateHitsHud()
+  updateDamageStage()
   if (hits >= MAX_HITS) triggerGameOver()
   else showNotice(`Tamponné ! ${hits}/${MAX_HITS}`)
 }
@@ -1208,7 +1302,7 @@ function restart() {
   gameOver = false
   hits = 0
   hitCooldown = 0
-  updateHitsHud()
+  updateDamageStage()
   bustedTime = 0
   wanted = 1
   updateWantedHud()
@@ -1605,7 +1699,7 @@ function enterWhiteSpace() {
   // Nouvelle séquence : le compteur de chocs repart de zéro
   hits = 0
   hitCooldown = 0
-  updateHitsHud()
+  updateDamageStage()
   whiteGround.visible = true
   whiteGround.position.set(carPosition.x, 0, carPosition.z)
 
@@ -2334,6 +2428,14 @@ planeFolder.add(planeShader, 'floatAmplitude', 0, 3, 0.05).name('Flottement')
 planeFolder.add(planeShader, 'floatSpeed', 0, 3, 0.05).name('Vitesse flottement')
 planeFolder.controllers.forEach((c) => c.onChange(syncPlaneShader))
 addCopyButton(planeFolder, 'Copier le JSON', planeShader)
+
+/* ---------- Onglet Dégâts ---------- */
+const damageDebug = { stage: 0 }
+gui
+  .addFolder('Dégâts')
+  .add(damageDebug, 'stage', 0, DAMAGE_STAGES.length, 1)
+  .name('Palier (aperçu)')
+  .onChange((v) => setDamageStage(v - 1))
 
 
 /* ---------- Titre du projet, en arrière-plan ---------- */
@@ -3116,13 +3218,11 @@ function updateWantedHud() {
 
 const gameOverElement = document.querySelector('#gameover')
 const fadeElement = document.querySelector('#fade')
-const containElement = document.querySelector('#contain-bar')
 document.querySelector('#gameover button').addEventListener('click', () => restart())
 
-function updateHitsHud() {
-  const ratio = hits / MAX_HITS
-  containElement.style.transform = `scaleX(${ratio})`
-  containElement.parentElement.classList.toggle('is-active', hits > 0)
+// Le niveau de dégâts remplace la jauge : il se lit directement sur la voiture
+function updateDamageStage() {
+  setDamageStage(Math.min(DAMAGE_STAGES.length, Math.floor(hits / HITS_PER_STAGE)) - 1)
 }
 
 const fpsElement = document.querySelector('#fps')
@@ -3161,6 +3261,7 @@ function tick() {
   updateDoor()
   updateReticle()
   updateBusted(delta)
+  updateDamageSprite(delta)
   updatePortalCamera(delta)
   updatePortalVisual()
   follow()
