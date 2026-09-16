@@ -25,10 +25,10 @@ const HORIZON = new THREE.Color()
 // Valeurs pilotées par l'interface
 const settings = {
   fov: 60,                // champ de vision de la caméra perspective
-  cameraHeight: 2.6,      // hauteur du point visé, au-dessus du toit de la voiture
+  cameraHeight: 1.9,      // hauteur du point visé, au-dessus du toit de la voiture
   cameraDistance: 9,      // recul de la caméra derrière la voiture
   carScale: 0.7,          // échelle du véhicule
-  cameraPitch: -21,       // inclinaison en degrés : négatif = regard vers le bas
+  cameraPitch: -11,       // inclinaison en degrés : négatif = regard vers le bas
   sunColor: '#f26749',
   buildingColor: '#d3d3d3',
   roadColor: '#244697',
@@ -125,18 +125,76 @@ function clampAboveGround(p) {
   if (p.y < floor) p.y = floor
 }
 
-// Regard au clavier : les flèches orientent la caméra. Pas de pointer lock,
-// donc le curseur reste disponible pour le GUI et le bouton de fermeture.
-const YAW_RATE = 1.9                 // rad/s
-const PITCH_RATE = 70                // degrés/s
-const MAX_PITCH = 80                 // pour ne pas basculer par-dessus la verticale
-const LOOK_SMOOTH = 6                // inertie de la caméra au départ et à l'arrêt
+// Regard au clavier : les flèches orientent la caméra. Dès qu'on les relâche,
+// elle revient d'elle-même derrière la voiture — elle la suit par défaut, on
+// ne la « pilote » que ponctuellement pour jeter un œil autour.
+const YAW_RATE = 1.9       // rad/s
+const PITCH_RATE = 70      // degrés/s
+const MAX_PITCH = 80       // pour ne pas basculer par-dessus la verticale
+const LOOK_SMOOTH = 6      // inertie de la caméra au départ et à l'arrêt
+const LOOK_IDLE = 0.45     // secondes sans entrée avant le retour automatique
+const FOLLOW_SMOOTH = 3.2  // vitesse de réalignement derrière la voiture
+const DEFAULT_PITCH = settings.cameraPitch
 
 // Les flèches ne pilotent pas l'angle directement mais une vitesse de
 // rotation, elle-même lissée : la caméra démarre et s'arrête en douceur au
 // lieu de claquer d'un cran à chaque appui.
 let yawVelocity = 0
 let pitchVelocity = 0
+let lookIdle = LOOK_IDLE // temps écoulé depuis la dernière entrée clavier
+
+function updateLook(delta) {
+  if (portal || gameOver || falling || paused) return // séquences qui gardent la caméra
+
+  const turn = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)
+  const tilt = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0)
+  if (turn || tilt) {
+    lookIdle = 0
+    framingBlend = null // une entrée de l'utilisateur annule tout recadrage
+  } else {
+    lookIdle += delta
+  }
+
+  const k = 1 - Math.exp(-LOOK_SMOOTH * delta)
+  yawVelocity += (turn * YAW_RATE - yawVelocity) * k
+  pitchVelocity += (tilt * PITCH_RATE - pitchVelocity) * k
+
+  // Seuil d'arrêt : sans lui, la rotation traîne indéfiniment vers zéro
+  if (Math.abs(yawVelocity) < 1e-3 && Math.abs(pitchVelocity) < 1e-2) return
+
+  yaw += yawVelocity * delta
+  settings.cameraPitch = THREE.MathUtils.clamp(
+    settings.cameraPitch + pitchVelocity * delta,
+    -MAX_PITCH,
+    MAX_PITCH
+  )
+  pitchController?.updateDisplay()
+  applyCameraOrientation()
+}
+
+// Suivi automatique : la caméra se replace dans l'axe de la voiture, vue de
+// l'arrière. Le lacet cible suit le cap en continu, donc elle accompagne les
+// virages au lieu d'attendre l'arrêt du véhicule.
+function updateFollowCamera(delta) {
+  if (portal || gameOver || falling || paused || framingBlend) return // recadrages prioritaires
+
+  if (lookIdle < LOOK_IDLE) return // une flèche vient d'être pressée : on la laisse faire
+
+  const k = 1 - Math.exp(-FOLLOW_SMOOTH * delta)
+
+  // La caméra regarde selon -Z : être derrière la voiture, donc alignée sur
+  // son cap, correspond à un lacet décalé de PI.
+  let diff = ((carHeading + Math.PI - yaw + Math.PI) % (Math.PI * 2)) - Math.PI
+  if (diff < -Math.PI) diff += Math.PI * 2
+
+  const pitchGap = DEFAULT_PITCH - settings.cameraPitch
+  if (Math.abs(diff) < 1e-4 && Math.abs(pitchGap) < 1e-3) return
+
+  yaw += diff * k
+  settings.cameraPitch += pitchGap * k
+  pitchController?.updateDisplay()
+  applyCameraOrientation()
+}
 
 // Retour progressif au cadrage mémorisé, après la sortie d'un portail
 const FRAMING_RETURN = 1.1  // secondes
@@ -171,28 +229,21 @@ function updateFraming(delta) {
   applyCameraOrientation()
 }
 
-function updateLook(delta) {
-  if (portal) return // recadrage automatique pendant la transition
+// Tout ce qui doit "suivre" la caméra pour donner l'illusion de l'infini
+function follow() {
+  if (whiteSpace) {
+    // Sol infini : on le recentre sous la voiture, comme le sol de la ville
+    whiteGround.position.set(carPosition.x, 0, carPosition.z)
+    sunLight.target.position.set(carPosition.x, 0, carPosition.z)
+    sunLight.position.copy(sunLight.target.position).add(sunOffset)
+    return
+  }
 
-  const turn = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)
-  const tilt = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0)
-  if (turn || tilt) framingBlend = null // toute entrée reprend la main
-
-  const k = 1 - Math.exp(-LOOK_SMOOTH * delta)
-  yawVelocity += (turn * YAW_RATE - yawVelocity) * k
-  pitchVelocity += (tilt * PITCH_RATE - pitchVelocity) * k
-
-  // Seuil d'arrêt : sans lui, la rotation traîne indéfiniment vers zéro
-  if (Math.abs(yawVelocity) < 1e-3 && Math.abs(pitchVelocity) < 1e-2) return
-
-  yaw += yawVelocity * delta
-  settings.cameraPitch = THREE.MathUtils.clamp(
-    settings.cameraPitch + pitchVelocity * delta,
-    -MAX_PITCH,
-    MAX_PITCH
-  )
-  pitchController?.updateDisplay()
-  applyCameraOrientation()
+  sky.position.copy(camera.position)
+  cameraTarget(_target)
+  ground.position.set(_target.x, 0, _target.z)
+  sunLight.target.position.set(_target.x, 0, _target.z)
+  sunLight.position.copy(_target).add(sunOffset)
 }
 
 /* ---------- Ciel : dégradé + soleil ---------- */
@@ -263,6 +314,28 @@ whiteGround.receiveShadow = true
 whiteGround.visible = false
 scene.add(whiteGround)
 
+// Le sol est un plan plein qui suit la voiture : impossible d'y découper un
+// trou en géométrie, puisqu'il glisse en permanence. On perce donc au
+// fragment, sur une position monde passée en uniform — le puits est alors
+// réellement évidé et on voit dedans.
+const whiteGroundHole = { value: new THREE.Vector4(0, 0, 0, 0) } // x, z, rayon, actif
+whiteGround.material.onBeforeCompile = (shader) => {
+  shader.uniforms.uHole = whiteGroundHole
+  shader.vertexShader = shader.vertexShader
+    .replace('void main() {', 'varying vec2 vGroundXZ;\nvoid main() {')
+    .replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\nvGroundXZ = (modelMatrix * vec4(transformed, 1.0)).xz;'
+    )
+  shader.fragmentShader = shader.fragmentShader
+    .replace('void main() {', 'uniform vec4 uHole;\nvarying vec2 vGroundXZ;\nvoid main() {')
+    .replace(
+      '#include <clipping_planes_fragment>',
+      '#include <clipping_planes_fragment>\nif (uHole.w > 0.5 && distance(vGroundXZ, uHole.xy) < uHole.z) discard;'
+    )
+}
+
+
 let whiteSpace = false
 let whiteProject = 0 // index du projet dont on a franchi le panneau
 
@@ -278,7 +351,7 @@ world.add(ground)
 
 /* ---------- Paramètres de la ville ---------- */
 const BLOCK = 12                      // côté d'un bloc bâti
-const ROAD = 5                        // largeur de rue
+const ROAD = 9                        // largeur de rue
 const CELL = BLOCK + ROAD             // pas de la grille
 const BLOCKS_PER_CHUNK = 4            // blocs par côté de chunk
 const CHUNK = BLOCKS_PER_CHUNK * CELL // côté d'un chunk en unités monde
@@ -313,6 +386,7 @@ const buildingMaterial = new THREE.MeshStandardMaterial({
 
 const roadMaterial = new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 1 })
 const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: SIDEWALK_COLOR, roughness: 0.95 })
+
 // Panneaux publicitaires : chaque panneau porte le média d'en-tête d'un projet.
 // Caisson lumineux : la face est émissive, donc lisible quelle que soit
 // l'heure ou l'orientation — elle ne dépend plus de l'éclairage de la scène.
@@ -407,170 +481,108 @@ const projectMaterials = PROJECTS.map((project) => {
   ]
 })
 
+// Logo du client, plaqué en blanc sur le média du panneau. Les fichiers
+// sources sont sombres : on les aplatit en blanc dans un canvas, en ne
+// gardant que leur silhouette.
+const logoGeometry = new THREE.PlaneGeometry(1, 1)
+const projectLogos = [] // { material, aspect, ready } par projet
+
+function projectLogo(index) {
+  if (projectLogos[index]) return projectLogos[index]
+
+  const entry = {
+    material: new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      toneMapped: false,
+      opacity: 0.95,
+    }),
+    aspect: 3,
+    ready: false,
+  }
+  projectLogos[index] = entry
+
+  const url = PROJECT_LOGOS[PROJECTS[index].slug]
+  if (!url) return entry
+
+  const image = new Image()
+  image.onload = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(image, 0, 0)
+    // On ne repeint que les pixels déjà opaques : la silhouette devient
+    // blanche et la transparence d'origine est préservée.
+    ctx.globalCompositeOperation = 'source-in'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.minFilter = THREE.LinearFilter
+    texture.generateMipmaps = false
+    entry.material.map = texture
+    entry.material.needsUpdate = true
+    entry.aspect = image.width / image.height
+    entry.ready = true
+    // Les chunks déjà construits ont été dimensionnés sur l'aspect par
+    // défaut : on les recale maintenant que le logo est connu.
+    refreshLogoInstances(index)
+  }
+  image.src = asset(url)
+  return entry
+}
+
+// Position et taille du logo sur un panneau, partagées par la construction
+// des chunks et le recalage après chargement.
+const LOGO_WIDTH = 0.26  // part de la largeur du panneau
+const LOGO_MARGIN = 0.07 // marge basse, en part de la hauteur
+
+function logoMatrix(billboard, aspect, out) {
+  const w = billboard.w * LOGO_WIDTH
+  const h = w / aspect
+  const lift = -billboard.h / 2 + h / 2 + billboard.h * LOGO_MARGIN
+  const front = billboard.thick / 2 + 0.02 // décollé de la face, pas de z-fighting
+  return out.compose(
+    _position.set(
+      billboard.x + billboard.nx * front,
+      city.sidewalkHeight + billboard.y + lift,
+      billboard.z + billboard.nz * front
+    ),
+    _quat.setFromEuler(_euler.set(0, billboard.angle, 0)),
+    _scale.set(w, h, 1)
+  )
+}
+
+function refreshLogoInstances(projectIndex) {
+  for (const chunk of chunks.values()) {
+    chunk.userData.logos?.forEach((entry) => {
+      if (entry.project !== projectIndex) return
+      const aspect = projectLogos[projectIndex].aspect
+      entry.items.forEach((b, i) => {
+        entry.mesh.setMatrixAt(i, logoMatrix(b.billboard, aspect, _matrix))
+      })
+      entry.mesh.instanceMatrix.needsUpdate = true
+    })
+  }
+}
+
 // Trois raisons de devoir relancer la lecture : l'autoplay muet est refusé par
 // certains navigateurs, un onglet en arrière-plan diffère le chargement des
 // médias, et revenir sur l'onglet laisse les vidéos en pause.
 function startPanelVideos() {
   PROJECTS.forEach((project) => {
     const video = project.element
-    if (!video) return
-    if (video.readyState === 0) video.load()
-    video.play().catch(() => {})
+    if (video && video.paused) video.play().catch(() => {})
   })
 }
-addEventListener('pointerdown', startPanelVideos)
-addEventListener('keydown', startPanelVideos)
-addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') startPanelVideos()
+window.addEventListener('pointerdown', startPanelVideos)
+window.addEventListener('keydown', startPanelVideos)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) startPanelVideos()
 })
 
-// Panneau "actif" : une copie autonome du panneau en cours de franchissement,
-// que l'on peut agrandir librement — les autres vivent dans un InstancedMesh
-// et ne sont pas animables individuellement.
-
-/* ---------- Courbes d'animation ---------- */
-// Trois profils, un par mouvement : l'ensemble doit démarrer sec et finir posé.
-const ease = {
-  // Longue retenue, puis accélération brutale, puis freinage : le panneau
-  // semble aspiré vers l'écran.
-  inOutExpo: (t) =>
-    t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
-  // Départ instantané puis approche asymptotique : le masque claque.
-  outExpo: (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
-}
-
-/* ---------- Ouverture du portail : masque polygonal ---------- */
-// Séquence inspirée du storyboard fourni : un éclat blanc naît au centre du
-// panneau et grandit en polygone irrégulier jusqu'à tout recouvrir. Noir =
-// média du panneau, blanc = espace vide. Les images clés partagent le même
-// nombre de sommets, ce qui permet de les interpoler deux à deux.
-const MASK_VERTICES = 6
-const MASK_KEYFRAMES = [
-  // 1. entièrement contracté sur un point : rien n'est visible
-  [0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54],
-  // 2. première ouverture, en biais
-  [0.2, 0.9, 0.62, 0.75, 0.66, 0.54, 0.5, 0.32, 0.32, 0.5, 0.25, 0.72],
-  // 3. le polygone occupe l'essentiel de la surface
-  [0.13, 0.78, 0.58, 0.87, 0.72, 0.4, 0.5, 0.07, 0.27, 0.2, 0.08, 0.55],
-  // 4. débordement franc : plus rien du panneau n'est visible
-  [-0.6, 1.8, 1.6, 1.8, 1.9, -0.5, 1.2, -0.9, -0.4, -0.8, -0.9, 0.6],
-]
-
-// Tampon envoyé au shader, réécrit à chaque frame par interpolation
-const maskPoints = new Float32Array(MASK_VERTICES * 2)
-
-const portalFrontMaterial = new THREE.ShaderMaterial({
-  side: THREE.DoubleSide,
-  toneMapped: false,
-  uniforms: {
-    uMap: { value: null },
-    uHasMap: { value: 0 },
-    uRepeat: { value: new THREE.Vector2(1, 1) },
-    uOffset: { value: new THREE.Vector2(0, 0) },
-    uPoly: { value: maskPoints },
-  },
-  vertexShader: /* glsl */ `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: /* glsl */ `
-    uniform sampler2D uMap;
-    uniform float uHasMap;
-    uniform vec2 uRepeat;
-    uniform vec2 uOffset;
-    uniform vec2 uPoly[${MASK_VERTICES}];
-    varying vec2 vUv;
-
-    // Test d'appartenance par lancer de rayon : on compte les arêtes
-    // franchies à droite du point. Impair = dedans.
-    bool insideMask(vec2 p) {
-      bool inside = false;
-      for (int i = 0; i < ${MASK_VERTICES}; i++) {
-        int j = i + 1;
-        if (j == ${MASK_VERTICES}) j = 0;
-        vec2 a = uPoly[i];
-        vec2 b = uPoly[j];
-        if ((a.y > p.y) != (b.y > p.y)) {
-          float x = (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x;
-          if (p.x < x) inside = !inside;
-        }
-      }
-      return inside;
-    }
-
-    void main() {
-      if (insideMask(vUv)) {
-        gl_FragColor = vec4(1.0);
-        return;
-      }
-      // Le recadrage "cover" vit dans repeat/offset de la texture : il faut le
-      // refaire à la main, un ShaderMaterial n'applique pas ces transformations.
-      vec4 media = uHasMap > 0.5
-        ? texture2D(uMap, vUv * uRepeat + uOffset)
-        : vec4(1.0);
-      gl_FragColor = vec4(media.rgb, 1.0);
-    }
-  `,
-})
-
-// Interpole la forme entre deux images clés. `t` parcourt toute la séquence.
-function updateMaskShape(t) {
-  const span = MASK_KEYFRAMES.length - 1
-  const scaled = THREE.MathUtils.clamp(t, 0, 1) * span
-  const index = Math.min(Math.floor(scaled), span - 1)
-  const local = scaled - index
-  const from = MASK_KEYFRAMES[index]
-  const to = MASK_KEYFRAMES[index + 1]
-  for (let i = 0; i < maskPoints.length; i++) {
-    maskPoints[i] = from[i] + (to[i] - from[i]) * local
-  }
-  portalFrontMaterial.uniforms.uPoly.value = maskPoints
-}
-
-// Les tranches du caisson s'effacent elles aussi : elles sont déjà blanches,
-// il suffit de les remplacer par un blanc pur non éclairé en fin de séquence.
-const portalEdgeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
-const portalMaterials = [
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalFrontMaterial,
-  portalEdgeMaterial,
-]
-
-const portalMesh = new THREE.Mesh(billboardGeometry, portalMaterials)
-portalMesh.visible = false
-portalMesh.frustumCulled = false
-scene.add(portalMesh)
-
-// Débord lumineux du panneau sur son environnement immédiat. Une seule
-// lumière, portée par le panneau actif : la diffusion de tous les panneaux
-// coûterait bien trop cher.
-const portalLight = new THREE.PointLight(0xffffff, 0, 30, 2)
-portalLight.visible = false
-scene.add(portalLight)
-
-const PORTAL_DURATION = 1.6 // secondes d'animation automatique, une fois amorcé
-const PORTAL_STRAIGHTEN = 7 // vitesse de redressement de la voiture face au panneau
-const MASK_DURATION = 1.1   // secondes d'ouverture du masque
-const MASK_TRIGGER = 0.8    // part de l'agrandissement atteinte avant de l'amorcer
-const PORTAL_COVER = 1.25   // marge de recouvrement du viewport
-const PORTAL_DROP_DEPTH = 2.5 // la ville descend largement sous le champ de vision
-const PORTAL_CAM_BLEND = 6  // vitesse de recadrage de la caméra face au panneau
-const ZERO_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0)
-
-// Le panneau repris par portalMesh doit disparaître de son InstancedMesh,
-// sinon on en voit deux au même endroit.
-function setPanelInstanceVisible(key, visible) {
-  const entry = panelLookup.get(key)
-  if (!entry) return
-  entry.mesh.setMatrixAt(entry.index, visible ? entry.matrix : ZERO_MATRIX)
-  entry.mesh.instanceMatrix.needsUpdate = true
-}
 // Longueur = CHUNK + ROAD : les bandes débordent légèrement pour que les
 // croisements entre chunks voisins soient parfaitement bouchés.
 const roadGeometry = new THREE.PlaneGeometry(ROAD, CHUNK + ROAD)
@@ -586,6 +598,7 @@ const _color = new THREE.Color()
 const _quat = new THREE.Quaternion()
 const WHITE = new THREE.Color('#ffffff')
 const _euler = new THREE.Euler()
+
 
 /* ---------- Génération du bâti d'un bloc ---------- */
 // Fonction pure : mêmes coordonnées de bloc = mêmes immeubles. Elle sert à la
@@ -665,13 +678,6 @@ function eachBuilding(blockX, blockZ, emit) {
           billboard = {
             face,
             angle,
-            // Projet affiché. Les coordonnées sont décalées avant hachage :
-            // sur les mêmes coordonnées, le tirage resterait corrélé à celui
-            // qui vient de décider la présence du panneau, et deux ou trois
-            // projets rafleraient la moitié de la ville. Ainsi décalé, le
-            // tirage répartit les 15 projets à parts égales (±7 % mesuré) tout
-            // en restant stable : un panneau montre toujours le même projet.
-            project: Math.floor(hash(blockX * 3 + 1, blockZ * 7 + 5, 121 + salt) * PROJECTS.length),
             w: bw,
             h: bh,
             thick,
@@ -680,14 +686,16 @@ function eachBuilding(blockX, blockZ, emit) {
             // Au sol : posé sur le trottoir. En hauteur : ancré sous le toit.
             y: atGround ? bh / 2 + 0.05 : height - bh / 2 - Math.min(1.5, height * 0.08),
             ground: atGround,
-            // Zone de déclenchement, plaquée DEVANT le panneau : le portail
-            // s'amorce juste avant le contact, la voiture ne le touche jamais.
             nx,
             nz,
+            // Zone de déclenchement, plaquée DEVANT le panneau : le portail
+            // s'amorce juste avant le contact, la voiture ne le touche jamais.
             tx: x + nx * (out + PORTAL_DEPTH / 2),
             tz: z + nz * (out + PORTAL_DEPTH / 2),
             thx: alongX ? bw / 2 : PORTAL_DEPTH / 2,
             thz: alongX ? PORTAL_DEPTH / 2 : bw / 2,
+            // Projet affiché sur ce panneau, tiré lui aussi du hash
+            project: Math.floor(hash(blockX * 3 + 1, blockZ * 7 + 5, 121 + salt) * PROJECTS.length),
           }
         }
       }
@@ -711,6 +719,22 @@ function eachBuilding(blockX, blockZ, emit) {
       }
     }
   }
+}
+
+// Index des panneaux instanciés : permet de masquer celui qui est repris par
+// portalMesh pendant la transition, pour qu'on n'en voie pas deux.
+const panelLookup = new Map()
+const panelKey = (p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`
+
+const ZERO_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0)
+
+// Le panneau repris par portalMesh doit disparaître de son InstancedMesh,
+// sinon on en voit deux au même endroit.
+function setPanelInstanceVisible(key, visible) {
+  const entry = panelLookup.get(key)
+  if (!entry) return
+  entry.mesh.setMatrixAt(entry.index, visible ? entry.matrix : ZERO_MATRIX)
+  entry.mesh.instanceMatrix.needsUpdate = true
 }
 
 /* ---------- Génération d'un chunk ---------- */
@@ -753,6 +777,7 @@ function buildChunk(cx, cz) {
   if (billboards.length) {
     // Un lot par projet : le réticule doit pouvoir tous les viser
     group.userData.panels = []
+    group.userData.logos = []
     const byProject = new Map()
     billboards.forEach((b) => {
       const list = byProject.get(b.billboard.project)
@@ -780,6 +805,13 @@ function buildChunk(cx, cz) {
       })
       group.add(panels)
       group.userData.panels.push(panels)
+
+      // Logo du client, en blanc, plaqué sur la face du panneau
+      const logo = projectLogo(projectIndex)
+      const logos = new THREE.InstancedMesh(logoGeometry, logo.material, group_.length)
+      group_.forEach((b, i) => logos.setMatrixAt(i, logoMatrix(b.billboard, logo.aspect, _matrix)))
+      group.add(logos)
+      group.userData.logos.push({ mesh: logos, project: projectIndex, items: group_ })
     })
     group.userData.panelKeys = billboards.map((b) => panelKey(b.billboard))
   }
@@ -813,28 +845,15 @@ function buildChunk(cx, cz) {
   let r = 0
   for (let i = 0; i < BLOCKS_PER_CHUNK; i++) {
     const offset = i * CELL // frontière de bloc, en local
-    _matrix.compose(
-      _position.set(originX + offset, 0.01, originZ + CHUNK / 2),
-      FLAT_Z,
-      ONE
-    )
+    _matrix.compose(_position.set(originX + offset, 0.01, originZ + CHUNK / 2), FLAT_Z, ONE)
     roads.setMatrixAt(r++, _matrix)
-    _matrix.compose(
-      _position.set(originX + CHUNK / 2, 0.01, originZ + offset),
-      FLAT_X,
-      ONE
-    )
+    _matrix.compose(_position.set(originX + CHUNK / 2, 0.01, originZ + offset), FLAT_X, ONE)
     roads.setMatrixAt(r++, _matrix)
   }
   group.add(roads)
 
   return group
 }
-
-// Index des panneaux instanciés : permet de masquer celui qui est repris par
-// portalMesh pendant la transition, pour qu'on n'en voie pas deux.
-const panelLookup = new Map()
-const panelKey = (p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`
 
 /* ---------- Streaming des chunks ---------- */
 const chunks = new Map()
@@ -904,10 +923,12 @@ shadowCam.near = 1; shadowCam.far = 400
 sunLight.shadow.bias = -0.0008
 scene.add(sunLight, sunLight.target)
 
+
 /* ---------- Voiture ---------- */
 // Le modèle est normalisé à une longueur cible : on ne dépend pas de l'échelle
 // à laquelle il a été exporté, et les collisions restent calées sur le gabarit.
 const CAR_LENGTH = 4.2 // longueur de référence, avant application de carScale
+const CAR_GROUND = 0.02 // la voiture roule sur la chaussée, pas sur le trottoir
 const carGroup = new THREE.Group()
 // La voiture est hors du groupe "world" : pendant la transition de portail,
 // la ville descend mais le véhicule reste en place à l'écran.
@@ -919,8 +940,9 @@ let prevHeading = 0    // état précédent, pour l'interpolation du rendu
 // Le rayon de collision suit l'échelle du véhicule
 const carRadius = () => 1.2 * settings.carScale
 
-new GLTFLoader().load(asset('models/car_1.glb'), (gltf) => {
-  const model = gltf.scene
+// Normalisation commune aux deux véhicules : longueur cible, roues au sol,
+// axe long aligné sur +Z (l'axe d'avancement du contrôleur).
+function normalizeCarModel(model) {
   model.traverse((o) => {
     if (!o.isMesh) return
     o.castShadow = true
@@ -929,19 +951,17 @@ new GLTFLoader().load(asset('models/car_1.glb'), (gltf) => {
 
   const box = new THREE.Box3().setFromObject(model)
   const size = box.getSize(new THREE.Vector3())
-  // Le plus grand côté horizontal est la longueur du véhicule
   const scale = CAR_LENGTH / Math.max(size.x, size.z)
   model.scale.setScalar(scale)
 
-  // Recentre à plat sur le sol, roues posées
   const center = box.getCenter(new THREE.Vector3())
   model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale)
-
-  // Le modèle est orienté selon son axe long ; on l'aligne sur +Z, l'axe
-  // d'avancement utilisé par le contrôleur
   if (size.x > size.z) model.rotation.y = Math.PI / 2
+  return model
+}
 
-  carGroup.add(model)
+new GLTFLoader().load(asset('models/car_1.glb'), (gltf) => {
+  carGroup.add(normalizeCarModel(gltf.scene))
   applyCarScale()
 })
 
@@ -950,15 +970,10 @@ function applyCarScale() {
   carGroup.scale.setScalar(settings.carScale)
 }
 
-
-
 /* ---------- Dégâts : fumée puis flammes sur le capot ---------- */
-// Un sprite animé par palier. Les planches sont des bandes de vignettes :
-// on ne déplace que les UV, il n'y a donc qu'un seul quad et qu'une texture
-// en mémoire par palier.
-// Les planches ont été recomposées en cellules strictement uniformes
-// (voir tools/atlas.py) : toutes les vignettes tiennent sur une seule ligne,
-// recadrées et calées en bas, donc l'animation ne saute plus.
+// Un sprite animé par palier. Les planches ont été recomposées en cellules
+// strictement uniformes (voir tools/atlas.py) : toutes les vignettes tiennent
+// sur une seule ligne, recadrées et calées en bas.
 const DAMAGE_STAGES = [
   { file: 'sprites/smoke_1.png', frames: 12, fps: 12, scale: 2.2, ratio: 167 / 172 },
   { file: 'sprites/smoke_2.png', frames: 12, fps: 12, scale: 2.8, ratio: 169 / 179 },
@@ -1010,14 +1025,14 @@ function setDamageStage(stage) {
     texture.colorSpace = THREE.SRGBColorSpace
     // Filtrage au plus proche : une planche d'animation se lit vignette par
     // vignette, comme un dessin animé. Le filtrage linéaire mélangeait les
-    // texels et donnait cette impression de glissement entre les images.
+    // texels et donnait une impression de glissement entre les images.
     texture.magFilter = THREE.NearestFilter
     texture.minFilter = THREE.NearestFilter
     texture.generateMipmaps = false
     // Une seule vignette visible à la fois
     texture.repeat.set(1 / preset.frames, 1)
-    // Sans ce bridage, le filtrage linéaire va chercher des texels de la
-    // vignette voisine sur les bords et laisse un liseré fantôme.
+    // Sans ce bridage, le filtrage va chercher des texels de la vignette
+    // voisine sur les bords et laisse un liseré fantôme.
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
     damageTextures[stage] = texture
   }
@@ -1048,16 +1063,21 @@ function updateDamageSprite(delta) {
 // Voitures de police semées sur la grille de façon déterministe, puis
 // pilotées par une IA volontairement simple : foncer sur le joueur, glisser
 // le long des façades quand elles sont gênées.
-const POLICE_SPACING = [10, 8, 6, 4, 3] // en blocs, selon le niveau de recherche
+const POLICE_SPACING = [9, 8, 7, 6, 5] // en blocs, selon le niveau de recherche
 const POLICE_VIEW = 170      // rayon de présence autour du joueur
 const POLICE_FORGET = 260    // au-delà, la voiture est retirée
-const POLICE_SPEED = 20
-const POLICE_ACCEL = 13
-const POLICE_TURN = 1.9      // vitesse de braquage, rad/s
+const POLICE_SPEED = 17      // sensiblement sous la pointe du joueur (24)
+const POLICE_ACCEL = 10
+const POLICE_TURN = 1.5      // vitesse de braquage, rad/s : elles ratent leurs virages
+// Seules les plus proches attaquent. Les autres suivent à distance, sans quoi
+// on se retrouve encerclé en permanence et le jeu devient injouable.
+const POLICE_ATTACKERS = 2   // nombre de poursuivants autorisés à foncer
+const POLICE_STANDOFF = 22   // distance que gardent les autres
 const policeRadius = () => carRadius() // même gabarit que la voiture du joueur
 const CAR_IMPACT = 1.9       // distance de contact entre deux voitures
 const CAR_RESTITUTION = 1.6  // rebond entre véhicules : franchement nerveux
-const POLICE_RETREAT = 0.9   // secondes de marche arrière après un choc
+const POLICE_RETREAT = 1.6   // secondes de marche arrière après un choc
+const POLICE_CALM = 2.5      // secondes de prudence qui suivent le recul
 const MAX_WANTED = 5
 
 let wanted = 1
@@ -1065,23 +1085,8 @@ const policeCars = []
 let policeTemplate = null
 
 new GLTFLoader().load(asset('models/car_2.glb'), (gltf) => {
-  const model = gltf.scene
-  model.traverse((o) => {
-    if (!o.isMesh) return
-    o.castShadow = true
-    o.receiveShadow = true
-  })
-
-  // Même normalisation que la voiture du joueur : longueur cible, roues au sol
-  const box = new THREE.Box3().setFromObject(model)
-  const size = box.getSize(new THREE.Vector3())
-  const scale = CAR_LENGTH / Math.max(size.x, size.z)
-  model.scale.setScalar(scale)
-  const center = box.getCenter(new THREE.Vector3())
-  model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale)
-  if (size.x > size.z) model.rotation.y = Math.PI / 2
-
-  policeTemplate = model
+  policeTemplate = normalizeCarModel(gltf.scene)
+  restorePolice() // rien à faire s'il n'y a pas de sauvegarde
   refreshPoliceFleet()
 })
 
@@ -1104,6 +1109,7 @@ function policeSpawnStep() {
 
 function refreshPoliceFleet() {
   if (!policeTemplate || whiteSpace) return
+  if (pendingPolice) return // on attend d'avoir remis la flotte sauvegardée
 
   const step = policeSpawnStep()
   const here = new Set(policeCars.map((c) => c.key))
@@ -1121,9 +1127,9 @@ function refreshPoliceFleet() {
       // Ni trop loin, ni collé au joueur au moment où il réapparaît
       if (distance > POLICE_VIEW || distance < 30) continue
 
-      const key = policeKey(bx, bz)
-      if (here.has(key)) continue
-      spawnPolice(key, x, z)
+      const k = policeKey(bx, bz)
+      if (here.has(k)) continue
+      spawnPolice(k, x, z)
     }
   }
 }
@@ -1144,6 +1150,7 @@ function spawnPolice(key, x, z) {
     heading: Math.atan2(body.x - x, body.z - z),
     speed: 0,
     retreat: 0, // secondes de recul restantes après un choc
+    calm: 0,    // secondes de prudence après un recul : elle suit sans charger
     role: policeCars.length % 2, // 0 = poursuivant, 1 = bloqueur
   })
 }
@@ -1156,6 +1163,50 @@ function removePolice(car) {
 
 function clearPolice() {
   while (policeCars.length) removePolice(policeCars[0])
+}
+
+
+// Navigation routière : foncer en ligne droite fait entrer les poursuivants
+// dans les façades, où ils raclent et s'arrêtent. Tant qu'un immeuble barre
+// la route, ils visent donc un point du réseau de rues plutôt que le joueur.
+const _sight = new THREE.Vector3()
+
+// Rien entre les deux ? Un simple balayage de collision suffit à le dire.
+function hasLineOfSight(fromX, fromZ, toX, toZ) {
+  return !sweep(fromX, fromZ, toX - fromX, toZ - fromZ, policeRadius())
+}
+
+// Axe de rue le plus proche d'une position : les rues passent sur les
+// multiples de CELL, dans les deux directions.
+const nearestRoad = (v) => Math.round(v / CELL) * CELL
+
+function policeWaypoint(car, out) {
+  // Vue dégagée : autant couper au plus court
+  if (hasLineOfSight(car.body.x, car.body.z, body.x, body.z)) {
+    return out.set(body.x, 0, body.z)
+  }
+
+  const roadX = nearestRoad(car.body.x)
+  const roadZ = nearestRoad(car.body.z)
+  const targetRoadX = nearestRoad(body.x)
+  const targetRoadZ = nearestRoad(body.z)
+
+  // Sur quelle rue roule-t-elle ? Celle dont elle est le plus près.
+  const onVertical = Math.abs(car.body.x - roadX) < Math.abs(car.body.z - roadZ)
+
+  if (onVertical) {
+    // Rue nord-sud : on la remonte jusqu'au croisement de la rue du joueur,
+    // puis on tourne. Une fois au croisement, on vise la rue suivante.
+    if (Math.abs(car.body.z - targetRoadZ) > CELL * 0.5) {
+      return out.set(roadX, 0, targetRoadZ)
+    }
+    return out.set(targetRoadX, 0, targetRoadZ)
+  }
+
+  if (Math.abs(car.body.x - targetRoadX) > CELL * 0.5) {
+    return out.set(targetRoadX, 0, roadZ)
+  }
+  return out.set(targetRoadX, 0, targetRoadZ)
 }
 
 // Déplacement partagé avec le joueur : même balayage, même glissement, mais
@@ -1229,6 +1280,7 @@ function collideWithPlayer(car) {
   // Elle prend du champ après l'impact : sans ce recul, deux voitures
   // suffisent à plaquer le joueur contre une façade sans qu'il puisse repartir.
   car.retreat = POLICE_RETREAT
+  car.calm = POLICE_CALM
 
   // Le joueur part en travers, proportionnellement à l'angle du choc
   const cross = Math.sin(carHeading) * nz - Math.cos(carHeading) * nx
@@ -1244,9 +1296,9 @@ function collideWithPlayer(car) {
 
 // Game over aux chocs : encaisser MAX_HITS tamponnages dans une même
 // séquence — c'est-à-dire entre deux passages de panneau — vaut la capture.
-const MAX_HITS = 8      // impacts encaissés avant la capture
+const MAX_HITS = 8       // impacts encaissés avant la capture
 const HITS_PER_STAGE = 2 // un palier de dégâts tous les deux impacts
-const HIT_COOLDOWN = 0.6 // secondes avant qu'un nouveau choc soit compté
+const HIT_COOLDOWN = 1.2 // secondes avant qu'un nouveau choc soit compté
 let hits = 0
 let hitCooldown = 0
 let gameOver = false
@@ -1259,7 +1311,6 @@ function registerHit() {
   if (hits >= MAX_HITS) triggerGameOver()
   else showNotice(`Tamponné ! ${hits}/${MAX_HITS}`)
 }
-
 
 // Séquence de capture : la simulation vire au gris, la caméra s'envole en
 // gardant la voiture dans le cadre, puis fondu au noir derrière l'écran final.
@@ -1300,6 +1351,11 @@ function updateBusted(delta) {
 
 function restart() {
   gameOver = false
+  try {
+    localStorage.removeItem(SAVE_KEY)
+  } catch {
+    // sans stockage, il n'y avait rien à effacer
+  }
   hits = 0
   hitCooldown = 0
   updateDamageStage()
@@ -1316,6 +1372,12 @@ function restart() {
 function stepPolice(dt) {
   if (whiteSpace) return
 
+  // Classement par distance : seules les premières ont le droit d'attaquer
+  const ranked = policeCars
+    .map((car) => ({ car, d: Math.hypot(body.x - car.body.x, body.z - car.body.z) }))
+    .sort((a, b) => a.d - b.d)
+  const attackers = new Set(ranked.slice(0, POLICE_ATTACKERS).map((r) => r.car))
+
   for (let i = policeCars.length - 1; i >= 0; i--) {
     const car = policeCars[i]
     const dx = body.x - car.body.x
@@ -1331,13 +1393,22 @@ function stepPolice(dt) {
     // sur deux joue le bloqueur et anticipe bien plus loin, pour se placer en
     // travers de la route plutôt que de coller au pare-chocs.
     const blocker = car.role === 1
-    const lead = Math.min(3.2, distance / POLICE_SPEED) * (blocker ? 2.6 : 0.8)
-    const aimX = body.x + velocity.x * lead
-    const aimZ = body.z + velocity.z * lead
+    const lead = Math.min(3.2, distance / POLICE_SPEED) * (blocker ? 1.8 : 0.7)
+
+    // Point de passage : le joueur directement s'il est en vue, sinon le
+    // croisement qui mène à lui.
+    policeWaypoint(car, _sight)
+    const direct = _sight.x === body.x && _sight.z === body.z
+    // L'anticipation n'a de sens que quand on vise vraiment le joueur
+    const aimX = _sight.x + (direct ? velocity.x * lead : 0)
+    const aimZ = _sight.z + (direct ? velocity.z * lead : 0)
     const target = Math.atan2(aimX - car.body.x, aimZ - car.body.z)
+
     let diff = ((target - car.heading + Math.PI) % (Math.PI * 2)) - Math.PI
     if (diff < -Math.PI) diff += Math.PI * 2
     car.heading += THREE.MathUtils.clamp(diff, -POLICE_TURN * dt, POLICE_TURN * dt)
+
+    if (car.calm > 0) car.calm -= dt
 
     if (car.retreat > 0) {
       car.retreat -= dt
@@ -1351,9 +1422,18 @@ function stepPolice(dt) {
     // Le bloqueur freine une fois en position devant le joueur : il fait
     // barrage au lieu de continuer à avancer et de libérer le passage.
     const ahead = (car.body.x - body.x) * velocity.x + (car.body.z - body.z) * velocity.z > 0
-    const blocking = blocker && ahead && distance < 22
-    const wantedSpeed =
-      distance < 4 ? POLICE_SPEED * 0.3 : blocking ? POLICE_SPEED * 0.35 : POLICE_SPEED
+    const blocking = blocker && ahead && distance < 22 && direct
+
+    // Les non-attaquants et celles qui sortent d'un choc restent en retrait :
+    // elles escortent le joueur au lieu de le percuter en meute.
+    const holdsBack = !attackers.has(car) || car.calm > 0
+    const tooClose = holdsBack && distance < POLICE_STANDOFF
+
+    let wantedSpeed = POLICE_SPEED
+    if (distance < 4) wantedSpeed = POLICE_SPEED * 0.3
+    else if (tooClose) wantedSpeed = POLICE_SPEED * 0.25
+    else if (blocking) wantedSpeed = POLICE_SPEED * 0.35
+
     car.speed += (wantedSpeed - car.speed) * (1 - Math.exp(-POLICE_ACCEL * dt))
     car.velocity.set(Math.sin(car.heading) * car.speed, 0, Math.cos(car.heading) * car.speed)
 
@@ -1367,17 +1447,18 @@ function updatePoliceVisuals(time) {
   const blue = Math.sin(time * 9) > 0
   policeCars.forEach((car) => {
     car.group.position.set(car.body.x, CAR_GROUND, car.body.z)
-    car.group.scale.setScalar(settings.carScale)
     car.group.rotation.y = car.heading
+    car.group.scale.setScalar(settings.carScale)
     const beacon = car.group.children[1]
     if (beacon) beacon.material.emissive.setHex(blue ? 0x2970f4 : 0xf26749)
   })
 }
 
+
 /* ---------- Contrôleur de déplacement : Z Q S D ---------- */
 // Approche classique de character controller : une position autoritaire qui
 // n'est JAMAIS en pénétration, déplacée à pas de temps fixe par une vélocité
-// résolue en "collide and slide". Le lissage se fait par-dessus, au rendu.
+// résolue en "collide and slide".
 const keys = new Set()
 
 // Dynamique longitudinale : la voiture n'avance que sur son propre axe.
@@ -1435,14 +1516,14 @@ const pressed = {
   get brake() {
     return keys.has('KeyS')
   },
-  get handbrake() {
-    return keys.has('Space')
-  },
   get left() {
     return keys.has('KeyA') || keys.has('KeyQ')
   },
   get right() {
     return keys.has('KeyD')
+  },
+  get handbrake() {
+    return keys.has('Space')
   },
 }
 
@@ -1523,9 +1604,8 @@ function sweep(px, pz, dx, dz, radius = carRadius()) {
     for (let bz = minBZ; bz <= maxBZ; bz++) {
       eachBuilding(bx, bz, (b) => {
         if (b.base) return // volume en retrait : il est en hauteur
-        const r = radius
-        const hw = b.w / 2 + r
-        const hd = b.d / 2 + r
+        const hw = b.w / 2 + radius
+        const hd = b.d / 2 + radius
         const h = raycastBox(px, pz, dx, dz, b.x - hw, b.x + hw, b.z - hd, b.z + hd)
         if (!h || (best !== null && h.t >= best.t)) return
         best = { t: h.t, nx: h.nx, nz: h.nz }
@@ -1533,34 +1613,6 @@ function sweep(px, pz, dx, dz, radius = carRadius()) {
     }
   }
   return best
-}
-
-// Filet de sécurité : ne sert que si le corps se retrouve DÉJÀ dans un mur
-// (changement de réglages de génération, spawn malheureux). Ce n'est pas le
-// mécanisme de collision, juste un rattrapage.
-function depenetrate(p, radius = carRadius()) {
-  if (whiteSpace) return
-  const blockX = Math.floor(p.x / CELL)
-  const blockZ = Math.floor(p.z / CELL)
-  for (let bx = blockX - 1; bx <= blockX + 1; bx++) {
-    for (let bz = blockZ - 1; bz <= blockZ + 1; bz++) {
-      eachBuilding(bx, bz, (b) => {
-        if (b.base) return
-        push(b.x, b.z, b.w / 2 + radius, b.d / 2 + radius)
-      })
-
-      // Sortie par l'axe de moindre pénétration
-      function push(cx, cz, hw, hd) {
-        const dx = p.x - cx
-        const dz = p.z - cz
-        const penX = hw - Math.abs(dx)
-        const penZ = hd - Math.abs(dz)
-        if (penX <= 0 || penZ <= 0) return
-        if (penX < penZ) p.x = cx + (dx >= 0 ? hw : -hw) + Math.sign(dx || 1) * SKIN
-        else p.z = cz + (dz >= 0 ? hd : -hd) + Math.sign(dz || 1) * SKIN
-      }
-    }
-  }
 }
 
 // Spring arm : longueur utilisable du bras de caméra. On lance un rayon du
@@ -1592,6 +1644,34 @@ function springArm(pivot, dir, maxLength) {
     }
   }
   return best * maxLength
+}
+
+// Filet de sécurité : ne sert que si le corps se retrouve DÉJÀ dans un mur
+// (changement de réglages de génération, spawn malheureux). Ce n'est pas le
+// mécanisme de collision, juste un rattrapage.
+function depenetrate(p, radius = carRadius()) {
+  if (whiteSpace) return
+  const blockX = Math.floor(p.x / CELL)
+  const blockZ = Math.floor(p.z / CELL)
+  for (let bx = blockX - 1; bx <= blockX + 1; bx++) {
+    for (let bz = blockZ - 1; bz <= blockZ + 1; bz++) {
+      eachBuilding(bx, bz, (b) => {
+        if (b.base) return
+        push(b.x, b.z, b.w / 2 + radius, b.d / 2 + radius)
+      })
+
+      // Sortie par l'axe de moindre pénétration
+      function push(cx, cz, hw, hd) {
+        const dx = p.x - cx
+        const dz = p.z - cz
+        const penX = hw - Math.abs(dx)
+        const penZ = hd - Math.abs(dz)
+        if (penX <= 0 || penZ <= 0) return
+        if (penX < penZ) p.x = cx + (dx >= 0 ? hw : -hw) + Math.sign(dx || 1) * SKIN
+        else p.z = cz + (dz >= 0 ? hd : -hd) + Math.sign(dz || 1) * SKIN
+      }
+    }
+  }
 }
 
 // Collide and slide : on avance jusqu'au contact, on projette le déplacement
@@ -1646,171 +1726,15 @@ function moveAndSlide(dt) {
   }
 }
 
-// Arrivée dans l'espace blanc : le panneau a fini de s'ouvrir, il n'a plus
-// rien à masquer. La ville est simplement mise de côté — elle n'est ni
-// détruite ni régénérée, le respawn la retrouve telle quelle.
-function enterWhiteSpace() {
-  whiteSpace = true
-
-  // Point de vue conservé pour la fenêtre de la porte de retour
-  cityView.x = body.x
-  cityView.z = body.z
-  cityView.heading = carHeading
-
-  // Lumières neutralisées : le soleil orange et l'ambiance bleue de la ville
-  // teintaient le sol en rose et la carrosserie en violet, alors que le
-  // panneau qu'on vient de traverser était d'un blanc pur.
-  sunLight.color.set(0xffffff)
-  hemiLight.color.set(0xffffff)
-  hemiLight.groundColor.set(0xffffff)
-
-  // La caméra reprend EXACTEMENT là où la transition l'a laissée, puis
-  // rejoint le cadrage d'arrivée. Sauter directement d'une pose à l'autre
-  // produisait une coupure très visible.
-  _euler.setFromQuaternion(camera.quaternion, 'YXZ')
-  yaw = _euler.y
-  settings.cameraPitch = THREE.MathUtils.radToDeg(_euler.x)
-  // Cadrage d'arrivée : pile dans l'axe de la voiture, vue de l'arrière et
-  // légèrement en plongée. `chase` demande de recalculer la cible à chaque
-  // frame, pour finir exactement derrière elle même si elle a tourné.
-  framingBlend = { chase: true, pitch: WHITE_EXIT_PITCH, elapsed: 0 }
-
-  // La position aussi doit être continue : la caméra de transition est bien
-  // plus haute et plus loin que la caméra de poursuite. On mesure l'écart et
-  // on le laisse se résorber, au lieu de basculer d'une pose à l'autre.
-  // placeCamera() ne calcule la pose de poursuite qu'une fois `portal` libéré.
-  portal = null
-  currentPortal = null
-
-  cameraOffset.set(0, 0, 0)
-  _camGoal.copy(camera.position) // pose laissée par la transition
-  placeCamera() // pose de poursuite correspondante
-  cameraOffset.copy(_camGoal).sub(camera.position)
-  portalMesh.visible = false
-  portalLight.visible = false
-
-  world.visible = false
-  sky.visible = false
-  scene.fog = null
-  scene.background = WHITE_SPACE_COLOR
-  // Les poursuivants ne franchissent pas les panneaux : on les dissout ici,
-  // ils seront re-semés au retour, avec un niveau de recherche de plus.
-  clearPolice()
-  // Nouvelle séquence : le compteur de chocs repart de zéro
-  hits = 0
-  hitCooldown = 0
-  updateDamageStage()
-  whiteGround.visible = true
-  whiteGround.position.set(carPosition.x, 0, carPosition.z)
-
-  // Constellation de médias du projet, et URL dédiée
-  const project = PROJECTS[whiteProject]
-  setProjectTitle(project)
-  titleMesh.visible = true
-  titleGround.visible = true
-  spawnProjectPlanes(project)
-  placeCta(project)
-  placeDoor()
-  mediaGroup.visible = true
-  mediaFade = 0
-  history.pushState({ slug: project.slug }, '', `/${project.slug}`)
-
-  // La voiture repart de zéro, dans l'axe où elle a franchi le panneau
-  velocity.set(0, 0, 0)
-  _lateral.set(0, 0, 0)
-  speed = 0
-  spin = 0
-  steerInput = 0
-  accumulator = 0
-
-  applyCameraOrientation()
-  closeButton.classList.add('is-visible')
-  showNotice('White space')
-}
-
-function exitWhiteSpace() {
-  whiteSpace = false
-  wanted = Math.min(MAX_WANTED, wanted + 1)
-  updateWantedHud()
-  mediaGroup.visible = false
-  titleMesh.visible = false
-  titleGround.visible = false
-  ctaMesh.visible = false
-  doorMesh.visible = false
-  canvas.style.cursor = ''
-  clearProjectPlanes()
-  if (location.pathname !== '/') history.pushState({}, '', '/')
-  sunLight.color.set(settings.sunColor)
-  hemiLight.color.copy(SKY)
-  hemiLight.groundColor.copy(GROUND)
-  world.visible = true
-  sky.visible = true
-  scene.fog = cityFog
-  scene.background = null
-  whiteGround.visible = false
-}
-
-// Respawn : la voiture est lâchée d'une certaine hauteur et retombe.
-// Le pilotage est rendu à l'atterrissage.
-const CAR_GROUND = 0.02 // la voiture roule sur la chaussée, pas sur le trottoir
-const RESPAWN_HEIGHT = 40
-const GRAVITY = 55
-const LAND_RESTITUTION = 0.45 // rebond sur le bitume
-const STUCK_DELAY = 1.1       // secondes bloqué avant le saut de dégagement
-const STUCK_SPEED = 1.5       // en dessous, on considère la voiture immobile
-const HOP_SPEED = 15          // impulsion verticale du saut
-const HOP_PUSH = 11           // poussée horizontale qui accompagne le saut
-const LAND_STOP = 4           // en dessous, la voiture se pose pour de bon
-let fallHeight = 0
-let fallSpeed = 0
-let airborne = false
-let stuckTime = 0
-
-function respawn() {
-  if (whiteSpace) exitWhiteSpace()
-  if (portal) {
-    setPanelInstanceVisible(portal.key, true)
-    portal = null
-  }
-  currentPortal = null
-  closeButton.classList.remove('is-visible')
-  world.position.y = 0
-  portalMesh.visible = false
-  portalLight.visible = false
-
-  // Nouveau point de chute : un croisement, quelque part dans la ville
-  const dx = Math.round((Math.random() - 0.5) * 12)
-  const dz = Math.round((Math.random() - 0.5) * 12)
-  body.set(Math.round(body.x / CELL + dx) * CELL, 0, Math.round(body.z / CELL + dz) * CELL)
-  prevBody.copy(body)
-  carPosition.copy(body)
-
-  velocity.set(0, 0, 0)
-  _lateral.set(0, 0, 0)
-  speed = 0
-  spin = 0
-  steerInput = 0
-  carHeading = Math.round(Math.random() * 3) * (Math.PI / 2)
-  prevHeading = carHeading
-
-  framingBlend = null
-  cameraOffset.set(0, 0, 0)
-  stuckTime = 0
-  fallHeight = RESPAWN_HEIGHT
-  fallSpeed = 0
-  airborne = true
-  accumulator = 0
-
-  updateChunks()
-  clearPolice()
-  refreshPoliceFleet()
-  applyCameraOrientation()
-  showNotice('Respawn')
-}
-
 // Coincé entre deux obstacles : le joueur appuie mais n'avance plus. Plutôt
 // que de le téléporter, la voiture fait un bond et survole ce qui la bloque —
 // en l'air, les collisions sont ignorées.
+const STUCK_DELAY = 1.1 // secondes bloqué avant le saut de dégagement
+const STUCK_SPEED = 1.5 // en dessous, on considère la voiture immobile
+const HOP_SPEED = 15    // impulsion verticale du saut
+const HOP_PUSH = 11     // poussée horizontale qui accompagne le saut
+let stuckTime = 0
+
 function checkStuck() {
   const pushing = pressed.throttle || pressed.brake
   const moving = Math.hypot(velocity.x, velocity.z) > STUCK_SPEED
@@ -1834,6 +1758,60 @@ function checkStuck() {
   speed = HOP_PUSH * way
   _lateral.set(0, 0, 0)
   showNotice('Dégagement')
+}
+
+// Respawn : la voiture est lâchée d'une certaine hauteur et retombe.
+// Le pilotage est rendu à l'atterrissage.
+const RESPAWN_HEIGHT = 40
+const GRAVITY = 55
+const LAND_RESTITUTION = 0.45 // rebond sur le bitume
+const LAND_STOP = 4           // en dessous, la voiture se pose pour de bon
+let fallHeight = 0
+let fallSpeed = 0
+let airborne = false
+
+function respawn() {
+  falling = null
+  carGroup.rotation.x = 0
+  if (whiteSpace) exitWhiteSpace()
+  if (portal) {
+    setPanelInstanceVisible(portal.key, true)
+    portal = null
+  }
+  currentPortal = null
+  world.position.y = 0
+  portalMesh.visible = false
+  portalLight.visible = false
+
+  // Nouveau point de chute : un croisement, quelque part dans la ville
+  const dx = Math.round((Math.random() - 0.5) * 12)
+  const dz = Math.round((Math.random() - 0.5) * 12)
+  body.set(Math.round(body.x / CELL + dx) * CELL, 0, Math.round(body.z / CELL + dz) * CELL)
+  prevBody.copy(body)
+  carPosition.copy(body)
+
+  velocity.set(0, 0, 0)
+  _lateral.set(0, 0, 0)
+  speed = 0
+  spin = 0
+  steerInput = 0
+  accumulator = 0
+
+  carHeading = Math.round(Math.random() * 3) * (Math.PI / 2)
+  prevHeading = carHeading
+
+  framingBlend = null
+  cameraOffset.set(0, 0, 0)
+  stuckTime = 0
+  fallHeight = RESPAWN_HEIGHT
+  fallSpeed = 0
+  airborne = true
+
+  updateChunks()
+  clearPolice()
+  refreshPoliceFleet()
+  applyCameraOrientation()
+  showNotice('Respawn')
 }
 
 function step() {
@@ -1870,9 +1848,9 @@ function step() {
   spin *= Math.exp(-SPIN_DAMP * FIXED_DT)
 
   /* Braquage : proportionnel à la vitesse — une voiture à l'arrêt ne tourne
-     pas sur elle-même — et inversé en marche arrière, comme un vrai volant. */
-  // Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
-  // la position demandée, et revient au centre quand on relâche.
+     pas sur elle-même — et inversé en marche arrière, comme un vrai volant.
+     Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
+     la position demandée, et revient au centre quand on relâche. */
   const steerTarget = (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
   steerInput += (steerTarget - steerInput) * (1 - Math.exp(-STEER_SMOOTH * FIXED_DT))
 
@@ -1920,7 +1898,7 @@ function step() {
   _lateral.x *= grip
   _lateral.z *= grip
 
-  /* Recomposition */
+  /* Recomposition et collisions */
   velocity.x = sin * speed + _lateral.x
   velocity.z = cos * speed + _lateral.z
 
@@ -1931,43 +1909,17 @@ function step() {
   checkPortals(body.x, body.z)
 }
 
-// Une fois amorcée, la séquence se joue seule : ni les touches ni la souris
-// n'ont plus de prise. Échap est la seule sortie (respawn).
-function stepPortal(delta) {
-  if (portal.progress < 1) {
-    portal.progress = Math.min(1, portal.progress + delta / PORTAL_DURATION)
-  }
-
-  // Le masque s'amorce avant la fin de l'agrandissement : les deux se
-  // recouvrent, la séquence s'enchaîne sans temps mort.
-  if (portal.progress >= MASK_TRIGGER && portal.mask < 1) {
-    portal.mask = Math.min(1, portal.mask + delta / MASK_DURATION)
-    if (portal.mask >= 1) {
-      // enterWhiteSpace() libère `portal` : plus rien à animer ici.
-      enterWhiteSpace()
-      return
-    }
-  }
-
-  // Redressement : la voiture pivote face au panneau, pour l'aborder droit.
-  // Le cap visé est l'opposé de la normale, puisqu'elle roule vers la façade.
-  const b = portal.billboard
-  const target = Math.atan2(-b.nx, -b.nz)
-  let diff = ((target - carHeading + Math.PI) % (Math.PI * 2)) - Math.PI
-  if (diff < -Math.PI) diff += Math.PI * 2
-  carHeading += diff * (1 - Math.exp(-PORTAL_STRAIGHTEN * delta))
-  prevHeading = carHeading
-
-  // updateMovement est court-circuité pendant la transition : c'est ici que
-  // la voiture doit être posée.
-  carGroup.rotation.y = carHeading
-}
-
 // Boucle à pas fixe + interpolation du rendu : la réponse aux collisions ne
 // dépend plus du framerate, et l'affichage reste fluide entre deux pas.
 let accumulator = 0
 function updateMovement(delta) {
-  if (gameOver) return
+  if (gameOver || paused) return
+  if (falling) {
+    // La caméra n'est pas replacée : elle reste au bord du trou et regarde
+    // la voiture descendre.
+    updateFalling(delta)
+    return
+  }
   if (portal) {
     stepPortal(delta)
     return
@@ -1997,21 +1949,328 @@ function updateMovement(delta) {
   placeCamera()
 }
 
-// Tout ce qui doit "suivre" la caméra pour donner l'illusion de l'infini
-function follow() {
-  if (whiteSpace) {
-    // Sol infini : on le recentre sous la voiture, comme le sol de la ville
-    whiteGround.position.set(carPosition.x, 0, carPosition.z)
-    sunLight.target.position.set(carPosition.x, 0, carPosition.z)
-    sunLight.position.copy(sunLight.target.position).add(sunOffset)
-    return
+/* ---------- Espace blanc : entrée et sortie ---------- */
+// Arrivée dans l'espace blanc : le panneau a fini de s'ouvrir, il n'a plus
+// rien à masquer. La ville est simplement mise de côté — elle n'est ni
+// détruite ni régénérée, le respawn la retrouve telle quelle.
+function enterWhiteSpace() {
+  whiteSpace = true
+
+  // Point de vue conservé pour la fenêtre de la porte de retour
+  cityView.x = body.x
+  cityView.z = body.z
+  cityView.heading = carHeading
+
+  // Lumières neutralisées : le soleil orange et l'ambiance bleue de la ville
+  // teintaient le sol en rose et la carrosserie en violet, alors que le
+  // panneau qu'on vient de traverser était d'un blanc pur.
+  sunLight.color.set(0xffffff)
+  hemiLight.color.set(0xffffff)
+  hemiLight.groundColor.set(0xffffff)
+
+  // La caméra reprend EXACTEMENT là où la transition l'a laissée, puis
+  // rejoint le cadrage d'arrivée. Sauter directement d'une pose à l'autre
+  // produisait une coupure très visible.
+  _euler.setFromQuaternion(camera.quaternion, 'YXZ')
+  yaw = _euler.y
+  settings.cameraPitch = THREE.MathUtils.radToDeg(_euler.x)
+
+  // Cadrage d'arrivée : pile dans l'axe de la voiture, vue de l'arrière et
+  // légèrement en plongée. `chase` demande de recalculer la cible à chaque
+  // frame, pour finir exactement derrière elle même si elle a tourné.
+  framingBlend = { chase: true, pitch: WHITE_EXIT_PITCH, elapsed: 0 }
+
+  portal = null
+  currentPortal = null
+
+  // La position aussi doit être continue : la caméra de transition est bien
+  // plus haute et plus loin que la caméra de poursuite. On mesure l'écart et
+  // on le laisse se résorber, au lieu de basculer d'une pose à l'autre.
+  // placeCamera() ne calcule la pose de poursuite qu'une fois `portal` libéré.
+  cameraOffset.set(0, 0, 0)
+  _camGoal.copy(camera.position) // pose laissée par la transition
+  placeCamera() // pose de poursuite correspondante
+  cameraOffset.copy(_camGoal).sub(camera.position)
+
+  portalMesh.visible = false
+  portalLight.visible = false
+
+  world.visible = false
+  sky.visible = false
+  scene.fog = null
+  scene.background = WHITE_SPACE_COLOR
+  // Les poursuivants ne franchissent pas les panneaux : on les dissout ici,
+  // ils seront re-semés au retour, avec un niveau de recherche de plus.
+  clearPolice()
+  // Nouvelle séquence : le compteur de chocs repart de zéro
+  hits = 0
+  hitCooldown = 0
+  updateDamageStage()
+
+  whiteGround.visible = true
+  whiteGround.position.set(carPosition.x, 0, carPosition.z)
+
+  // Constellation de médias du projet, et URL dédiée
+  const project = PROJECTS[whiteProject]
+  setProjectTitle(project)
+  titleMesh.visible = true
+  titleGround.visible = true
+  spawnProjectPlanes(project)
+  placeCta(project)
+  placeHole()
+  mediaGroup.visible = true
+  mediaFade = 0
+  history.pushState({ slug: project.slug }, '', `${import.meta.env.BASE_URL}${project.slug}`)
+
+  // La voiture repart de zéro, dans l'axe où elle a franchi le panneau
+  velocity.set(0, 0, 0)
+  _lateral.set(0, 0, 0)
+  speed = 0
+  spin = 0
+  steerInput = 0
+  accumulator = 0
+
+  applyCameraOrientation()
+  showNotice('White space')
+}
+
+function exitWhiteSpace() {
+  whiteSpace = false
+  wanted = Math.min(MAX_WANTED, wanted + 1)
+  updateWantedHud()
+  sunLight.color.set(settings.sunColor)
+  hemiLight.color.copy(SKY)
+  hemiLight.groundColor.copy(GROUND)
+  mediaGroup.visible = false
+  titleMesh.visible = false
+  titleGround.visible = false
+  ctaMesh.visible = false
+  holeMesh.visible = false
+  whiteGroundHole.value.w = 0 // le sol se referme en quittant l'espace blanc
+  canvas.style.cursor = ''
+  clearProjectPlanes()
+  world.visible = true
+  sky.visible = true
+  scene.fog = cityFog
+  scene.background = null
+  whiteGround.visible = false
+  if (location.pathname !== import.meta.env.BASE_URL) {
+    history.pushState({}, '', import.meta.env.BASE_URL)
+  }
+}
+
+
+/* ---------- Courbes d'animation ---------- */
+// Deux profils : l'ensemble doit démarrer sec et finir posé.
+const ease = {
+  // Longue retenue, puis accélération brutale, puis freinage : le panneau
+  // semble aspiré vers l'écran.
+  inOutExpo: (t) =>
+    t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
+  // Départ instantané puis approche asymptotique : le masque claque.
+  outExpo: (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+}
+
+/* ---------- Ouverture du portail : masque polygonal ---------- */
+// Séquence inspirée du storyboard : un éclat blanc naît au centre du panneau
+// et grandit en polygone irrégulier jusqu'à tout recouvrir. Noir = média du
+// panneau, blanc = espace vide. Les images clés partagent le même nombre de
+// sommets, ce qui permet de les interpoler deux à deux.
+const MASK_VERTICES = 6
+const MASK_KEYFRAMES = [
+  // 1. entièrement contracté sur un point : rien n'est visible
+  [0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54, 0.455, 0.54],
+  // 2. première ouverture, en biais
+  [0.2, 0.9, 0.62, 0.75, 0.66, 0.54, 0.5, 0.32, 0.32, 0.5, 0.25, 0.72],
+  // 3. le polygone occupe l'essentiel de la surface
+  [0.13, 0.78, 0.58, 0.87, 0.72, 0.4, 0.5, 0.07, 0.27, 0.2, 0.08, 0.55],
+  // 4. débordement franc : plus rien du panneau n'est visible
+  [-0.6, 1.8, 1.6, 1.8, 1.9, -0.5, 1.2, -0.9, -0.4, -0.8, -0.9, 0.6],
+]
+
+// Tampon envoyé au shader, réécrit à chaque frame par interpolation
+const maskPoints = new Float32Array(MASK_VERTICES * 2)
+
+const portalFrontMaterial = new THREE.ShaderMaterial({
+  side: THREE.DoubleSide,
+  toneMapped: false,
+  uniforms: {
+    uMap: { value: null },
+    uHasMap: { value: 0 },
+    uRepeat: { value: new THREE.Vector2(1, 1) },
+    uOffset: { value: new THREE.Vector2(0, 0) },
+    uPoly: { value: maskPoints },
+    uWarp: { value: 0 }, // intensité du trou de ver, 0 au repos
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D uMap;
+    uniform float uHasMap;
+    uniform vec2 uRepeat;
+    uniform vec2 uOffset;
+    uniform vec2 uPoly[${MASK_VERTICES}];
+    uniform float uWarp;
+    varying vec2 vUv;
+
+    // Échantillon du média, recadrage "cover" compris
+    vec3 sampleMedia(vec2 uv) {
+      if (uHasMap < 0.5) return vec3(1.0);
+      return texture2D(uMap, clamp(uv, 0.0, 1.0) * uRepeat + uOffset).rgb;
+    }
+
+    // Test d'appartenance par lancer de rayon : on compte les arêtes
+    // franchies à droite du point. Impair = dedans.
+    bool insideMask(vec2 p) {
+      bool inside = false;
+      for (int i = 0; i < ${MASK_VERTICES}; i++) {
+        int j = i + 1;
+        if (j == ${MASK_VERTICES}) j = 0;
+        vec2 a = uPoly[i];
+        vec2 b = uPoly[j];
+        if ((a.y > p.y) != (b.y > p.y)) {
+          float x = (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x;
+          if (p.x < x) inside = !inside;
+        }
+      }
+      return inside;
+    }
+
+    void main() {
+      if (insideMask(vUv)) {
+        gl_FragColor = vec4(1.0);
+        return;
+      }
+
+      vec2 centered = vUv - 0.5;
+      float radius = length(centered);
+
+      // Vrille : l'angle augmente avec le rayon, donc le bord tourne plus vite
+      // que le centre — c'est ce qui donne la spirale du trou de ver.
+      float angle = atan(centered.y, centered.x) + uWarp * radius * 2.6;
+      vec2 twisted = vec2(cos(angle), sin(angle)) * radius;
+
+      // Flou de mouvement radial : plusieurs échantillons pris en s'éloignant
+      // du centre, ce qui étire l'image vers l'extérieur comme une aspiration.
+      const int SAMPLES = 10;
+      vec3 color = vec3(0.0);
+      float total = 0.0;
+      for (int i = 0; i < SAMPLES; i++) {
+        float k = float(i) / float(SAMPLES - 1);
+        // Les échantillons s'écartent d'autant plus qu'on est loin du centre
+        float zoom = 1.0 + k * uWarp * 0.55 * (0.25 + radius);
+        float weight = 1.0 - k * 0.65;
+        color += sampleMedia(twisted * zoom + 0.5) * weight;
+        total += weight;
+      }
+      color /= total;
+
+      // Assombrissement vers le bord : la lumière est aspirée dans le tunnel
+      color *= mix(1.0, 1.0 - smoothstep(0.15, 0.72, radius) * 0.85, uWarp);
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+})
+
+// Interpole la forme entre deux images clés. `t` parcourt toute la séquence.
+function updateMaskShape(t) {
+  const span = MASK_KEYFRAMES.length - 1
+  const scaled = THREE.MathUtils.clamp(t, 0, 1) * span
+  const index = Math.min(Math.floor(scaled), span - 1)
+  const local = scaled - index
+  const from = MASK_KEYFRAMES[index]
+  const to = MASK_KEYFRAMES[index + 1]
+  for (let i = 0; i < maskPoints.length; i++) {
+    maskPoints[i] = from[i] + (to[i] - from[i]) * local
+  }
+  portalFrontMaterial.uniforms.uPoly.value = maskPoints
+}
+
+// Les tranches du caisson s'effacent elles aussi : blanc pur non éclairé.
+const portalEdgeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
+const portalMaterials = [
+  portalEdgeMaterial,
+  portalEdgeMaterial,
+  portalEdgeMaterial,
+  portalEdgeMaterial,
+  portalFrontMaterial,
+  portalEdgeMaterial,
+]
+
+// Panneau "actif" : une copie autonome du panneau en cours de franchissement,
+// que l'on peut agrandir librement — les autres vivent dans un InstancedMesh
+// et ne sont pas animables individuellement.
+const portalMesh = new THREE.Mesh(billboardGeometry, portalMaterials)
+portalMesh.visible = false
+portalMesh.frustumCulled = false
+scene.add(portalMesh)
+
+// Le logo du client suit le panneau pendant toute la transition : c'est la
+// seule chose qui reste lisible une fois le média étiré par le tunnel.
+// Enfant du portail, donc entraîné par son agrandissement.
+// Matériau propre au portail : il partage la texture des panneaux mais pas
+// leur opacité, qui est animée pendant la transition.
+const portalLogo = new THREE.Mesh(
+  logoGeometry,
+  new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false })
+)
+portalLogo.visible = false
+portalLogo.position.z = 0.55 // devant la face avant du caisson
+portalLogo.renderOrder = 1
+portalMesh.add(portalLogo)
+
+// Débord lumineux du panneau sur son environnement immédiat. Une seule
+// lumière, portée par le panneau actif : la diffusion de tous les panneaux
+// coûterait bien trop cher.
+const portalLight = new THREE.PointLight(0xffffff, 0, 30, 2)
+portalLight.visible = false
+scene.add(portalLight)
+
+const PORTAL_DURATION = 1.6  // secondes d'animation automatique, une fois amorcé
+const MASK_DURATION = 1.1    // secondes d'ouverture du masque
+const MASK_TRIGGER = 0.5     // mi-parcours du tunnel : le masque blanc s'ouvre alors
+const PORTAL_STRAIGHTEN = 7  // vitesse de redressement de la voiture face au panneau
+const PORTAL_COVER = 1.25    // marge de recouvrement du viewport
+const PORTAL_DROP_DEPTH = 2.5 // la ville descend largement sous le champ de vision
+const PORTAL_CAM_BLEND = 6   // vitesse de recadrage de la caméra face au panneau
+
+// Une fois amorcée, la séquence se joue seule : ni les touches ni la souris
+// n'ont plus de prise. Le bouton de fermeture est la seule sortie.
+function stepPortal(delta) {
+  if (portal.progress < 1) {
+    portal.progress = Math.min(1, portal.progress + delta / PORTAL_DURATION)
   }
 
-  sky.position.copy(camera.position)
-  cameraTarget(_target)
-  ground.position.set(_target.x, 0, _target.z)
-  sunLight.target.position.set(_target.x, 0, _target.z)
-  sunLight.position.copy(_target).add(sunOffset)
+  // Le masque blanc s'amorce à mi-parcours du trou de ver : les deux effets
+  // se recouvrent largement, l'aspiration est encore bien visible quand
+  // l'ouverture commence.
+  if (portal.progress >= MASK_TRIGGER && portal.mask < 1) {
+    portal.mask = Math.min(1, portal.mask + delta / MASK_DURATION)
+    if (portal.mask >= 1) {
+      // enterWhiteSpace() libère `portal` : plus rien à animer ici.
+      enterWhiteSpace()
+      return
+    }
+  }
+
+  // Redressement : la voiture pivote face au panneau, pour l'aborder droit.
+  // Le cap visé est l'opposé de la normale, puisqu'elle roule vers la façade.
+  const b = portal.billboard
+  const target = Math.atan2(-b.nx, -b.nz)
+  let diff = ((target - carHeading + Math.PI) % (Math.PI * 2)) - Math.PI
+  if (diff < -Math.PI) diff += Math.PI * 2
+  carHeading += diff * (1 - Math.exp(-PORTAL_STRAIGHTEN * delta))
+  prevHeading = carHeading
+
+  // updateMovement est court-circuité pendant la transition : c'est ici que
+  // la voiture doit être posée.
+  carGroup.rotation.y = carHeading
 }
 
 /* ---------- Resize ---------- */
@@ -2044,7 +2303,18 @@ function refreshBuildingColors() {
   }
 }
 
+// Le panneau de réglages est masqué par défaut : il ne concerne que le
+// réglage de la scène, pas le joueur. `debugBTA()` dans la console le révèle
+// (et le remasque), sans avoir à recharger ni à recompiler.
 const gui = new GUI({ title: 'Brand Theft Auto' })
+gui.hide()
+
+window.debugBTA = () => {
+  const hidden = gui.domElement.style.display === 'none'
+  if (hidden) gui.show()
+  else gui.hide()
+  return hidden ? 'réglages affichés' : 'réglages masqués'
+}
 
 gui.add(settings, 'cameraHeight', 0.5, 40, 0.1).name('Hauteur caméra').onChange(applyCameraOrientation)
 gui.add(settings, 'cameraDistance', 0, 40, 0.5).name('Recul caméra').onChange(applyCameraOrientation)
@@ -2743,102 +3013,78 @@ function placeCta(project) {
 }
 
 
-/* ---------- Porte de retour ---------- */
-// Rectangle flottant posé derrière la voiture : le traverser, ou le viser et
-// valider, ramène en ville. Son ouverture est évidée et laisse voir la ville
-// en direct, rendue dans une texture hors écran.
-const DOOR_LABEL = 'Retour en ville'
-const DOOR_WIDTH = 9
-const DOOR_HEIGHT = 5.6
-const DOOR_DISTANCE = 34 // derrière la voiture : il faut faire demi-tour
+/* ---------- Trou dans le sol ---------- */
+// Sortie de l'espace blanc : un puits creusé dans le sol blanc, dont le fond
+// laisse voir la ville vue du ciel. Y conduire la voiture la fait tomber.
+const HOLE_RADIUS = 7
+const HOLE_DEPTH = 30
+const HOLE_DISTANCE = 34 // derrière la voiture : il faut faire demi-tour
 
-// Résolution volontairement basse : l'image est vue au travers d'une petite
-// ouverture, la différence ne se voit pas et la passe coûte deux fois moins.
-const CITY_VIEW_WIDTH = 480
-const CITY_VIEW_HEIGHT = 300
+// Résolution volontairement basse : l'image est vue au fond d'un puits, la
+// différence ne se voit pas et la passe coûte deux fois moins.
+const CITY_VIEW_SIZE = 512
 const CITY_VIEW_EVERY = 2 // une frame sur deux suffit pour une vue quasi fixe
 
-const cityTarget = new THREE.WebGLRenderTarget(CITY_VIEW_WIDTH, CITY_VIEW_HEIGHT)
-const windowCamera = new THREE.PerspectiveCamera(55, CITY_VIEW_WIDTH / CITY_VIEW_HEIGHT, 0.1, 1200)
+const cityTarget = new THREE.WebGLRenderTarget(CITY_VIEW_SIZE, CITY_VIEW_SIZE)
+const windowCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200)
 windowCamera.rotation.order = 'YXZ'
 const cityView = { x: 0, z: 0, heading: 0 }
 let cityViewFrame = 0
 
-function makeDoorTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 900
-  canvas.height = 560
-  const ctx = canvas.getContext('2d')
+// Le puits est un groupe : paroi cylindrique, fond qui porte la vue de la
+// ville, et anneau sombre qui détache la margelle du sol blanc.
+const holeMesh = new THREE.Group()
+holeMesh.visible = false
 
-  ctx.fillStyle = '#244697'
-  ctx.beginPath()
-  ctx.roundRect(0, 0, canvas.width, canvas.height, 40)
-  ctx.fill()
-
-  // Ouverture centrale réellement évidée : c'est par là qu'on voit la ville,
-  // rendue sur un plan placé juste derrière le cadre.
-  ctx.globalCompositeOperation = 'destination-out'
-  ctx.beginPath()
-  ctx.roundRect(70, 70, canvas.width - 140, canvas.height - 190, 24)
-  ctx.fill()
-  ctx.globalCompositeOperation = 'source-over'
-
-  ctx.fillStyle = '#ffffff'
-  ctx.font = '700 52px Poppins, ui-sans-serif, system-ui, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(`← ${DOOR_LABEL}`, canvas.width / 2, canvas.height - 62)
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.minFilter = THREE.LinearFilter
-  texture.generateMipmaps = false
-  return texture
-}
-
-const doorWindow = new THREE.Mesh(
-  new THREE.PlaneGeometry(DOOR_WIDTH * 0.845, DOOR_HEIGHT * 0.536),
-  // DoubleSide : la porte se regarde aussi de dos, la ville doit s'y voir
-  new THREE.MeshBasicMaterial({
-    map: cityTarget.texture,
-    toneMapped: false,
-    side: THREE.DoubleSide,
+const holeWall = new THREE.Mesh(
+  new THREE.CylinderGeometry(HOLE_RADIUS, HOLE_RADIUS * 0.82, HOLE_DEPTH, 64, 1, true),
+  new THREE.MeshStandardMaterial({
+    color: 0x10131a,
+    roughness: 1,
+    metalness: 0,
+    side: THREE.BackSide, // on regarde la paroi depuis l'intérieur du puits
   })
 )
-doorWindow.position.set(0, DOOR_HEIGHT * 0.107, -0.02) // derrière le cadre
+holeWall.position.y = -HOLE_DEPTH / 2
+holeMesh.add(holeWall)
 
-const doorMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(DOOR_WIDTH, DOOR_HEIGHT),
-  new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, side: THREE.DoubleSide })
+const holeFloor = new THREE.Mesh(
+  new THREE.CircleGeometry(HOLE_RADIUS * 0.82, 64),
+  new THREE.MeshBasicMaterial({ map: cityTarget.texture, toneMapped: false })
 )
-doorMesh.visible = false
-doorMesh.add(doorWindow)
-scene.add(doorMesh)
+holeFloor.rotation.x = -Math.PI * 0.5
+holeFloor.position.y = -HOLE_DEPTH + 0.05
+holeMesh.add(holeFloor)
 
-// Rend la ville dans la texture de la fenêtre. Tout le décor de l'espace
-// blanc est masqué le temps de la passe, puis rétabli : une seule scène sert
-// aux deux mondes, il n'y en a pas de seconde à maintenir.
+const holeRim = new THREE.Mesh(
+  new THREE.RingGeometry(HOLE_RADIUS, HOLE_RADIUS * 1.1, 64),
+  new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.85 })
+)
+holeRim.rotation.x = -Math.PI * 0.5
+holeRim.position.y = 0.04
+holeMesh.add(holeRim)
+
+scene.add(holeMesh)
+
+// Rend la ville dans la texture du fond. Tout le décor de l'espace blanc est
+// masqué le temps de la passe, puis rétabli : une seule scène sert aux deux
+// mondes, il n'y en a pas de seconde à maintenir.
 function renderCityWindow() {
-  if (!doorMesh.visible) return
+  if (!holeMesh.visible) return
   if (cityViewFrame++ % CITY_VIEW_EVERY !== 0) return
 
-  const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, ctaMesh, doorMesh, carGroup]
+  const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, ctaMesh, holeMesh, carGroup]
   hidden.forEach((o) => (o.visible = false))
   world.visible = true
   sky.visible = true
   scene.fog = cityFog
   scene.background = null
 
-  // Vue de rue : on se place là où la voiture a franchi le panneau, tourné
-  // vers l'avenue plutôt que vers la façade.
-  windowCamera.position.set(
-    cityView.x - Math.sin(cityView.heading) * 6,
-    2.6,
-    cityView.z - Math.cos(cityView.heading) * 6
-  )
+  // Vue plongeante : on regarde la ville d'en haut, comme par une trappe
+  windowCamera.position.set(cityView.x, 52, cityView.z)
   windowCamera.rotation.set(
-    THREE.MathUtils.degToRad(-4),
-    cityView.heading + Math.PI + Math.sin(mediaUniforms.uTime.value * 0.25) * 0.12,
+    -Math.PI / 2 + 0.22,
+    cityView.heading + Math.sin(mediaUniforms.uTime.value * 0.2) * 0.1,
     0
   )
   sky.position.copy(windowCamera.position)
@@ -2852,48 +3098,66 @@ function renderCityWindow() {
   sky.visible = false
   scene.fog = null
   scene.background = WHITE_SPACE_COLOR
-  // Les poursuivants ne franchissent pas les panneaux : on les dissout ici,
-  // ils seront re-semés au retour, avec un niveau de recherche de plus.
-  clearPolice()
 }
 
-function placeDoor() {
-  if (!doorMesh.material.map) {
-    const paint = () => (doorMesh.material.map = makeDoorTexture())
-    paint()
-    document.fonts?.load('700 52px Poppins').then(() => {
-      doorMesh.material.map?.dispose()
-      paint()
-      doorMesh.material.needsUpdate = true
-    })
-  }
+function placeHole() {
+  // Dans le dos de la voiture, donc jamais franchi par accident à l'arrivée
+  holeMesh.position.set(
+    carPosition.x - Math.sin(carHeading) * HOLE_DISTANCE,
+    0,
+    carPosition.z - Math.cos(carHeading) * HOLE_DISTANCE
+  )
+  holeMesh.visible = true
 
-  // Dans le dos de la voiture, donc jamais franchie par accident à l'arrivée
-  const x = carPosition.x - Math.sin(carHeading) * DOOR_DISTANCE
-  const z = carPosition.z - Math.cos(carHeading) * DOOR_DISTANCE
-  doorMesh.position.set(x, CAR_GROUND + DOOR_HEIGHT / 2, z)
-  doorMesh.lookAt(carPosition.x, doorMesh.position.y, carPosition.z)
-  doorMesh.userData.baseY = doorMesh.position.y
-  doorMesh.visible = true
+  // Perçage du sol, très légèrement plus petit que la margelle pour qu'aucun
+  // liseré blanc ne subsiste entre les deux
+  whiteGroundHole.value.set(holeMesh.position.x, holeMesh.position.z, HOLE_RADIUS * 0.99, 1)
 }
 
-function updateDoor() {
-  if (!doorMesh.visible) return
+/* ---------- Chute dans le puits ---------- */
+// La voiture bascule dans le trou pendant que la caméra reste sur place : on
+// la regarde s'éloigner vers le fond. Elle ne réapparaît en ville qu'à
+// l'impact, où la caméra reprend son cadrage habituel.
+const HOLE_GRAVITY = 26
+const HOLE_TUMBLE = 1.6 // basculement vers l'avant, rad/s
+let falling = null
 
-  // Flottement, comme les plans
-  doorMesh.position.y =
-    doorMesh.userData.baseY +
-    Math.sin(mediaUniforms.uTime.value * planeShader.floatSpeed * 0.9) *
-      planeShader.floatAmplitude
-
-  const dx = carPosition.x - doorMesh.position.x
-  const dz = carPosition.z - doorMesh.position.z
-  if (dx * dx + dz * dz > (DOOR_WIDTH / 2) * (DOOR_WIDTH / 2)) return
-
+function startFalling() {
+  if (falling) return
+  falling = { y: CAR_GROUND, speed: 2, tilt: 0 }
   showNotice('Retour en ville')
+}
+
+function updateFalling(delta) {
+  falling.speed += HOLE_GRAVITY * delta
+  falling.y -= falling.speed * delta
+  falling.tilt += HOLE_TUMBLE * delta
+
+  // Recentrage sur l'axe du puits : la voiture est aspirée vers le milieu
+  const k = 1 - Math.exp(-3 * delta)
+  carPosition.x += (holeMesh.position.x - carPosition.x) * k
+  carPosition.z += (holeMesh.position.z - carPosition.z) * k
+
+  carGroup.position.set(carPosition.x, falling.y, carPosition.z)
+  carGroup.rotation.x = -falling.tilt
+
+  // Arrivée au fond : la ville reprend la main, avec sa propre chute
+  if (falling.y > -HOLE_DEPTH) return
+  falling = null
+  carGroup.rotation.x = 0
   respawn()
 }
 
+function updateHole() {
+  if (!holeMesh.visible || falling) return
+
+  const dx = carPosition.x - holeMesh.position.x
+  const dz = carPosition.z - holeMesh.position.z
+  // On bascule une fois le véhicule bien engagé au-dessus du vide
+  if (dx * dx + dz * dz > (HOLE_RADIUS * 0.75) ** 2) return
+
+  startFalling()
+}
 
 /* ---------- Flèche de cap ---------- */
 // Volume 3D placé devant la caméra, à la position du réticule, qui pointe le
@@ -2963,6 +3227,105 @@ function updateArrow(point) {
   arrowMesh.visible = true
 }
 
+
+/* ---------- Aimant sur les cibles ---------- */
+// Approcher le réticule d'une cible suffit : la caméra termine l'alignement
+// toute seule et la cible devient activable. Viser au pixel près à la
+// flèche serait pénible, surtout en roulant.
+const MAGNET_RADIUS = 0.34   // rayon d'accroche, en coordonnées écran (NDC)
+const MAGNET_PULL = 3.4      // vitesse d'alignement
+
+// En ville, l'aimant vise les panneaux franchissables. Il est volontairement
+// plus étroit et bien plus mou : il doit aider à cadrer un panneau repéré,
+// jamais contrarier une manœuvre ou une esquive.
+const CITY_MAGNET_RADIUS = 0.26 // rayon d'accroche à l'écran
+const CITY_MAGNET_PULL = 2.2    // attraction, deux fois plus douce qu'en espace blanc
+const CITY_MAGNET_MIN = 14      // trop près : on n'a plus le temps de se placer
+const CITY_MAGNET_MAX = 70      // trop loin : le panneau n'est pas encore un objectif
+const CITY_MAGNET_STEER = 0.55  // au-delà, le joueur manœuvre : on le laisse tranquille
+const _magnetPos = new THREE.Vector3()
+let magnetTarget = null
+
+// Cible la plus proche du centre de l'écran, parmi les objets fournis
+function screenClosest(candidates, radius, getPosition) {
+  let best = null
+  for (const candidate of candidates) {
+    getPosition(candidate, _magnetPos)
+    _magnetPos.project(camera)
+    // Derrière la caméra : la projection se replie et donnerait un faux proche
+    if (_magnetPos.z > 1) continue
+    const distance = Math.hypot(_magnetPos.x, _magnetPos.y)
+    if (distance > radius) continue
+    if (!best || distance < best.distance) {
+      best = { candidate, distance, x: _magnetPos.x, y: _magnetPos.y }
+    }
+  }
+  return best
+}
+
+// Panneaux franchissables autour de la voiture, à portée utile
+function nearbyPortals() {
+  const found = []
+  const blockX = Math.floor(body.x / CELL)
+  const blockZ = Math.floor(body.z / CELL)
+  const reach = Math.ceil(CITY_MAGNET_MAX / CELL)
+
+  for (let bx = blockX - reach; bx <= blockX + reach; bx++) {
+    for (let bz = blockZ - reach; bz <= blockZ + reach; bz++) {
+      eachBuilding(bx, bz, (b) => {
+        const p = b.billboard
+        if (!p || !p.ground) return
+        const distance = Math.hypot(p.x - body.x, p.z - body.z)
+        if (distance < CITY_MAGNET_MIN || distance > CITY_MAGNET_MAX) return
+        found.push(p)
+      })
+    }
+  }
+  return found
+}
+
+function updateMagnet(delta) {
+  magnetTarget = null
+  if (portal || gameOver || falling || paused) return
+
+  let best = null
+  let pull = MAGNET_PULL
+
+  if (whiteSpace) {
+    const targets = interactiveTargets()
+    if (!targets.length) return
+    best = screenClosest(targets, MAGNET_RADIUS, (t, out) => t.getWorldPosition(out))
+    if (best) magnetTarget = best.candidate
+  } else {
+    // Une manœuvre en cours prime sur l'aide au cadrage
+    if (Math.abs(steerInput) > CITY_MAGNET_STEER) return
+    best = screenClosest(nearbyPortals(), CITY_MAGNET_RADIUS, (p, out) =>
+      out.set(p.x, city.sidewalkHeight + p.y, p.z)
+    )
+    pull = CITY_MAGNET_PULL
+  }
+  if (!best) return
+
+  const radius = whiteSpace ? MAGNET_RADIUS : CITY_MAGNET_RADIUS
+
+  // Attraction proportionnelle à la proximité : franche au centre, douce au
+  // bord, pour qu'on puisse encore balayer la scène sans être happé.
+  const strength = (1 - best.distance / radius) * pull
+  const k = 1 - Math.exp(-strength * delta)
+
+  // L'écart écran est converti en angles : la moitié du champ vertical vaut
+  // fov/2, et l'horizontal suit l'aspect.
+  const halfFov = THREE.MathUtils.degToRad(camera.fov) / 2
+  yaw -= best.x * Math.atan(Math.tan(halfFov) * camera.aspect) * k
+  settings.cameraPitch += THREE.MathUtils.radToDeg(best.y * halfFov) * k
+
+  // En ville, le retour derrière la voiture reste prioritaire : l'aimant ne
+  // fait que ralentir le recentrage, il ne le bloque pas.
+  if (whiteSpace) lookIdle = 0
+  pitchController?.updateDisplay()
+  applyCameraOrientation()
+}
+
 // Cibles pointables : au curseur, ou au réticule de visée avec Entrée.
 // Un clic comme un appui sur Entrée sont de vrais gestes utilisateur, donc
 // l'ouverture d'un nouvel onglet n'est jamais bloquée.
@@ -2975,7 +3338,7 @@ function interactiveTargets() {
   if (whiteSpace) {
     const targets = []
     if (ctaMesh.visible) targets.push(ctaMesh)
-    if (doorMesh.visible) targets.push(doorMesh)
+    if (holeMesh.visible) targets.push(holeMesh)
     return targets
   }
 
@@ -2989,7 +3352,7 @@ function interactiveTargets() {
 
 function labelFor(target) {
   if (target === ctaMesh) return 'Voir le projet'
-  if (target === doorMesh) return 'Retour en ville'
+  if (target === holeMesh) return 'Retour en ville'
   return 'Jump into void'
 }
 
@@ -2998,12 +3361,19 @@ function pickAt(ndcX, ndcY) {
   if (!targets.length) return null
   _pointer.set(ndcX, ndcY)
   ctaRaycaster.setFromCamera(_pointer, camera)
-  return ctaRaycaster.intersectObjects(targets, false)[0] || null
+
+  // Récursif : le puits est un groupe (paroi, fond, margelle). On remonte
+  // ensuite au parent inscrit comme cible, pour ne pas renvoyer un morceau.
+  const hit = ctaRaycaster.intersectObjects(targets, true)[0]
+  if (!hit) return null
+  let object = hit.object
+  while (object && !targets.includes(object)) object = object.parent
+  return object ? { object, point: hit.point } : null
 }
 
 function activate(target) {
   if (target === ctaMesh) window.open(ctaUrl, '_blank', 'noopener')
-  else if (target === doorMesh) respawn()
+  else if (target === holeMesh) startFalling()
 }
 
 // Cible sous le réticule, réévaluée à chaque frame
@@ -3012,17 +3382,27 @@ function updateReticle() {
   // Toujours affiché : il sert aussi de repère de direction en ville, où il
   // n'y a simplement rien à pointer.
   const hit = pickAt(0, 0)
-  aimed = hit?.object || null
+  // L'aimant sert de repli : on peut valider une cible simplement approchée
+  aimed = hit?.object || magnetTarget || null
 
   // En ville, viser un panneau affiche une flèche de cap à la place de
   // l'étoile : elle indique la direction à prendre depuis la VOITURE, ce que
   // le réticule seul ne dit pas puisqu'il suit la caméra.
-  const isPanel = Boolean(aimed) && !whiteSpace
+  // `aimed` peut venir de l'aimant, sans point d'impact : la flèche de cap a
+  // besoin d'une position, elle n'est donc affichée que sur un vrai tir.
+  const isPanel = Boolean(hit) && !whiteSpace
   updateArrow(isPanel ? hit.point : null)
   reticleElement.classList.toggle('is-hidden', isPanel)
   reticleElement.classList.toggle('is-active', Boolean(aimed) && !isPanel)
   reticleLabel.classList.toggle('is-active', Boolean(aimed))
-  if (aimed) reticleLabel.textContent = labelFor(aimed)
+  if (aimed) {
+    // La touche n'est rappelée que pour ce qui s'active vraiment au clavier.
+    // Un panneau, lui, se franchit en roulant dedans.
+    const activable = whiteSpace
+    reticleLabel.innerHTML = activable
+      ? `<kbd>Entrée</kbd>${labelFor(aimed)}`
+      : labelFor(aimed)
+  }
 
 }
 
@@ -3048,11 +3428,6 @@ canvas.addEventListener('click', (event) => {
 // Déclenché quand le centre de la voiture entre dans le volume d'un panneau
 // au sol. Un seul déclenchement par panneau tant qu'on n'en est pas ressorti.
 const noticeElement = document.querySelector('#notice')
-// Échap est déjà pris par le pointer lock : la sortie de transition passe par
-// un bouton, qui a en plus l'avantage d'être visible.
-const closeButton = document.querySelector('#portal-close')
-closeButton.addEventListener('click', () => respawn())
-
 // Le bouton Précédent du navigateur ramène en ville, comme la croix
 window.addEventListener('popstate', () => {
   if (whiteSpace) respawn()
@@ -3160,6 +3535,22 @@ function updatePortalVisual() {
     uniforms.uOffset.value.copy(source.offset)
   }
 
+  // Le tunnel s'installe avec l'agrandissement, puis reste à fond
+  portalFrontMaterial.uniforms.uWarp.value = t
+
+  // Logo : ses proportions sont exprimées dans le repère local du panneau,
+  // dont les deux axes sont mis à l'échelle différemment.
+  const logo = projectLogo(b.project)
+  portalLogo.material.map = logo.material.map
+  // Il s'efface au rythme du masque : le logo disparaît avec le média qu'il
+  // accompagne, au lieu de flotter seul sur le blanc.
+  portalLogo.material.opacity = 1 - ease.outExpo(portal.mask)
+  portalLogo.visible = Boolean(logo.material.map) && portalLogo.material.opacity > 0.01
+  const localW = LOGO_WIDTH
+  const localH = (localW * b.w) / (logo.aspect * b.h)
+  portalLogo.scale.set(localW, localH, 1)
+  portalLogo.position.y = -0.5 + localH / 2 + LOGO_MARGIN
+
   updateMaskShape(ease.outExpo(portal.mask))
   portalMesh.position.set(
     THREE.MathUtils.lerp(b.x, targetX, t) + b.nx * 0.03, // léger décollement
@@ -3181,8 +3572,8 @@ function updatePortalVisual() {
 }
 
 // Pendant la transition, la caméra est reprise en main : elle glisse jusqu'en
-// face du panneau et le regarde de face. Les flèches sont ignorées (voir
-// updateLook), sinon on lutterait contre ce recadrage.
+// face du panneau et le regarde de face. Le suivi automatique et la souris
+// sont neutralisés pendant ce temps, sinon ils lutteraient contre ce recadrage.
 const _camGoal = new THREE.Vector3()
 const _camMatrix = new THREE.Matrix4()
 const _camQuat = new THREE.Quaternion()
@@ -3213,7 +3604,13 @@ function updatePortalCamera(delta) {
 // Niveau de recherche : autant d'étoiles que de niveaux atteints
 const wantedElement = document.querySelector('#wanted')
 function updateWantedHud() {
-  wantedElement.textContent = '★'.repeat(wanted) + '☆'.repeat(MAX_WANTED - wanted)
+  // Étoile de la charte lmwr (la même que le réticule), reprise via <use>
+  let markup = ''
+  for (let i = 0; i < MAX_WANTED; i += 1) {
+    const state = i < wanted ? ' is-on' : ''
+    markup += `<svg class="wanted-star${state}" viewBox="0 0 462 500" aria-hidden="true"><use href="#star-shape" /></svg>`
+  }
+  wantedElement.innerHTML = markup
 }
 
 const gameOverElement = document.querySelector('#gameover')
@@ -3238,11 +3635,136 @@ function updateFps(delta) {
   fpsElapsed = 0
 }
 
+
+/* ---------- Sauvegarde ---------- */
+// L'état est écrit à chaque pause (Échap) et à la fermeture de l'onglet, puis
+// relu au chargement : on reprend exactement où l'on s'était arrêté, position
+// des poursuivants comprise. Le stockage local suffit, il n'y a rien de
+// sensible et la partie est propre à la machine.
+const SAVE_KEY = 'bta:save'
+const SAVE_VERSION = 1
+let pendingPolice = null // flotte à restaurer, en attente du modèle 3D
+
+function saveGame() {
+  // On ne sauvegarde pas pendant une séquence scénarisée : l'état y est
+  // transitoire et ne se rejoue pas proprement.
+  if (portal || falling || gameOver || whiteSpace) return
+
+  try {
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify({
+        version: SAVE_VERSION,
+        car: { x: body.x, z: body.z, heading: carHeading, speed },
+        camera: { yaw, pitch: settings.cameraPitch },
+        wanted,
+        hits,
+        police: policeCars.map((c) => ({
+          key: c.key,
+          x: c.body.x,
+          z: c.body.z,
+          heading: c.heading,
+          speed: c.speed,
+          role: c.role,
+        })),
+      })
+    )
+  } catch {
+    // Mode privé, quota plein : la partie continue, sans sauvegarde
+  }
+}
+
+function loadGame() {
+  let data
+  try {
+    data = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null')
+  } catch {
+    return false
+  }
+  if (!data || data.version !== SAVE_VERSION) return false
+
+  body.set(data.car.x, 0, data.car.z)
+  prevBody.copy(body)
+  carPosition.copy(body)
+  carHeading = data.car.heading
+  prevHeading = carHeading
+  // La vitesse est restituée dans l'axe du cap, comme après un pas de simulation
+  speed = data.car.speed || 0
+  velocity.set(Math.sin(carHeading) * speed, 0, Math.cos(carHeading) * speed)
+
+  yaw = data.camera.yaw
+  settings.cameraPitch = data.camera.pitch
+
+  wanted = Math.min(MAX_WANTED, Math.max(1, data.wanted || 1))
+  hits = Math.min(MAX_HITS - 1, Math.max(0, data.hits || 0))
+
+  // Le modèle des poursuivants arrive de façon asynchrone : on garde la
+  // flotte de côté et on la recrée dès qu'il est là.
+  pendingPolice = data.police || []
+  return true
+}
+
+function restorePolice() {
+  if (!pendingPolice || !policeTemplate) return
+  clearPolice()
+  pendingPolice.forEach((c) => {
+    spawnPolice(c.key, c.x, c.z)
+    const car = policeCars[policeCars.length - 1]
+    car.heading = c.heading
+    car.speed = c.speed
+    car.role = c.role
+    car.velocity.set(Math.sin(c.heading) * c.speed, 0, Math.cos(c.heading) * c.speed)
+  })
+  pendingPolice = null
+}
+
+window.addEventListener('beforeunload', saveGame)
+
+/* ---------- Splashscreen ---------- */
+// Écran d'accueil, rappelé à tout moment par Échap. Le bouton de lancement
+// sert aussi de geste utilisateur : c'est lui qui autorise la lecture des
+// vidéos des panneaux, refusée avant toute interaction.
+const splashElement = document.querySelector('#splash')
+const splashButton = document.querySelector('#splash-start')
+const resumed = loadGame()
+if (resumed) splashButton.textContent = 'Reprendre la partie'
+let paused = true // la simulation ne tourne pas tant que l'accueil est ouvert
+let splashTimer
+
+function openSplash() {
+  paused = true
+  saveGame()
+  keys.clear() // sinon on retrouve la voiture accélérant toute seule au retour
+  clearTimeout(splashTimer)
+  splashElement.style.display = ''
+  // Le navigateur doit voir l'élément affiché avant la transition d'opacité
+  requestAnimationFrame(() => splashElement.classList.remove('is-hidden'))
+  splashButton.textContent = 'Retour au jeu'
+}
+
+function closeSplash() {
+  paused = false
+  splashElement.classList.add('is-hidden')
+  startPanelVideos()
+  // Retiré du flux une fois le fondu terminé, pour libérer le clic sur la scène
+  clearTimeout(splashTimer)
+  splashTimer = setTimeout(() => (splashElement.style.display = 'none'), 500)
+}
+
+splashButton.addEventListener('click', closeSplash)
+
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Escape') return
+  if (paused) closeSplash()
+  else openSplash()
+})
+
 /* ---------- Boucle ---------- */
 const clock = new THREE.Clock()
 body.copy(carPosition)
 prevBody.copy(body)
 updateWantedHud()
+updateDamageStage() // une partie reprise garde ses dégâts
 applyCameraOrientation()
 updateSun()
 follow()
@@ -3254,11 +3776,13 @@ function tick() {
   updateFps(delta)
   updatePoliceVisuals(clock.elapsedTime)
   updateLook(delta)
+  updateMagnet(delta)
+  updateFollowCamera(delta)
   updateFraming(delta)
   updateMovement(delta)
   updateMediaPlanes(delta)
   updateProjectTitle()
-  updateDoor()
+  updateHole()
   updateReticle()
   updateBusted(delta)
   updateDamageSprite(delta)

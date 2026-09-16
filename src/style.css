@@ -38,33 +38,6 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   transform: none;
 }
 
-#portal-close {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 20;
-  display: none;
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font: 300 34px/1 ui-sans-serif, system-ui, sans-serif;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-#portal-close.is-visible {
-  display: block;
-}
-
-#portal-close:hover {
-  background: rgba(242, 103, 73, 0.9);
-  transform: scale(1.08);
-}
-
 /* Réticule de visée : l'étoile de la charte lmwr, au centre de l'écran */
 #reticle {
   position: fixed;
@@ -75,6 +48,7 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   height: 24px;
   margin: -12px 0 0 -11px;
   fill: #f26749;
+  stroke: #f26749;
   pointer-events: none;
   opacity: 0.6;
   transition: opacity 0.15s ease, transform 0.15s ease;
@@ -89,10 +63,14 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
 #reticle.is-active {
   opacity: 1;
   fill: #2970f4;
+  stroke: #2970f4;
   transform: scale(2.1) rotate(15deg);
 }
 
 #reticle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -110,6 +88,14 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
+#reticle-label kbd {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2970f4;
+  font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
 #reticle-label.is-active {
   opacity: 1;
   transform: translate(-50%, 0);
@@ -121,12 +107,25 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   top: 32px;
   left: 8px; /* sous le compteur de FPS, loin du bouton de fermeture */
   z-index: 10;
+  display: flex;
+  gap: 3px;
   color: #f26749;
-  font: 18px/1 ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: 3px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
   pointer-events: none;
   user-select: none;
+}
+
+#wanted .wanted-star {
+  width: 16px;
+  height: 18px;
+  fill: none;
+  stroke: #f26749;
+  opacity: 0.45;
+}
+
+#wanted .wanted-star.is-on {
+  fill: #f26749;
+  opacity: 1;
 }
 
 /* Passage en noir et blanc contrasté au moment de la capture */
@@ -185,7 +184,103 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
 body.is-busted #reticle,
 body.is-busted #reticle-label,
 body.is-busted #fps,
-body.is-busted #wanted,
-body.is-busted #portal-close {
+body.is-busted #wanted {
   display: none;
+}
+
+/* Splashscreen : recouvre la scène jusqu'au lancement */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: #d3d3d3;
+  overflow-y: auto;
+  transition: opacity 0.45s ease;
+}
+
+#splash.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-card {
+  width: min(880px, 100%);
+  text-align: center;
+  color: #101010;
+  font: 400 15px/1.55 Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Le logo est fourni en bleu de charte : on le laisse tel quel, c'est la
+   seule touche de couleur avec le CTA. */
+.splash-logo {
+  width: min(260px, 60%);
+  height: auto;
+}
+
+.splash-card h1 {
+  margin: 22px 0 34px;
+  font: 700 clamp(28px, 5vw, 46px) / 1.1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.splash-tuto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 28px;
+  margin-bottom: 38px;
+  text-align: left;
+}
+
+.splash-block h2 {
+  margin-bottom: 12px;
+  font: 700 13px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: #2970f4;
+}
+
+.splash-block ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.splash-block li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.splash-block kbd {
+  min-width: 26px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+  color: #101010;
+  font: 700 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  text-align: center;
+}
+
+/* Même pastille que le CTA "Voir le projet" et que le bouton Rejouer */
+#splash-start {
+  padding: 20px 48px;
+  border: 0;
+  border-radius: 18px;
+  background: #f26749;
+  color: #fff;
+  font: 700 clamp(16px, 2.4vw, 22px) / 1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#splash-start:hover {
+  transform: scale(1.04);
+  box-shadow: 0 8px 28px rgba(242, 103, 73, 0.45);
 }
