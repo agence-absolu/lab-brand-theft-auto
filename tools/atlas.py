@@ -96,7 +96,43 @@ def build(src,dst,cols,rows=1):
     print(dst,'frames',n,'cellule',cw,'x',ch)
     return n
 
+def build_stable(src,dst,cols,rows=1):
+    """Variante sans recentrage : chaque vignette garde sa position DANS sa
+    cellule. On se contente de rogner toutes les cellules avec le meme
+    rectangle, l'union des contenus. Indispensable pour une animation qui doit
+    rester immobile : recentrer sur la boite englobante de chaque image fait
+    deriver le sujet des que des elements detaches apparaissent sur un cote."""
+    w,h,px=read_png(src)
+    cw0,ch0=w/cols,h/rows
+    cells=[]
+    minx,miny,maxx,maxy=10**9,10**9,-1,-1
+    for r in range(rows):
+        for c in range(cols):
+            x0,x1=round(c*cw0),round((c+1)*cw0)
+            y0,y1=round(r*ch0),round((r+1)*ch0)
+            b=bbox(px,w,x0,x1,y0,y1)
+            if b[2]<=b[0] or b[3]<=b[1]:
+                raise SystemExit('cellule vide en r%d c%d' % (r,c))
+            cells.append((x0,y0))
+            minx=min(minx,b[0]-x0); miny=min(miny,b[1]-y0)
+            maxx=max(maxx,b[2]-x0); maxy=max(maxy,b[3]-y0)
+
+    cw,ch=maxx-minx,maxy-miny
+    n=len(cells); ow=cw*n
+    out=bytearray(ow*ch*4)
+    for i,(x0,y0) in enumerate(cells):
+        for y in range(ch):
+            sy=y0+miny+y
+            sx=x0+minx
+            s0=(sy*w+sx)*4
+            d0=(y*ow+i*cw)*4
+            out[d0:d0+cw*4]=px[s0:s0+cw*4]
+    write_png(dst,ow,ch,out)
+    print(dst,'frames',n,'cellule',cw,'x',ch,'(sans recentrage)')
+    return n
+
 if __name__=='__main__':
     import sys
     src, dst, cols, rows = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-    build(src, dst, cols, rows)
+    stable = len(sys.argv) > 5 and sys.argv[5] == 'stable'
+    (build_stable if stable else build)(src, dst, cols, rows)

@@ -974,11 +974,15 @@ function applyCarScale() {
 // Un sprite animé par palier. Les planches ont été recomposées en cellules
 // strictement uniformes (voir tools/atlas.py) : toutes les vignettes tiennent
 // sur une seule ligne, recadrées et calées en bas.
+// Une planche par palier de dégâts : le panache s'épaissit à mesure que la
+// voiture encaisse. `ratio` est le format de la cellule après recomposition
+// (voir tools/atlas.py), `scale` la hauteur du panache en unités monde — la
+// voiture faisant environ 3 de long, il doit rester plus étroit qu'elle.
 const DAMAGE_STAGES = [
-  { file: 'sprites/smoke_1.png', frames: 12, fps: 12, scale: 2.2, ratio: 167 / 172 },
-  { file: 'sprites/smoke_2.png', frames: 12, fps: 12, scale: 2.8, ratio: 169 / 179 },
-  { file: 'sprites/smoke_3.png', frames: 12, fps: 12, scale: 3.4, ratio: 170 / 210 },
-  { file: 'sprites/flamme_sprite.png', frames: 20, fps: 14, scale: 3.2, ratio: 218 / 337 },
+  { file: 'sprites/smoke_1.png', frames: 10, fps: 12, scale: 1.1, ratio: 138 / 170 },
+  { file: 'sprites/smoke_2.png', frames: 10, fps: 12, scale: 1.5, ratio: 154 / 171 },
+  { file: 'sprites/smoke_3.png', frames: 10, fps: 12, scale: 1.9, ratio: 197 / 207 },
+  { file: 'sprites/flammes.png', frames: 10, fps: 12, scale: 2.1, ratio: 205 / 308 },
 ]
 
 // Un quad orienté vers la caméra plutôt qu'un THREE.Sprite : le matériau de
@@ -1066,13 +1070,26 @@ function updateDamageSprite(delta) {
 const POLICE_SPACING = [9, 8, 7, 6, 5] // en blocs, selon le niveau de recherche
 const POLICE_VIEW = 170      // rayon de présence autour du joueur
 const POLICE_FORGET = 260    // au-delà, la voiture est retirée
-const POLICE_SPEED = 17      // sensiblement sous la pointe du joueur (24)
+const POLICE_SPEED = 19.5    // toujours sous la pointe du joueur (24)
 const POLICE_ACCEL = 10
 const POLICE_TURN = 1.5      // vitesse de braquage, rad/s : elles ratent leurs virages
 // Seules les plus proches attaquent. Les autres suivent à distance, sans quoi
 // on se retrouve encerclé en permanence et le jeu devient injouable.
 const POLICE_ATTACKERS = 2   // nombre de poursuivants autorisés à foncer
 const POLICE_STANDOFF = 22   // distance que gardent les autres
+// Embuscade : quand le joueur file droit, les renforts apparaissent devant
+// lui plutôt que dans son dos, pour provoquer des face-à-face.
+const AMBUSH_DELAY = 1.2      // secondes en ligne droite avant de basculer
+const AMBUSH_CONE = 0.55      // cosinus mini avec le cap : largeur du cône avant
+const AMBUSH_MIN = 55         // distance mini : le temps de les voir arriver
+// Une voiture est en plus envoyée droit sur le joueur à intervalles réguliers.
+// Sans ça, filer en ligne droite ne provoque jamais rien : les points
+// d'apparition sont sur une grille fixe, et rien ne tombe forcément devant.
+const AMBUSH_INTERVAL = 11    // secondes de conduite entre deux face-à-face
+const AMBUSH_SPAWN = 95       // distance d'apparition, droit devant
+let straightTime = 0          // durée de conduite sans braquer
+let ambushTimer = 0           // temps écoulé depuis le dernier face-à-face
+let ambushCount = 0           // compteur, pour donner une clé unique
 const policeRadius = () => carRadius() // même gabarit que la voiture du joueur
 const CAR_IMPACT = 1.9       // distance de contact entre deux voitures
 const CAR_RESTITUTION = 1.6  // rebond entre véhicules : franchement nerveux
@@ -1113,6 +1130,7 @@ function refreshPoliceFleet() {
 
   const step = policeSpawnStep()
   const here = new Set(policeCars.map((c) => c.key))
+  const ambush = straightTime > AMBUSH_DELAY
   const blockX = Math.round(body.x / CELL)
   const blockZ = Math.round(body.z / CELL)
   const reach = Math.ceil(POLICE_VIEW / CELL)
@@ -1127,11 +1145,40 @@ function refreshPoliceFleet() {
       // Ni trop loin, ni collé au joueur au moment où il réapparaît
       if (distance > POLICE_VIEW || distance < 30) continue
 
+      if (ambush) {
+        // Projection sur le cap du joueur : ne garder que ce qui est devant
+        const toward = ((x - body.x) * Math.sin(carHeading) + (z - body.z) * Math.cos(carHeading)) / distance
+        if (toward < AMBUSH_CONE || distance < AMBUSH_MIN) continue
+      }
+
       const k = policeKey(bx, bz)
       if (here.has(k)) continue
       spawnPolice(k, x, z)
     }
   }
+}
+
+// Renfort lancé à la rencontre du joueur, sur la rue qu'il emprunte
+function spawnAmbush() {
+  if (!policeTemplate || whiteSpace) return
+
+  const sin = Math.sin(carHeading)
+  const cos = Math.cos(carHeading)
+  let x = body.x + sin * AMBUSH_SPAWN
+  let z = body.z + cos * AMBUSH_SPAWN
+
+  // Recalage sur l'axe de la rue : la voiture doit apparaître sur la chaussée,
+  // pas au milieu d'un pâté de maisons. On ne corrige que la coordonnée
+  // transversale, celle qui reste constante le long de la rue.
+  if (Math.abs(sin) > Math.abs(cos)) z = Math.round(z / CELL) * CELL
+  else x = Math.round(x / CELL) * CELL
+
+  ambushCount += 1
+  spawnPolice(`ambush-${ambushCount}`, x, z)
+  const car = policeCars[policeCars.length - 1]
+  car.heading = carHeading + Math.PI // elle arrive de face
+  car.speed = POLICE_SPEED
+  car.velocity.set(Math.sin(car.heading) * car.speed, 0, Math.cos(car.heading) * car.speed)
 }
 
 function spawnPolice(key, x, z) {
@@ -1795,6 +1842,8 @@ function respawn() {
   speed = 0
   spin = 0
   steerInput = 0
+  straightTime = 0
+  ambushTimer = 0
   accumulator = 0
 
   carHeading = Math.round(Math.random() * 3) * (Math.PI / 2)
@@ -1901,6 +1950,17 @@ function step() {
   /* Recomposition et collisions */
   velocity.x = sin * speed + _lateral.x
   velocity.z = cos * speed + _lateral.z
+
+  // Ligne droite maintenue : c'est ce qui déclenche les embuscades frontales
+  if (Math.abs(steerInput) < 0.15 && speed > 8) straightTime += FIXED_DT
+  else straightTime = 0
+
+  // Rendez-vous périodique : un véhicule est lancé de face dès qu'on roule
+  if (speed > 8) ambushTimer += FIXED_DT
+  if (ambushTimer > AMBUSH_INTERVAL && straightTime > AMBUSH_DELAY) {
+    ambushTimer = 0
+    spawnAmbush()
+  }
 
   moveAndSlide(FIXED_DT)
   checkStuck()

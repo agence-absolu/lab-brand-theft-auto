@@ -178,6 +178,15 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
 #busted {
   width: min(70vw, 760px);
   height: auto;
+  /* Contour blanc épais : huit ombres portées sans flou, dans huit
+     directions. C'est la seule façon de cerner la silhouette d'un PNG
+     détouré — un box-shadow ne suivrait que le rectangle de l'image.
+     La dernière ombre, noire et franche, se pose sur le contour déjà formé. */
+  filter:
+    drop-shadow(7px 0 0 #fff) drop-shadow(-7px 0 0 #fff) drop-shadow(0 7px 0 #fff)
+    drop-shadow(0 -7px 0 #fff) drop-shadow(5px 5px 0 #fff) drop-shadow(-5px 5px 0 #fff)
+    drop-shadow(5px -5px 0 #fff) drop-shadow(-5px -5px 0 #fff)
+    drop-shadow(16px 16px 0 rgba(0, 0, 0, 0.75));
 }
 
 /* Pendant la capture, l'interface de jeu s'efface : seul le cinématique reste */
@@ -269,7 +278,10 @@ body.is-busted #wanted {
 }
 
 /* Même pastille que le CTA "Voir le projet" et que le bouton Rejouer */
-#splash-start {
+/* Un seul traitement pour tous les CTA plein écran : accueil et écran de
+   capture. Il reprend celui du CTA "Voir le projet" affiché dans la scène. */
+#splash-start,
+#gameover button {
   padding: 20px 48px;
   border: 0;
   border-radius: 18px;
@@ -280,7 +292,8 @@ body.is-busted #wanted {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-#splash-start:hover {
+#splash-start:hover,
+#gameover button:hover {
   transform: scale(1.04);
   box-shadow: 0 8px 28px rgba(242, 103, 73, 0.45);
 }
