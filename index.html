@@ -44,7 +44,22 @@
       </div>
     </div>
     <div id="fps">-- fps</div>
+    <canvas id="minimap" width="360" height="360"></canvas>
+    <div id="phone-hint"><kbd>Tab</kbd><span>masquer le téléphone</span></div>
     <div id="wanted"></div>
+    <div id="confirm">
+      <div class="confirm-card">
+        <p class="confirm-title">Vous quittez Brand Theft Auto</p>
+        <p class="confirm-text">
+          Votre boîte mail va s'ouvrir pour écrire à l'agence.<br />
+          Êtes-vous sûr de vouloir nous quitter&nbsp;?
+        </p>
+        <div class="confirm-actions">
+          <button id="confirm-cancel" type="button">Rester en ville</button>
+          <button id="confirm-ok" type="button">Contacter l'agence</button>
+        </div>
+      </div>
+    </div>
     <div id="fade"></div>
     <div id="gameover">
       <img id="busted" src="/busted.png" alt="Busted" />

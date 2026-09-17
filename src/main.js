@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import Hls from 'hls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
 import GUI from 'lil-gui'
 import { PROJECTS } from './projects.js'
 import { PROJECT_MEDIA, PROJECT_LOGOS, PROJECT_STREAMS } from './project-media.js'
@@ -3219,173 +3220,6 @@ function updateHole() {
   startFalling()
 }
 
-/* ---------- Flèche de cap ---------- */
-// Volume 3D placé devant la caméra, à la position du réticule, qui pointe le
-// panneau visé dans le repère du monde : sa direction est donc juste en
-// profondeur aussi, pas seulement à l'écran.
-const ARROW_DISTANCE = 7 // devant la caméra : la taille apparente reste stable
-
-function makeArrowShape() {
-  const shape = new THREE.Shape()
-  shape.moveTo(0, 1)
-  shape.lineTo(0.72, -0.62)
-  shape.lineTo(0, -0.2)
-  shape.lineTo(-0.72, -0.62)
-  shape.closePath()
-  return shape
-}
-
-const arrowGeometry = new THREE.ExtrudeGeometry(makeArrowShape(), {
-  depth: 0.34,
-  bevelEnabled: true,
-  bevelThickness: 0.05,
-  bevelSize: 0.05,
-  bevelSegments: 2,
-})
-// La pointe passe sur +Z : pour un objet ordinaire (contrairement à une
-// caméra), c'est cet axe que lookAt() oriente vers la cible.
-arrowGeometry.rotateX(Math.PI / 2)
-arrowGeometry.center()
-
-const arrowMesh = new THREE.Mesh(
-  arrowGeometry,
-  new THREE.MeshStandardMaterial({
-    color: 0x2970f4,
-    emissive: 0x2970f4,
-    emissiveIntensity: 0.35,
-    roughness: 0.35,
-    metalness: 0.1,
-    depthTest: false, // toujours lisible, même un panneau devant elle
-  })
-)
-arrowMesh.visible = false
-arrowMesh.renderOrder = 10
-arrowMesh.scale.setScalar(0.2)
-scene.add(arrowMesh)
-
-const ARROW_DROP = 1.05 // décalage sous le réticule, en unités monde
-const _arrowDir = new THREE.Vector3()
-const _arrowUp = new THREE.Vector3()
-
-function updateArrow(point) {
-  if (!point) {
-    arrowMesh.visible = false
-    return
-  }
-
-  camera.getWorldDirection(_arrowDir)
-  arrowMesh.position.copy(camera.position).addScaledVector(_arrowDir, ARROW_DISTANCE)
-
-  // Descendue sous le réticule : elle ne pointe donc jamais pile dans l'axe
-  // du regard, et son volume reste lisible même en visant le panneau de face.
-  _arrowUp.setFromMatrixColumn(camera.matrixWorld, 1) // axe Y de la caméra
-  arrowMesh.position.addScaledVector(_arrowUp, -ARROW_DROP)
-
-  // Pointée sur le panneau lui-même, en 3D : elle vise le point exact touché
-  // par le rayon, hauteur comprise, et pas seulement une direction au sol.
-  arrowMesh.lookAt(point)
-  arrowMesh.visible = true
-}
-
-
-/* ---------- Aimant sur les cibles ---------- */
-// Approcher le réticule d'une cible suffit : la caméra termine l'alignement
-// toute seule et la cible devient activable. Viser au pixel près à la
-// flèche serait pénible, surtout en roulant.
-const MAGNET_RADIUS = 0.34   // rayon d'accroche, en coordonnées écran (NDC)
-const MAGNET_PULL = 3.4      // vitesse d'alignement
-
-// En ville, l'aimant vise les panneaux franchissables. Il est volontairement
-// plus étroit et bien plus mou : il doit aider à cadrer un panneau repéré,
-// jamais contrarier une manœuvre ou une esquive.
-const CITY_MAGNET_RADIUS = 0.26 // rayon d'accroche à l'écran
-const CITY_MAGNET_PULL = 2.2    // attraction, deux fois plus douce qu'en espace blanc
-const CITY_MAGNET_MIN = 14      // trop près : on n'a plus le temps de se placer
-const CITY_MAGNET_MAX = 70      // trop loin : le panneau n'est pas encore un objectif
-const CITY_MAGNET_STEER = 0.55  // au-delà, le joueur manœuvre : on le laisse tranquille
-const _magnetPos = new THREE.Vector3()
-let magnetTarget = null
-
-// Cible la plus proche du centre de l'écran, parmi les objets fournis
-function screenClosest(candidates, radius, getPosition) {
-  let best = null
-  for (const candidate of candidates) {
-    getPosition(candidate, _magnetPos)
-    _magnetPos.project(camera)
-    // Derrière la caméra : la projection se replie et donnerait un faux proche
-    if (_magnetPos.z > 1) continue
-    const distance = Math.hypot(_magnetPos.x, _magnetPos.y)
-    if (distance > radius) continue
-    if (!best || distance < best.distance) {
-      best = { candidate, distance, x: _magnetPos.x, y: _magnetPos.y }
-    }
-  }
-  return best
-}
-
-// Panneaux franchissables autour de la voiture, à portée utile
-function nearbyPortals() {
-  const found = []
-  const blockX = Math.floor(body.x / CELL)
-  const blockZ = Math.floor(body.z / CELL)
-  const reach = Math.ceil(CITY_MAGNET_MAX / CELL)
-
-  for (let bx = blockX - reach; bx <= blockX + reach; bx++) {
-    for (let bz = blockZ - reach; bz <= blockZ + reach; bz++) {
-      eachBuilding(bx, bz, (b) => {
-        const p = b.billboard
-        if (!p || !p.ground) return
-        const distance = Math.hypot(p.x - body.x, p.z - body.z)
-        if (distance < CITY_MAGNET_MIN || distance > CITY_MAGNET_MAX) return
-        found.push(p)
-      })
-    }
-  }
-  return found
-}
-
-function updateMagnet(delta) {
-  magnetTarget = null
-  if (portal || gameOver || falling || paused) return
-
-  let best = null
-  let pull = MAGNET_PULL
-
-  if (whiteSpace) {
-    const targets = interactiveTargets()
-    if (!targets.length) return
-    best = screenClosest(targets, MAGNET_RADIUS, (t, out) => t.getWorldPosition(out))
-    if (best) magnetTarget = best.candidate
-  } else {
-    // Une manœuvre en cours prime sur l'aide au cadrage
-    if (Math.abs(steerInput) > CITY_MAGNET_STEER) return
-    best = screenClosest(nearbyPortals(), CITY_MAGNET_RADIUS, (p, out) =>
-      out.set(p.x, city.sidewalkHeight + p.y, p.z)
-    )
-    pull = CITY_MAGNET_PULL
-  }
-  if (!best) return
-
-  const radius = whiteSpace ? MAGNET_RADIUS : CITY_MAGNET_RADIUS
-
-  // Attraction proportionnelle à la proximité : franche au centre, douce au
-  // bord, pour qu'on puisse encore balayer la scène sans être happé.
-  const strength = (1 - best.distance / radius) * pull
-  const k = 1 - Math.exp(-strength * delta)
-
-  // L'écart écran est converti en angles : la moitié du champ vertical vaut
-  // fov/2, et l'horizontal suit l'aspect.
-  const halfFov = THREE.MathUtils.degToRad(camera.fov) / 2
-  yaw -= best.x * Math.atan(Math.tan(halfFov) * camera.aspect) * k
-  settings.cameraPitch += THREE.MathUtils.radToDeg(best.y * halfFov) * k
-
-  // En ville, le retour derrière la voiture reste prioritaire : l'aimant ne
-  // fait que ralentir le recentrage, il ne le bloque pas.
-  if (whiteSpace) lookIdle = 0
-  pitchController?.updateDisplay()
-  applyCameraOrientation()
-}
-
 // Cibles pointables : au curseur, ou au réticule de visée avec Entrée.
 // Un clic comme un appui sur Entrée sont de vrais gestes utilisateur, donc
 // l'ouverture d'un nouvel onglet n'est jamais bloquée.
@@ -3394,26 +3228,18 @@ const _pointer = new THREE.Vector2()
 const reticleElement = document.querySelector('#reticle')
 const reticleLabel = document.querySelector('#reticle-label')
 
+// Seul l'espace blanc propose des cibles : en ville, on franchit un panneau
+// en roulant dedans, il n'y a rien à valider.
 function interactiveTargets() {
-  if (whiteSpace) {
-    const targets = []
-    if (ctaMesh.visible) targets.push(ctaMesh)
-    if (holeMesh.visible) targets.push(holeMesh)
-    return targets
-  }
-
-  // En ville, les cibles sont les panneaux : un InstancedMesh par chunk
-  const panels = []
-  for (const chunk of chunks.values()) {
-    if (chunk.userData.panels) panels.push(...chunk.userData.panels)
-  }
-  return panels
+  if (!whiteSpace) return []
+  const targets = []
+  if (ctaMesh.visible) targets.push(ctaMesh)
+  if (holeMesh.visible) targets.push(holeMesh)
+  return targets
 }
 
 function labelFor(target) {
-  if (target === ctaMesh) return 'Voir le projet'
-  if (target === holeMesh) return 'Retour en ville'
-  return 'Jump into void'
+  return target === ctaMesh ? 'Voir le projet' : 'Retour en ville'
 }
 
 function pickAt(ndcX, ndcY) {
@@ -3445,30 +3271,17 @@ function updateReticle() {
   // L'aimant sert de repli : on peut valider une cible simplement approchée
   aimed = hit?.object || magnetTarget || null
 
-  // En ville, viser un panneau affiche une flèche de cap à la place de
-  // l'étoile : elle indique la direction à prendre depuis la VOITURE, ce que
-  // le réticule seul ne dit pas puisqu'il suit la caméra.
-  // `aimed` peut venir de l'aimant, sans point d'impact : la flèche de cap a
-  // besoin d'une position, elle n'est donc affichée que sur un vrai tir.
-  const isPanel = Boolean(hit) && !whiteSpace
-  updateArrow(isPanel ? hit.point : null)
-  reticleElement.classList.toggle('is-hidden', isPanel)
-  reticleElement.classList.toggle('is-active', Boolean(aimed) && !isPanel)
+  reticleElement.classList.toggle('is-active', Boolean(aimed))
   reticleLabel.classList.toggle('is-active', Boolean(aimed))
-  if (aimed) {
-    // La touche n'est rappelée que pour ce qui s'active vraiment au clavier.
-    // Un panneau, lui, se franchit en roulant dedans.
-    const activable = whiteSpace
-    reticleLabel.innerHTML = activable
-      ? `<kbd>Entrée</kbd>${labelFor(aimed)}`
-      : labelFor(aimed)
-  }
-
+  if (aimed) reticleLabel.innerHTML = `<kbd>Entrée</kbd>${labelFor(aimed)}`
 }
 
 window.addEventListener('keydown', (event) => {
   if (event.code !== 'Enter' && event.code !== 'NumpadEnter') return
-  if (aimed) activate(aimed)
+  if (confirmOpen) return contactAgency() // Entrée valide la confirmation
+  // Le téléphone prime : quand il a le focus, c'est lui qu'on valide
+  if (phoneGroup.visible && (phoneHovered || phonePinned)) askContact()
+  else if (aimed) activate(aimed)
 })
 
 canvas.addEventListener('pointermove', (event) => {
@@ -3658,6 +3471,550 @@ function updatePortalCamera(delta) {
   camera.quaternion.slerp(_camQuat, k)
 }
 
+
+
+/* ---------- Téléphone ---------- */
+// Nokia 3310 isolé de la collection de modèles (voir tools/isolate-phone.py :
+// le fichier d'origine contient neuf téléphones, plus un sol et un fond, tous
+// dans un seul OBJ). Il est accroché à la caméra, donc fixe à l'écran.
+// Fond perdu : le téléphone déborde du bas de l'écran, seule sa moitié haute
+// est visible au repos. Prendre le focus le fait remonter.
+const PHONE_HEIGHT = 0.62    // hauteur à l'écran, en unités de la caméra
+const PHONE_POSITION = new THREE.Vector3(-0.95, -0.78, -1.3) // repère caméra
+const PHONE_TILT = new THREE.Euler(0.12, 0.4, -0.04)
+const PHONE_FOCUS_LIFT = 0.22 // remontée quand il prend le focus
+const PHONE_FOCUS_SMOOTH = 8  // vitesse de la translation
+
+const phoneGroup = new THREE.Group()
+phoneGroup.position.copy(PHONE_POSITION)
+phoneGroup.renderOrder = 20
+phoneGroup.rotation.copy(PHONE_TILT)
+phoneGroup.visible = false
+camera.add(phoneGroup)
+
+// Coque : un seul matériau sombre, dans l'esprit géométrique de la ville.
+// depthTest désactivé et renderOrder élevé : c'est un élément d'interface,
+// il ne doit jamais être mangé par un immeuble au premier plan.
+const phoneMaterial = new THREE.MeshStandardMaterial({
+  color: 0x39445c,
+  roughness: 0.5,
+  metalness: 0.1,
+  // Un fond d'émission garantit qu'il reste lisible même si le soleil est
+  // rasant ou dans son dos : c'est une interface, pas un objet de la scène.
+  emissive: 0x263149,
+  emissiveIntensity: 1,
+  depthTest: false,
+})
+
+// Éclairage dédié. La portée courte ne suffisait pas : la lumière débordait
+// largement sur la ville. On l'isole sur une couche de rendu à laquelle seuls
+// les objets du téléphone appartiennent — three ne l'applique qu'à eux.
+const PHONE_LAYER = 1
+const phoneLight = new THREE.PointLight(0xffffff, 9, 3, 2)
+phoneLight.layers.set(PHONE_LAYER)
+phoneLight.position.set(-0.45, 0.25, -0.55)
+
+// Écran : fond vert LCD, icône de messagerie, et le libellé qui n'apparaît
+// qu'au focus — le tout redessiné dans le même canvas, c'est plus fidèle
+// qu'une étiquette HTML posée par-dessus.
+const SCREEN_BG = '#ffffff'
+const SCREEN_BLUE = '#2970f4' // bleu de l'agence : fond de l'icône et du label
+const SCREEN_CORAL = '#f26749'
+const PHONE_MESSAGE = ['Appuie sur entrée', 'pour contacter', "l'agence"]
+
+const phoneScreenCanvas = document.createElement('canvas')
+phoneScreenCanvas.width = 320
+phoneScreenCanvas.height = 400
+
+// Rectangle à coins arrondis : roundRect n'existe pas partout, on le garde
+// sous la main plutôt que de dépendre du navigateur.
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
+function drawPhoneScreen(focused) {
+  const ctx = phoneScreenCanvas.getContext('2d')
+  const { width, height } = phoneScreenCanvas
+
+  ctx.fillStyle = SCREEN_BG
+  ctx.fillRect(0, 0, width, height)
+
+  // Bandeau d'appel à l'action : sa hauteur découle de son contenu, et
+  // l'icône se cale au-dessus. Sans ce calcul, la dernière ligne de texte
+  // débordait du bloc bleu.
+  const KEY = 46
+  const LINE = 26
+  const PAD = 16
+  const bandH = PAD + KEY + 18 + PHONE_MESSAGE.length * LINE + PAD
+  const bandY = height - 22 - bandH
+
+  // Icône de messagerie : enveloppe blanche sur une tuile bleue
+  const tile = 130
+  const tileX = (width - tile) / 2
+  const tileY = focused ? (bandY - tile) / 2 : (height - tile) / 2
+  ctx.fillStyle = SCREEN_BLUE
+  roundedRect(ctx, tileX, tileY, tile, tile, 28)
+  ctx.fill()
+
+  const w = 80
+  const h = 56
+  const x = tileX + (tile - w) / 2
+  const y = tileY + (tile - h) / 2
+  ctx.strokeStyle = SCREEN_BG
+  ctx.lineWidth = 8
+  ctx.lineJoin = 'round'
+  ctx.strokeRect(x, y, w, h)
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x + w / 2, y + h * 0.58)
+  ctx.lineTo(x + w, y)
+  ctx.stroke()
+
+  if (!focused) {
+    phoneScreenTexture.needsUpdate = true
+    return
+  }
+
+  ctx.fillStyle = SCREEN_BLUE
+  roundedRect(ctx, 20, bandY, width - 40, bandH, 20)
+  ctx.fill()
+
+  // Touche Entrée : pastille corail portant la flèche de retour à la ligne
+  const key = KEY
+  const keyX = (width - key) / 2
+  const keyY = bandY + PAD
+  ctx.fillStyle = SCREEN_CORAL
+  roundedRect(ctx, keyX, keyY, key, key, 12)
+  ctx.fill()
+
+  ctx.strokeStyle = SCREEN_BG
+  ctx.lineWidth = 5
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(keyX + 34, keyY + 14) // barre haute
+  ctx.lineTo(keyX + 34, keyY + 27)
+  ctx.lineTo(keyX + 14, keyY + 27) // retour vers la gauche
+  ctx.moveTo(keyX + 21, keyY + 20) // pointe de la flèche
+  ctx.lineTo(keyX + 13, keyY + 27)
+  ctx.lineTo(keyX + 21, keyY + 34)
+  ctx.stroke()
+
+  ctx.fillStyle = SCREEN_BG
+  ctx.font = "700 21px Poppins, ui-sans-serif, system-ui, sans-serif"
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const textTop = keyY + key + 18 + LINE / 2
+  PHONE_MESSAGE.forEach((line, i) => {
+    ctx.fillText(line, width / 2, textTop + i * LINE)
+  })
+
+  phoneScreenTexture.needsUpdate = true
+}
+
+const phoneScreenTexture = new THREE.CanvasTexture(phoneScreenCanvas)
+phoneScreenTexture.colorSpace = THREE.SRGBColorSpace
+phoneScreenTexture.minFilter = THREE.LinearFilter
+phoneScreenTexture.generateMipmaps = false
+drawPhoneScreen(false)
+
+// Halo : dégradé radial dessiné une fois, animé ensuite par sa seule échelle.
+// Il signale que le téléphone est actif, sans rien éclairer.
+function makeHaloTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createRadialGradient(128, 128, 20, 128, 128, 128)
+  gradient.addColorStop(0, 'rgba(41, 112, 244, 0.55)')
+  gradient.addColorStop(0.55, 'rgba(41, 112, 244, 0.22)')
+  gradient.addColorStop(1, 'rgba(41, 112, 244, 0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 256, 256)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+const phoneHalo = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({
+    map: makeHaloTexture(),
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+)
+phoneHalo.renderOrder = 19
+phoneHalo.visible = false
+
+const phoneScreen = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: phoneScreenTexture, depthTest: false, toneMapped: false })
+)
+phoneScreen.renderOrder = 22
+
+// Rétro-éclairage : un plan blanc légèrement plus grand, posé juste derrière
+// la dalle. Il déborde en un liseré lumineux, comme la lumière qui fuit sur
+// les bords d'un écran LCD éclairé par l'arrière.
+const phoneBacklight = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, toneMapped: false })
+)
+phoneBacklight.renderOrder = 21
+phoneGroup.add(phoneHalo)
+phoneGroup.add(phoneBacklight)
+phoneGroup.add(phoneScreen)
+phoneGroup.add(phoneLight)
+
+// Touches : le modèle porte un matériau nommé "keypad" sur les douze touches,
+// ce qui permet de les rétro-éclairer sans les identifier une à une.
+const keypadMaterial = new THREE.MeshStandardMaterial({
+  color: 0xbfe4ff,
+  emissive: 0x2f8ff5,
+  emissiveIntensity: 1.6,
+  roughness: 0.4,
+  depthTest: false,
+})
+
+new OBJLoader().load(asset('models/nokia-3310.obj'), (object) => {
+  object.traverse((o) => {
+    if (!o.isMesh) return
+    o.material = o.material?.name === 'keypad' ? keypadMaterial : phoneMaterial
+    o.renderOrder = 21
+    o.layers.enable(PHONE_LAYER) // reste sur la couche 0 : la caméra le voit
+  })
+
+  // Normalisation : centré sur son volume, mis à l'échelle par sa hauteur
+  const box = new THREE.Box3().setFromObject(object)
+  const size = box.getSize(new THREE.Vector3())
+  const center = box.getCenter(new THREE.Vector3())
+  const scale = PHONE_HEIGHT / size.y
+  object.scale.setScalar(scale)
+  object.position.copy(center).multiplyScalar(-scale)
+  phoneGroup.add(object)
+
+  // L'écran se pose sur la face avant, dans le tiers supérieur de la coque
+  const width = size.x * scale
+  const height = size.y * scale
+  // Grand écran, aux proportions du canvas, plaqué sur la face avant
+  const screenWidth = width * 0.74
+  const screenHeight = (screenWidth * phoneScreenCanvas.height) / phoneScreenCanvas.width
+  phoneScreen.scale.set(screenWidth, screenHeight, 1)
+  phoneScreen.position.set(0, height * 0.17, (size.z * scale) / 2 + 0.002)
+  // Le rétro-éclairage déborde d'un liseré tout autour de la dalle
+  phoneBacklight.scale.set(screenWidth * 1.06, screenHeight * 1.05, 1)
+  phoneBacklight.position.copy(phoneScreen.position).setZ(phoneScreen.position.z - 0.001)
+  phoneHalo.userData.size = Math.max(width, height) * 1.9
+  phoneHalo.position.set(0, 0, -0.02) // derrière la coque
+})
+
+/* ---------- Focus du téléphone ---------- */
+// Il se met en avant au survol, ou sur Tab — une touche libre, et c'est le
+// geste attendu pour « passer au prochain élément interactif ».
+const phoneRaycaster = new THREE.Raycaster()
+const _phonePointer = new THREE.Vector2()
+let phoneHovered = false
+let phoneScreenFocused = false
+let phonePinned = false // mise en avant verrouillée par Tab
+let phoneLift = 0
+let phoneHaloTime = 0
+
+function phoneUnderPointer(event) {
+  if (!phoneGroup.visible) return false
+  _phonePointer.set(
+    (event.clientX / window.innerWidth) * 2 - 1,
+    -(event.clientY / window.innerHeight) * 2 + 1
+  )
+  phoneRaycaster.setFromCamera(_phonePointer, camera)
+  return phoneRaycaster.intersectObject(phoneGroup, true).length > 0
+}
+
+canvas.addEventListener('pointermove', (event) => {
+  phoneHovered = phoneUnderPointer(event)
+})
+
+const phoneHint = document.querySelector('#phone-hint')
+const phoneHintLabel = phoneHint.querySelector('span')
+
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Tab') return
+  event.preventDefault() // sinon le focus part dans le GUI
+  // « Masquer » le remet en fond perdu, « afficher » le fait remonter :
+  // l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
+  phonePinned = !phonePinned
+  phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
+})
+
+// Adresse encodée : elle n'apparaît pas en clair dans le bundle, ce qui
+// suffit à décourager les robots qui moissonnent les sources.
+const CONTACT = 'bmV3Yml6QGxtd3IuZnI='
+
+// Quitter la page pour le client mail est brutal : on demande confirmation
+// avant, et le jeu est mis en pause le temps de la décision.
+const confirmElement = document.querySelector('#confirm')
+let confirmOpen = false
+
+function askContact() {
+  confirmOpen = true
+  paused = true
+  keys.clear()
+  confirmElement.classList.add('is-visible')
+}
+
+function closeContact() {
+  confirmOpen = false
+  confirmElement.classList.remove('is-visible')
+  paused = false
+}
+
+function contactAgency() {
+  closeContact()
+  openSplash() // on revient sur l'écran de pause, le jeu reprend d'un clic
+
+  // Navigation directe plutôt qu'un clic sur un lien détaché du document :
+  // celui-ci était ignoré par certains navigateurs, la page n'ayant jamais
+  // vu l'élément. Déclenchée depuis un vrai clic, elle passe sans blocage.
+  const subject = encodeURIComponent('Brand Theft Auto')
+  window.location.href = `mailto:${atob(CONTACT)}?subject=${subject}`
+}
+
+document.querySelector('#confirm-ok').addEventListener('click', contactAgency)
+document.querySelector('#confirm-cancel').addEventListener('click', closeContact)
+
+// Le téléphone n'a de sens qu'en ville : dans l'espace blanc, on est déjà
+// dans le projet qu'il sert à annoncer.
+function updatePhone(delta) {
+  const inCity = !whiteSpace && !portal && !falling && !gameOver && !paused
+  phoneGroup.visible = inCity
+  phoneHint.classList.toggle('is-visible', inCity)
+  if (!inCity) return
+
+  const focused = phoneHovered || phonePinned
+  const target = focused ? PHONE_FOCUS_LIFT : 0
+  phoneLift += (target - phoneLift) * (1 - Math.exp(-PHONE_FOCUS_SMOOTH * delta))
+  phoneGroup.position.y = PHONE_POSITION.y + phoneLift
+
+  // Halo : il respire tant que l'appareil est survolé, et se résorbe sinon
+  phoneHaloTime += delta
+  phoneHalo.visible = phoneLift > 0.002
+  if (phoneHalo.visible) {
+    const pulse = 1 + Math.sin(phoneHaloTime * 3.2) * 0.07
+    const ratio = phoneLift / PHONE_FOCUS_LIFT // 0 au repos, 1 en pleine mise en avant
+    const size = (phoneHalo.userData.size || 1) * pulse
+    phoneHalo.scale.set(size, size, 1)
+    phoneHalo.material.opacity = ratio * (0.75 + Math.sin(phoneHaloTime * 4.1) * 0.25)
+  }
+
+  // L'écran n'est redessiné qu'au changement d'état, pas à chaque frame
+  if (focused !== phoneScreenFocused) {
+    phoneScreenFocused = focused
+    drawPhoneScreen(focused)
+  }
+}
+
+/* ---------- Minimap ---------- */
+// Vue de dessus, centrée sur la voiture et tournée avec elle : le haut du
+// disque est toujours la direction suivie. Elle ne sert qu'en ville, où il y
+// a une trame de rues à lire et des poursuivants à repérer.
+const MAP_RANGE = 68        // rayon couvert, en unités monde
+const MAP_REFRESH = 0.25    // secondes entre deux relevés des panneaux
+const MAP_CONE_LENGTH = 26  // portée du cône de vue des poursuivants
+const MAP_CONE_ANGLE = 0.6  // demi-angle du cône, en radians
+
+const minimapCanvas = document.querySelector('#minimap')
+const minimapCtx = minimapCanvas.getContext('2d')
+const MAP_SIZE = minimapCanvas.width
+const MAP_CENTER = MAP_SIZE / 2
+const MAP_SCALE = MAP_CENTER / MAP_RANGE // unités monde -> pixels
+
+let mapBillboards = []
+let mapRefresh = 0
+
+// Logo lmwr des marqueurs, aplati en blanc une fois pour toutes dans un
+// canvas hors écran : le dessiner à chaque frame depuis le SVG coûterait un
+// décodage complet, et la teinte d'origine ne ressortirait pas sur le corail.
+const MAP_LOGO_WIDTH = 44
+const mapLogo = document.createElement('canvas')
+let mapLogoReady = false
+
+const mapLogoImage = new Image()
+mapLogoImage.onload = () => {
+  const ratio = mapLogoImage.width / mapLogoImage.height
+  mapLogo.width = MAP_LOGO_WIDTH
+  mapLogo.height = Math.round(MAP_LOGO_WIDTH / ratio)
+  const ctx = mapLogo.getContext('2d')
+  ctx.drawImage(mapLogoImage, 0, 0, mapLogo.width, mapLogo.height)
+  // On ne repeint que les pixels déjà opaques : la silhouette devient blanche
+  ctx.globalCompositeOperation = 'source-in'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, mapLogo.width, mapLogo.height)
+  mapLogoReady = true
+}
+mapLogoImage.src = asset('logo-lmwr.svg')
+
+// Repère local : la voiture au centre, son cap vers le haut du disque
+function toMap(x, z, out) {
+  const dx = x - body.x
+  const dz = z - body.z
+  const sin = Math.sin(carHeading)
+  const cos = Math.cos(carHeading)
+  out.x = MAP_CENTER + (dx * cos - dz * sin) * MAP_SCALE
+  out.y = MAP_CENTER - (dx * sin + dz * cos) * MAP_SCALE
+  return out
+}
+
+const _mapPoint = { x: 0, y: 0 }
+
+// Les panneaux ne bougent pas : inutile de rebalayer la grille à chaque frame
+function refreshMapBillboards() {
+  mapBillboards = []
+  const blockX = Math.floor(body.x / CELL)
+  const blockZ = Math.floor(body.z / CELL)
+  const reach = Math.ceil(MAP_RANGE / CELL)
+
+  for (let bx = blockX - reach; bx <= blockX + reach; bx++) {
+    for (let bz = blockZ - reach; bz <= blockZ + reach; bz++) {
+      eachBuilding(bx, bz, (b) => {
+        const p = b.billboard
+        if (p && p.ground) mapBillboards.push(p)
+      })
+    }
+  }
+}
+
+function drawMinimap(delta) {
+  const visible = !whiteSpace && !portal && !falling && !gameOver
+  minimapCanvas.classList.toggle('is-hidden', !visible)
+  if (!visible) return
+
+  mapRefresh -= delta
+  if (mapRefresh <= 0) {
+    mapRefresh = MAP_REFRESH
+    refreshMapBillboards()
+  }
+
+  const ctx = minimapCtx
+  ctx.save()
+  ctx.clearRect(0, 0, MAP_SIZE, MAP_SIZE)
+
+  // Tout est découpé au disque : rien ne déborde du cadre rond
+  ctx.beginPath()
+  ctx.arc(MAP_CENTER, MAP_CENTER, MAP_CENTER, 0, Math.PI * 2)
+  ctx.clip()
+
+  // Fond : la couleur des îlots, sur laquelle on trace les rues
+  ctx.fillStyle = '#e7e9ee'
+  ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE)
+
+  // Rues : les axes de la grille, à leur largeur réelle
+  ctx.strokeStyle = '#1d2b4d'
+  ctx.lineWidth = ROAD * MAP_SCALE
+  ctx.lineCap = 'butt'
+  const first = Math.floor((body.x - MAP_RANGE) / CELL)
+  const last = Math.ceil((body.x + MAP_RANGE) / CELL)
+  const firstZ = Math.floor((body.z - MAP_RANGE) / CELL)
+  const lastZ = Math.ceil((body.z + MAP_RANGE) / CELL)
+  const span = MAP_RANGE * 1.6 // les axes dépassent du disque, ils seront rognés
+
+  ctx.beginPath()
+  for (let i = first; i <= last; i++) {
+    const x = i * CELL
+    toMap(x, body.z - span, _mapPoint)
+    ctx.moveTo(_mapPoint.x, _mapPoint.y)
+    toMap(x, body.z + span, _mapPoint)
+    ctx.lineTo(_mapPoint.x, _mapPoint.y)
+  }
+  for (let i = firstZ; i <= lastZ; i++) {
+    const z = i * CELL
+    toMap(body.x - span, z, _mapPoint)
+    ctx.moveTo(_mapPoint.x, _mapPoint.y)
+    toMap(body.x + span, z, _mapPoint)
+    ctx.lineTo(_mapPoint.x, _mapPoint.y)
+  }
+  ctx.stroke()
+
+  // Panneaux franchissables : les objectifs du joueur, marqués au logo lmwr
+  mapBillboards.forEach((p) => {
+    toMap(p.x, p.z, _mapPoint)
+    ctx.fillStyle = '#2970f4'
+    ctx.beginPath()
+    ctx.arc(_mapPoint.x, _mapPoint.y, 19, 0, Math.PI * 2)
+    ctx.fill()
+    if (!mapLogoReady) return
+    ctx.drawImage(
+      mapLogo,
+      _mapPoint.x - mapLogo.width / 2,
+      _mapPoint.y - mapLogo.height / 2,
+      mapLogo.width,
+      mapLogo.height
+    )
+  })
+
+  // Poursuivants : point clignotant et cône de vue orienté sur leur cap
+  const blink = Math.sin(clock.elapsedTime * 9) > 0
+  policeCars.forEach((car) => {
+    toMap(car.body.x, car.body.z, _mapPoint)
+    const x = _mapPoint.x
+    const y = _mapPoint.y
+
+    // Le cap du poursuivant, ramené dans le repère tourné de la carte
+    const heading = car.heading - carHeading
+    const start = -Math.PI / 2 + heading - MAP_CONE_ANGLE
+    const end = -Math.PI / 2 + heading + MAP_CONE_ANGLE
+
+    ctx.fillStyle = blink ? 'rgba(41, 112, 244, 0.38)' : 'rgba(242, 103, 73, 0.38)'
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.arc(x, y, MAP_CONE_LENGTH * MAP_SCALE, start, end)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.fillStyle = blink ? '#2970f4' : '#f26749'
+    ctx.beginPath()
+    ctx.arc(x, y, 6, 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  // Joueur : grosse flèche blanche cernée de noir, toujours au centre et
+  // pointée vers le haut. Le contour la détache aussi bien du fond clair des
+  // îlots que du bleu sombre des rues.
+  ctx.beginPath()
+  ctx.moveTo(MAP_CENTER, MAP_CENTER - 24)
+  ctx.lineTo(MAP_CENTER + 17, MAP_CENTER + 19)
+  ctx.lineTo(MAP_CENTER, MAP_CENTER + 9)
+  ctx.lineTo(MAP_CENTER - 17, MAP_CENTER + 19)
+  ctx.closePath()
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  ctx.lineWidth = 5
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = '#101010'
+  ctx.stroke()
+
+  ctx.restore()
+
+  // Nord : le disque tourne avec la voiture, ce repère dit où est l'origine
+  const northAngle = -carHeading - Math.PI / 2
+  const nx = MAP_CENTER + Math.cos(northAngle) * (MAP_CENTER - 22)
+  const ny = MAP_CENTER + Math.sin(northAngle) * (MAP_CENTER - 22)
+  ctx.fillStyle = '#101010'
+  ctx.beginPath()
+  ctx.arc(nx, ny, 14, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#fff'
+  ctx.font = '700 17px Poppins, ui-sans-serif, system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('N', nx, ny + 1)
+}
+
 /* ---------- Compteur de FPS ---------- */
 // Moyenne glissante sur ~0,5 s : lisible, contrairement à l'instantané qui
 // saute à chaque frame.
@@ -3815,7 +4172,9 @@ splashButton.addEventListener('click', closeSplash)
 
 window.addEventListener('keydown', (event) => {
   if (event.code !== 'Escape') return
-  if (paused) closeSplash()
+  // La confirmation passe avant : Échap l'annule au lieu de basculer l'accueil
+  if (confirmOpen) closeContact()
+  else if (paused) closeSplash()
   else openSplash()
 })
 
@@ -3834,6 +4193,8 @@ function tick() {
   requestAnimationFrame(tick)
   const delta = Math.min(clock.getDelta(), 0.1)
   updateFps(delta)
+  drawMinimap(delta)
+  updatePhone(delta)
   updatePoliceVisuals(clock.elapsedTime)
   updateLook(delta)
   updateMagnet(delta)

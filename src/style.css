@@ -56,10 +56,6 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
 
 /* Au survol d'une cible, l'étoile passe au bleu de la charte : le corail est
    déjà la couleur du CTA, garder la même teinte brouillerait la lecture. */
-#reticle.is-hidden {
-  display: none;
-}
-
 #reticle.is-active {
   opacity: 1;
   fill: #2970f4;
@@ -108,24 +104,24 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   left: 8px; /* sous le compteur de FPS, loin du bouton de fermeture */
   z-index: 10;
   display: flex;
-  gap: 3px;
+  gap: 5px;
   color: #f26749;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
   pointer-events: none;
   user-select: none;
 }
 
+/* Niveau non atteint : silhouette vide, cernée de bleu */
 #wanted .wanted-star {
-  width: 16px;
-  height: 18px;
+  width: 26px;
+  height: 29px;
   fill: none;
-  stroke: #f26749;
-  opacity: 0.45;
+  stroke: #2970f4;
 }
 
+/* Niveau atteint : étoile corail pleine */
 #wanted .wanted-star.is-on {
   fill: #f26749;
-  opacity: 1;
+  stroke: #f26749;
 }
 
 /* Passage en noir et blanc contrasté au moment de la capture */
@@ -296,4 +292,135 @@ body.is-busted #wanted {
 #gameover button:hover {
   transform: scale(1.04);
   box-shadow: 0 8px 28px rgba(242, 103, 73, 0.45);
+}
+
+/* Minimap : disque en bas à droite, masqué hors de la ville */
+#minimap {
+  position: fixed;
+  right: 20px; /* le coin gauche accueille le téléphone, en fond perdu */
+  bottom: 20px;
+  z-index: 12;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+#minimap.is-hidden,
+body.is-busted #minimap {
+  opacity: 0;
+}
+
+
+/* Confirmation avant de quitter le jeu pour le client mail. Même vocabulaire
+   visuel que l'écran d'accueil : carte claire, Poppins, CTA corail. */
+#confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(36, 70, 151, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+#confirm.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.confirm-card {
+  width: min(520px, 100%);
+  padding: 40px 36px 32px;
+  border-radius: 22px;
+  background: #d3d3d3;
+  color: #101010;
+  text-align: center;
+  font: 400 15px/1.55 Poppins, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4);
+}
+
+.confirm-title {
+  margin-bottom: 14px;
+  font: 700 26px/1.15 Poppins, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.3px;
+}
+
+.confirm-text {
+  margin-bottom: 28px;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-actions button {
+  padding: 15px 28px;
+  border: 0;
+  border-radius: 14px;
+  font: 700 15px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.confirm-actions button:hover {
+  transform: scale(1.04);
+}
+
+/* Action principale : le corail des CTA. Le refus reste en bleu de charte,
+   cerné, pour ne pas se disputer l'attention avec elle. */
+#confirm-ok {
+  background: #f26749;
+  color: #fff;
+}
+
+#confirm-ok:hover {
+  box-shadow: 0 8px 24px rgba(242, 103, 73, 0.45);
+}
+
+#confirm-cancel {
+  background: transparent;
+  color: #2970f4;
+  box-shadow: inset 0 0 0 2px #2970f4;
+}
+
+/* Rappel de raccourci, sous le téléphone */
+#phone-hint {
+  position: fixed;
+  left: 20px;
+  bottom: 18px;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 600 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#phone-hint.is-visible {
+  opacity: 1;
+}
+
+#phone-hint kbd {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #f26749;
+  font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
 }
