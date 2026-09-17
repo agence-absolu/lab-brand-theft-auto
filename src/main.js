@@ -2496,9 +2496,24 @@ const planeShader = {
   floatSpeed: 0.55,   // vitesse du flottement
 }
 
+// Arrivée : les plans surgissent de très loin et fondent sur le joueur avant
+// de se figer à leur place. Ils partent tous du même point — la voiture —
+// donc les trajectoires convergent, comme un couloir qui se referme.
+const MEDIA_ENTRY_FAR = 45      // multiplicateur de distance au départ
+const MEDIA_ENTRY_TIME = 0.75   // secondes de vol, par plan
+const MEDIA_ENTRY_STAGGER = 0.05 // décalage d'un plan au suivant
+const MEDIA_ARC = THREE.MathUtils.degToRad(165) // ouverture du demi-cercle
+const MEDIA_RINGS = [17, 26, 35] // trois profondeurs, pour dégager la vue
+const TITLE_FADE = 0.7          // secondes de fondu du titre, après les plans
+
 const mediaGroup = new THREE.Group()
 mediaGroup.visible = false
 scene.add(mediaGroup)
+
+// Point d'où partent les trajectoires : la position de la voiture à l'arrivée
+const mediaAnchor = new THREE.Vector3()
+let mediaEntry = 0
+let mediaEntryTotal = 0 // durée totale du vol, titre et logo attendent la fin
 
 // L'effacement se joue entièrement au fragment : un quad suffit.
 const mediaGeometry = new THREE.PlaneGeometry(1, 1)
@@ -2595,9 +2610,40 @@ function makeMediaMaterial(map) {
   })
 }
 
+// Les plans sont créés d'abord, puis disposés ensemble : c'est la seule
+// façon de les répartir régulièrement en arc, le nombre total n'étant connu
+// qu'une fois vidéos et images ajoutées.
+function layoutMediaPlanes() {
+  const items = mediaGroup.children
+  const count = items.length
+  mediaEntryTotal = (count - 1) * MEDIA_ENTRY_STAGGER + MEDIA_ENTRY_TIME
+
+  items.forEach((mesh, i) => {
+    // Demi-cercle ouvert devant la voiture, dans l'axe où elle a débouché
+    const ratio = count > 1 ? i / (count - 1) : 0.5
+    const angle = carHeading - MEDIA_ARC / 2 + ratio * MEDIA_ARC
+    const radius = MEDIA_RINGS[i % MEDIA_RINGS.length]
+
+    mesh.position.set(
+      mediaAnchor.x + Math.sin(angle) * radius,
+      CAR_GROUND + mesh.scale.y / 2, // le bas du plan affleure le sol
+      mediaAnchor.z + Math.cos(angle) * radius
+    )
+    mesh.lookAt(mediaAnchor.x, mesh.position.y, mediaAnchor.z)
+
+    mesh.userData.baseY = mesh.position.y
+    mesh.userData.home = mesh.position.clone()
+    // Les plans les plus proches arrivent en premier
+    mesh.userData.delay = i * MEDIA_ENTRY_STAGGER
+    mesh.userData.phase = i * 1.7
+  })
+}
+
 // Dispersion déterministe : même projet, même constellation de plans.
 function spawnProjectPlanes(project) {
   clearProjectPlanes()
+  mediaAnchor.copy(carPosition)
+  mediaEntry = 0
   const files = PROJECT_MEDIA[project.slug] || []
 
   // La vidéo d'en-tête du projet occupe le premier plan de la constellation.
@@ -2616,22 +2662,7 @@ function spawnProjectPlanes(project) {
     const material = makeMediaMaterial(null)
     const mesh = new THREE.Mesh(mediaGeometry, material)
 
-    // Répartition en spirale devant la voiture, à des hauteurs variées
-    const angle = i * 2.399963 // angle d'or : évite les alignements
-    const radius = 14 + i * 3.1
-    // Le bas du plan affleure le sol, comme les roues de la voiture
-    mesh.position.set(
-      carPosition.x + Math.cos(angle) * radius,
-      CAR_GROUND + MEDIA_HEIGHT / 2,
-      carPosition.z + Math.sin(angle) * radius
-    )
-    // Chaque plan fait face au centre de la constellation
-    mesh.lookAt(carPosition.x, mesh.position.y, carPosition.z)
     mesh.scale.set(MEDIA_HEIGHT * 1.6, MEDIA_HEIGHT, 1)
-    // Hauteur de repos et déphasage : sans phase propre, tous les plans
-    // monteraient et descendraient à l'unisson.
-    mesh.userData.baseY = mesh.position.y
-    mesh.userData.phase = i * 1.7
     mesh.visible = false
     mediaGroup.add(mesh)
 
@@ -2644,6 +2675,8 @@ function spawnProjectPlanes(project) {
       mesh.visible = true
     })
   })
+
+  layoutMediaPlanes()
 }
 
 // Vidéos secondaires : flux HLS Mux, montés à la volée. Safari lit le .m3u8
@@ -2686,17 +2719,9 @@ function addVideoPlane(video, index = 0) {
   texture.generateMipmaps = false
 
   const mesh = new THREE.Mesh(mediaGeometry, makeMediaMaterial(texture))
-  // La vidéo d'en-tête (index 0) est la pièce maîtresse, les suivantes sont
-  // réparties autour d'elle, un peu plus loin.
+  // La vidéo d'en-tête (index 0) est la pièce maîtresse : elle reste plus
+  // grande que les autres, la disposition en arc est réglée à part.
   const height = MEDIA_HEIGHT * (index ? 1.3 : 1.8)
-  const angle = -0.9 + index * 1.15
-  const radius = index ? 20 + index * 6 : 17
-  mesh.position.set(
-    carPosition.x + Math.sin(angle) * radius,
-    CAR_GROUND + height / 2,
-    carPosition.z + Math.cos(angle) * radius
-  )
-  mesh.lookAt(carPosition.x, mesh.position.y, carPosition.z)
   // Les dimensions réelles ne sont connues qu'une fois les métadonnées lues :
   // on pose un 16:9 par défaut, puis on recale dès qu'elles arrivent.
   const applyRatio = () => {
@@ -2705,8 +2730,6 @@ function addVideoPlane(video, index = 0) {
   }
   applyRatio()
   if (!video.videoWidth) video.addEventListener('loadedmetadata', applyRatio, { once: true })
-  mesh.userData.baseY = mesh.position.y
-  mesh.userData.phase = index * 2.1
   mediaGroup.add(mesh)
 
   video.play().catch(() => {}) // relancée aussi par startPanelVideos
@@ -2733,9 +2756,27 @@ function updateMediaPlanes(delta) {
   mediaFade = Math.min(1, mediaFade + delta / planeShader.fade)
   mediaUniforms.uOpacity.value = mediaFade
 
+  mediaEntry += delta
+
   // Flottement : une oscillation lente, déphasée d'un plan à l'autre
   const t = mediaUniforms.uTime.value * planeShader.floatSpeed
   mediaGroup.children.forEach((mesh) => {
+    const home = mesh.userData.home
+    if (!home) return
+
+    // Vol d'arrivée : le plan part à seize fois sa distance et se rapproche.
+    // La courbe expo freine très tard, ce qui donne la ruée puis l'arrêt net.
+    const progress = THREE.MathUtils.clamp(
+      (mediaEntry - mesh.userData.delay) / MEDIA_ENTRY_TIME,
+      0,
+      1
+    )
+    const reach = THREE.MathUtils.lerp(MEDIA_ENTRY_FAR, 1, ease.outExpo(progress))
+
+    // Seules les distances horizontales sont dilatées : les plans arrivent de
+    // l'horizon, pas du ciel.
+    mesh.position.x = mediaAnchor.x + (home.x - mediaAnchor.x) * reach
+    mesh.position.z = mediaAnchor.z + (home.z - mediaAnchor.z) * reach
     mesh.position.y =
       mesh.userData.baseY + Math.sin(t + mesh.userData.phase) * planeShader.floatAmplitude
   })
@@ -2780,7 +2821,12 @@ const TITLE_SCREEN_WIDTH = 0.92   // largeur max : un titre long doit tenir en e
 
 const titleMesh = new THREE.Mesh(
   new THREE.PlaneGeometry(1, 1),
-  new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false })
+  new THREE.MeshBasicMaterial({
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    opacity: 0, // révélé une fois les plans arrivés
+  })
 )
 titleMesh.visible = false
 titleMesh.frustumCulled = false
@@ -2899,6 +2945,7 @@ const titleGroundMaterial = new THREE.ShaderMaterial({
     uResolution: { value: new THREE.Vector2(1, 1) },
     uCenter: { value: new THREE.Vector2(0, 0) }, // rectangle du titre, en NDC
     uSize: { value: new THREE.Vector2(1, 1) },
+    uOpacity: { value: 0 }, // même fondu que le panneau lointain
   },
   vertexShader: /* glsl */ `
     void main() {
@@ -2910,6 +2957,7 @@ const titleGroundMaterial = new THREE.ShaderMaterial({
     uniform vec2 uResolution;
     uniform vec2 uCenter;
     uniform vec2 uSize;
+    uniform float uOpacity;
 
     void main() {
       // Position du fragment en coordonnées normalisées de l'écran
@@ -2920,8 +2968,9 @@ const titleGroundMaterial = new THREE.ShaderMaterial({
       if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
 
       vec4 texel = texture2D(uMap, uv);
-      if (texel.a < 0.01) discard;
-      gl_FragColor = texel;
+      float alpha = texel.a * uOpacity;
+      if (alpha < 0.01) discard;
+      gl_FragColor = vec4(texel.rgb, alpha);
     }
   `,
 })
@@ -2935,8 +2984,15 @@ scene.add(titleGround)
 
 const _titleDir = new THREE.Vector3()
 
-function updateProjectTitle() {
+function updateProjectTitle(delta) {
   if (!titleMesh.visible) return
+
+  // Le titre n'entre qu'une fois la constellation posée : il conclut la
+  // séquence au lieu de rivaliser avec le vol des plans.
+  const waited = Math.max(0, mediaEntry - mediaEntryTotal)
+  const fade = THREE.MathUtils.clamp(waited / TITLE_FADE, 0, 1)
+  titleMesh.material.opacity = fade
+  titleGroundMaterial.uniforms.uOpacity.value = fade
 
   camera.getWorldDirection(_titleDir)
   titleMesh.position.copy(camera.position).addScaledVector(_titleDir, TITLE_DISTANCE)
@@ -3218,6 +3274,105 @@ function updateHole() {
   if (dx * dx + dz * dz > (HOLE_RADIUS * 0.75) ** 2) return
 
   startFalling()
+}
+
+/* ---------- Aimant sur les cibles ---------- */
+// Approcher le réticule d'une cible suffit : la caméra termine l'alignement
+// toute seule et la cible devient activable. Viser au pixel près en roulant
+// serait pénible.
+const MAGNET_RADIUS = 0.34   // rayon d'accroche, en coordonnées écran (NDC)
+const MAGNET_PULL = 3.4      // vitesse d'alignement
+
+// En ville, l'aimant vise les panneaux franchissables. Il est volontairement
+// plus étroit et plus mou : il doit aider à cadrer un panneau repéré, jamais
+// contrarier une manœuvre ou une esquive.
+const CITY_MAGNET_RADIUS = 0.26 // rayon d'accroche à l'écran
+const CITY_MAGNET_PULL = 2.2    // attraction, plus douce qu'en espace blanc
+const CITY_MAGNET_MIN = 14      // trop près : on n'a plus le temps de se placer
+const CITY_MAGNET_MAX = 70      // trop loin : le panneau n'est pas encore un objectif
+const CITY_MAGNET_STEER = 0.55  // au-delà, le joueur manœuvre : on le laisse tranquille
+
+const _magnetPos = new THREE.Vector3()
+let magnetTarget = null
+
+// Cible la plus proche du centre de l'écran, parmi les objets fournis
+function screenClosest(candidates, radius, getPosition) {
+  let best = null
+  for (const candidate of candidates) {
+    getPosition(candidate, _magnetPos)
+    _magnetPos.project(camera)
+    // Derrière la caméra : la projection se replie et donnerait un faux proche
+    if (_magnetPos.z > 1) continue
+    const distance = Math.hypot(_magnetPos.x, _magnetPos.y)
+    if (distance > radius) continue
+    if (!best || distance < best.distance) {
+      best = { candidate, distance, x: _magnetPos.x, y: _magnetPos.y }
+    }
+  }
+  return best
+}
+
+// Panneaux franchissables autour de la voiture, à portée utile
+function nearbyPortals() {
+  const found = []
+  const blockX = Math.floor(body.x / CELL)
+  const blockZ = Math.floor(body.z / CELL)
+  const reach = Math.ceil(CITY_MAGNET_MAX / CELL)
+
+  for (let bx = blockX - reach; bx <= blockX + reach; bx++) {
+    for (let bz = blockZ - reach; bz <= blockZ + reach; bz++) {
+      eachBuilding(bx, bz, (b) => {
+        const p = b.billboard
+        if (!p || !p.ground) return
+        const distance = Math.hypot(p.x - body.x, p.z - body.z)
+        if (distance < CITY_MAGNET_MIN || distance > CITY_MAGNET_MAX) return
+        found.push(p)
+      })
+    }
+  }
+  return found
+}
+
+function updateMagnet(delta) {
+  magnetTarget = null
+  if (portal || gameOver || falling || paused) return
+
+  let best = null
+  let pull = MAGNET_PULL
+
+  if (whiteSpace) {
+    const targets = interactiveTargets()
+    if (!targets.length) return
+    best = screenClosest(targets, MAGNET_RADIUS, (t, out) => t.getWorldPosition(out))
+    if (best) magnetTarget = best.candidate
+  } else {
+    // Une manœuvre en cours prime sur l'aide au cadrage
+    if (Math.abs(steerInput) > CITY_MAGNET_STEER) return
+    best = screenClosest(nearbyPortals(), CITY_MAGNET_RADIUS, (p, out) =>
+      out.set(p.x, city.sidewalkHeight + p.y, p.z)
+    )
+    pull = CITY_MAGNET_PULL
+  }
+  if (!best) return
+
+  const radius = whiteSpace ? MAGNET_RADIUS : CITY_MAGNET_RADIUS
+
+  // Attraction proportionnelle à la proximité : franche au centre, douce au
+  // bord, pour qu'on puisse encore balayer la scène sans être happé.
+  const strength = (1 - best.distance / radius) * pull
+  const k = 1 - Math.exp(-strength * delta)
+
+  // L'écart écran est converti en angles : la moitié du champ vertical vaut
+  // fov/2, et l'horizontal suit l'aspect.
+  const halfFov = THREE.MathUtils.degToRad(camera.fov) / 2
+  yaw -= best.x * Math.atan(Math.tan(halfFov) * camera.aspect) * k
+  settings.cameraPitch += THREE.MathUtils.radToDeg(best.y * halfFov) * k
+
+  // En ville, le retour derrière la voiture reste prioritaire : l'aimant ne
+  // fait que ralentir le recentrage, il ne le bloque pas.
+  if (whiteSpace) lookIdle = 0
+  pitchController?.updateDisplay()
+  applyCameraOrientation()
 }
 
 // Cibles pointables : au curseur, ou au réticule de visée avec Entrée.
@@ -4202,7 +4357,7 @@ function tick() {
   updateFraming(delta)
   updateMovement(delta)
   updateMediaPlanes(delta)
-  updateProjectTitle()
+  updateProjectTitle(delta)
   updateHole()
   updateReticle()
   updateBusted(delta)
