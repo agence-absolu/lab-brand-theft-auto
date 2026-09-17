@@ -1194,8 +1194,12 @@ function spawnPolice(key, x, z) {
     key,
     group,
     body: new THREE.Vector3(x, 0, z),
+    // État du pas précédent : le rendu interpole entre les deux, sinon les
+    // voitures avancent par à-coups au rythme de la simulation.
+    prev: new THREE.Vector3(x, 0, z),
     velocity: new THREE.Vector3(),
     heading: Math.atan2(body.x - x, body.z - z),
+    prevHeading: Math.atan2(body.x - x, body.z - z),
     speed: 0,
     retreat: 0, // secondes de recul restantes après un choc
     calm: 0,    // secondes de prudence après un recul : elle suit sans charger
@@ -1289,6 +1293,57 @@ function policeMove(car, dt) {
     if (vInto < 0) {
       car.velocity.x -= vInto * hit.nx
       car.velocity.z -= vInto * hit.nz
+    }
+  }
+}
+
+// Les poursuivants se gênent aussi entre eux : sans ça, deux voitures qui
+// convergent sur le joueur se traversent, et on voit une carrosserie sortir
+// de l'autre. Même principe que le choc avec le joueur, sans embardée.
+const POLICE_BOUNCE = 0.6
+
+function resolvePoliceCollisions() {
+  const contact = policeRadius() * 2
+
+  for (let i = 0; i < policeCars.length; i++) {
+    const a = policeCars[i]
+    for (let j = i + 1; j < policeCars.length; j++) {
+      const b = policeCars[j]
+      const dx = b.body.x - a.body.x
+      const dz = b.body.z - a.body.z
+      const distance = Math.hypot(dx, dz)
+      if (distance > contact || distance < 1e-4) continue
+
+      const nx = dx / distance
+      const nz = dz / distance
+
+      // Séparation à parts égales : les deux véhicules ont la même masse
+      const overlap = (contact - distance) / 2
+      a.body.x -= nx * overlap
+      a.body.z -= nz * overlap
+      b.body.x += nx * overlap
+      b.body.z += nz * overlap
+
+      // Vitesse d'approche le long de la normale : nulle ou négative, elles
+      // s'éloignent déjà et il n'y a rien à corriger.
+      const approach = (a.velocity.x - b.velocity.x) * nx + (a.velocity.z - b.velocity.z) * nz
+      if (approach <= 0) continue
+
+      const impulse = approach * POLICE_BOUNCE
+      a.velocity.x -= nx * impulse
+      a.velocity.z -= nz * impulse
+      b.velocity.x += nx * impulse
+      b.velocity.z += nz * impulse
+
+      // La vitesse le long du cap est recalculée, sinon l'IA repart comme si
+      // de rien n'était au pas suivant.
+      a.speed = a.velocity.x * Math.sin(a.heading) + a.velocity.z * Math.cos(a.heading)
+      b.speed = b.velocity.x * Math.sin(b.heading) + b.velocity.z * Math.cos(b.heading)
+
+      // Elles se dégagent un instant avant de reprendre la poursuite
+      a.retreat = Math.max(a.retreat, POLICE_RETREAT * 0.4)
+      b.retreat = Math.max(b.retreat, POLICE_RETREAT * 0.4)
+
     }
   }
 }
@@ -1437,6 +1492,9 @@ function stepPolice(dt) {
       continue
     }
 
+    car.prev.copy(car.body)
+    car.prevHeading = car.heading
+
     // Interception : on vise là où le joueur SERA, pas où il est. Une voiture
     // sur deux joue le bloqueur et anticipe bien plus loin, pour se placer en
     // travers de la route plutôt que de coller au pare-chocs.
@@ -1488,14 +1546,25 @@ function stepPolice(dt) {
     policeMove(car, dt)
     collideWithPlayer(car)
   }
+
+  resolvePoliceCollisions()
 }
 
-// Rendu : position, cap et gyrophare
-function updatePoliceVisuals(time) {
+// Rendu : position, cap et gyrophare. Comme pour le joueur, la position
+// affichée est interpolée entre les deux derniers pas de simulation.
+function updatePoliceVisuals(time, alpha) {
   const blue = Math.sin(time * 9) > 0
   policeCars.forEach((car) => {
-    car.group.position.set(car.body.x, CAR_GROUND, car.body.z)
-    car.group.rotation.y = car.heading
+    car.group.position.set(
+      car.prev.x + (car.body.x - car.prev.x) * alpha,
+      CAR_GROUND,
+      car.prev.z + (car.body.z - car.prev.z) * alpha
+    )
+
+    // Cap interpolé par le plus court chemin angulaire
+    let diff = ((car.heading - car.prevHeading + Math.PI) % (Math.PI * 2)) - Math.PI
+    if (diff < -Math.PI) diff += Math.PI * 2
+    car.group.rotation.y = car.prevHeading + diff * alpha
     car.group.scale.setScalar(settings.carScale)
     const beacon = car.group.children[1]
     if (beacon) beacon.material.emissive.setHex(blue ? 0x2970f4 : 0xf26749)
@@ -1764,6 +1833,7 @@ function moveAndSlide(dt) {
       velocity.z -= factor * vInto * hit.nz
     }
 
+    // Le choc s'entend : l'intensité suit la vitesse d'impact
     // Choc en biais : le produit vectoriel cap × normale donne le sens dans
     // lequel la voiture part en embardée. Nul sur un impact frontal parfait,
     // maximal quand on frotte un mur de flanc.
@@ -1973,6 +2043,7 @@ function step() {
 // Boucle à pas fixe + interpolation du rendu : la réponse aux collisions ne
 // dépend plus du framerate, et l'affichage reste fluide entre deux pas.
 let accumulator = 0
+let renderAlpha = 0 // avancement dans le pas de simulation en cours
 function updateMovement(delta) {
   if (gameOver || paused) return
   if (falling) {
@@ -1997,6 +2068,7 @@ function updateMovement(delta) {
   refreshPoliceFleet()
 
   const alpha = accumulator / FIXED_DT
+  renderAlpha = alpha
   carPosition.x = prevBody.x + (body.x - prevBody.x) * alpha
   carPosition.z = prevBody.z + (body.z - prevBody.z) * alpha
 
@@ -2010,11 +2082,36 @@ function updateMovement(delta) {
   placeCamera()
 }
 
+
+/* ---------- Routes ---------- */
+// Trois routes : la ville à la racine, le menu, et une par projet. L'URL est
+// la source de vérité au chargement — recharger sur /un-projet doit rouvrir
+// ce projet, pas retomber en ville.
+const BASE = import.meta.env.BASE_URL
+const MENU_ROUTE = 'menu'
+
+function currentRoute() {
+  const path = decodeURIComponent(location.pathname)
+  return path.startsWith(BASE) ? path.slice(BASE.length).replace(/\/+$/, '') : ''
+}
+
+function routeToPath(route) {
+  return `${BASE}${route}`
+}
+
+// Index du projet correspondant à une route, ou -1
+function projectFromRoute(route) {
+  return PROJECTS.findIndex((project) => project.slug === route)
+}
+
 /* ---------- Espace blanc : entrée et sortie ---------- */
 // Arrivée dans l'espace blanc : le panneau a fini de s'ouvrir, il n'a plus
 // rien à masquer. La ville est simplement mise de côté — elle n'est ni
 // détruite ni régénérée, le respawn la retrouve telle quelle.
-function enterWhiteSpace() {
+// `push` à faux quand l'URL décrit déjà la destination : au chargement direct
+// sur /un-projet, empiler une entrée d'historique ferait reculer vers la même
+// page au premier clic sur Précédent.
+function enterWhiteSpace({ push = true } = {}) {
   whiteSpace = true
 
   // Point de vue conservé pour la fenêtre de la porte de retour
@@ -2081,7 +2178,9 @@ function enterWhiteSpace() {
   placeHole()
   mediaGroup.visible = true
   mediaFade = 0
-  history.pushState({ slug: project.slug }, '', `${import.meta.env.BASE_URL}${project.slug}`)
+  const state = { slug: project.slug }
+  if (push) history.pushState(state, '', routeToPath(project.slug))
+  else history.replaceState(state, '', routeToPath(project.slug))
 
   // La voiture repart de zéro, dans l'axe où elle a franchi le panneau
   velocity.set(0, 0, 0)
@@ -2115,11 +2214,23 @@ function exitWhiteSpace() {
   scene.fog = cityFog
   scene.background = null
   whiteGround.visible = false
-  if (location.pathname !== import.meta.env.BASE_URL) {
-    history.pushState({}, '', import.meta.env.BASE_URL)
-  }
+  if (currentRoute() !== '') history.pushState({}, '', BASE)
 }
 
+
+// Ouverture d'un projet sans passer par le panneau : la voiture est posée sur
+// un croisement, puis l'espace blanc s'installe comme après une transition.
+function openProject(index, options) {
+  if (whiteSpace) exitWhiteSpace()
+  whiteProject = index
+  body.set(Math.round(body.x / CELL) * CELL, 0, Math.round(body.z / CELL) * CELL)
+  prevBody.copy(body)
+  carPosition.copy(body)
+  velocity.set(0, 0, 0)
+  speed = 0
+  updateChunks() // la fenêtre du puits montre la ville : elle doit exister
+  enterWhiteSpace(options)
+}
 
 /* ---------- Courbes d'animation ---------- */
 // Deux profils : l'ensemble doit démarrer sec et finir posé.
@@ -3456,9 +3567,24 @@ canvas.addEventListener('click', (event) => {
 // Déclenché quand le centre de la voiture entre dans le volume d'un panneau
 // au sol. Un seul déclenchement par panneau tant qu'on n'en est pas ressorti.
 const noticeElement = document.querySelector('#notice')
-// Le bouton Précédent du navigateur ramène en ville, comme la croix
+// Navigation du navigateur : l'URL reste la source de vérité, on aligne
+// l'état du jeu dessus plutôt que d'ignorer les boutons Précédent et Suivant.
 window.addEventListener('popstate', () => {
-  if (whiteSpace) respawn()
+  const route = currentRoute()
+
+  if (route === MENU_ROUTE) {
+    if (!paused) openSplash({ push: false })
+    return
+  }
+
+  const index = projectFromRoute(route)
+  if (index >= 0) {
+    if (!whiteSpace || whiteProject !== index) openProject(index, { push: false })
+    return
+  }
+
+  if (whiteSpace) respawn() // retour à la racine : on rentre en ville
+  else if (paused) closeSplash()
 })
 let currentPortal = null
 let portal = null // { billboard, progress } quand un portail est en cours
@@ -4014,13 +4140,16 @@ mapLogoImage.onload = () => {
 }
 mapLogoImage.src = asset('logo-lmwr.svg')
 
-// Repère local : la voiture au centre, son cap vers le haut du disque
+// Repère local : la voiture au centre, son cap vers le haut du disque.
+// Le terme horizontal est négatif : dans le repère du jeu, la droite de la
+// voiture pointe vers les X négatifs, elle se retrouvait donc à gauche de la
+// carte, ce qui inversait la lecture.
 function toMap(x, z, out) {
   const dx = x - body.x
   const dz = z - body.z
   const sin = Math.sin(carHeading)
   const cos = Math.cos(carHeading)
-  out.x = MAP_CENTER + (dx * cos - dz * sin) * MAP_SCALE
+  out.x = MAP_CENTER - (dx * cos - dz * sin) * MAP_SCALE
   out.y = MAP_CENTER - (dx * sin + dz * cos) * MAP_SCALE
   return out
 }
@@ -4170,6 +4299,7 @@ function drawMinimap(delta) {
   ctx.fillText('N', nx, ny + 1)
 }
 
+
 /* ---------- Compteur de FPS ---------- */
 // Moyenne glissante sur ~0,5 s : lisible, contrairement à l'instantané qui
 // saute à chaque frame.
@@ -4302,10 +4432,21 @@ const resumed = loadGame()
 if (resumed) splashButton.textContent = 'Reprendre la partie'
 let paused = true // la simulation ne tourne pas tant que l'accueil est ouvert
 let splashTimer
+// Route à retrouver en quittant le menu : celle d'où l'on venait
+let routeBeforeMenu = ''
 
-function openSplash() {
+// Projet à ouvrir dès la fermeture de l'accueil, quand l'URL en désigne un.
+// On attend ce clic plutôt que d'ouvrir tout de suite : c'est lui qui autorise
+// la lecture des vidéos, refusée avant toute interaction.
+let pendingProject = -1
+
+function openSplash({ push = true } = {}) {
   paused = true
   saveGame()
+  if (push && currentRoute() !== MENU_ROUTE) {
+    routeBeforeMenu = currentRoute()
+    history.pushState({ menu: true }, '', routeToPath(MENU_ROUTE))
+  }
   keys.clear() // sinon on retrouve la voiture accélérant toute seule au retour
   clearTimeout(splashTimer)
   splashElement.style.display = ''
@@ -4318,9 +4459,36 @@ function closeSplash() {
   paused = false
   splashElement.classList.add('is-hidden')
   startPanelVideos()
+
+  // Le menu a sa propre URL : en sortir remet celle du jeu, sans empiler
+  // d'entrée d'historique — ce n'est pas une navigation, juste une reprise.
+  if (currentRoute() === MENU_ROUTE) {
+    history.replaceState({}, '', routeToPath(routeBeforeMenu))
+  }
+
+  if (pendingProject >= 0) {
+    const index = pendingProject
+    pendingProject = -1
+    openProject(index, { push: false }) // l'URL décrit déjà ce projet
+  }
+
   // Retiré du flux une fois le fondu terminé, pour libérer le clic sur la scène
   clearTimeout(splashTimer)
   splashTimer = setTimeout(() => (splashElement.style.display = 'none'), 500)
+}
+
+// Au chargement, l'URL décide de la destination
+const bootRoute = currentRoute()
+const bootProject = projectFromRoute(bootRoute)
+if (bootProject >= 0) {
+  pendingProject = bootProject
+  routeBeforeMenu = bootRoute
+} else if (bootRoute === MENU_ROUTE) {
+  routeBeforeMenu = ''
+} else if (bootRoute !== '') {
+  // Route inconnue atteinte côté client : on retombe sur la ville, et l'URL
+  // est corrigée pour ne pas rester sur une adresse qui ne mène nulle part.
+  history.replaceState({}, '', BASE)
 }
 
 splashButton.addEventListener('click', closeSplash)
@@ -4350,7 +4518,7 @@ function tick() {
   updateFps(delta)
   drawMinimap(delta)
   updatePhone(delta)
-  updatePoliceVisuals(clock.elapsedTime)
+  updatePoliceVisuals(clock.elapsedTime, renderAlpha)
   updateLook(delta)
   updateMagnet(delta)
   updateFollowCamera(delta)

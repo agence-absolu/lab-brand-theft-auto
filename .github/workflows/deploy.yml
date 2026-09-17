@@ -38,6 +38,11 @@ jobs:
 
       # Le dépôt embarque ~19 Mo de médias (posters, vidéos d'en-tête, WebP des
       # projets) : ils partent tels quels dans dist/ via public/.
+      #
+      # Le build écrit aussi une copie de index.html sous /menu/ et sous chaque
+      # slug de projet (voir vite.config.js). C'est ce qui permet de recharger
+      # /mon-projet sans réécriture côté serveur, que l'hébergement ne propose
+      # pas ici.
 
       - name: Nom du projet
         id: meta
