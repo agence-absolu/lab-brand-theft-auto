@@ -424,3 +424,99 @@ body.is-busted #minimap {
   background: #f26749;
   font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
 }
+
+/* ---------- Tactile ---------- */
+/* Les manettes n'existent que sur écran tactile : sur ordinateur elles
+   masqueraient la scène sans servir à rien. */
+#sticks {
+  display: none;
+}
+
+.stick {
+  position: fixed;
+  bottom: 26px;
+  z-index: 14;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(16, 16, 16, 0.28);
+  touch-action: none; /* sans quoi le navigateur interprète le glissé */
+  user-select: none;
+}
+
+.stick i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  transition: background 0.15s ease;
+}
+
+.stick.is-active i {
+  background: #f26749;
+}
+
+#stick-drive {
+  left: 26px;
+}
+
+#stick-look {
+  right: 26px;
+}
+
+/* Invitation à pivoter : le jeu suppose un écran large, la ville et les
+   commandes n'ont pas la place en portrait. */
+#rotate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  background: #244697;
+  color: #fff;
+  text-align: center;
+  font: 400 15px/1.5 Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
+#rotate p {
+  font: 700 26px/1.2 Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (pointer: coarse) {
+  #sticks {
+    display: block;
+  }
+
+  /* La minimap et le téléphone laissent la place aux manettes */
+  #minimap {
+    width: 116px;
+    height: 116px;
+    right: 172px;
+    bottom: 30px;
+  }
+
+  #phone-hint {
+    left: 172px;
+  }
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  #rotate {
+    display: flex;
+  }
+
+  /* Rien ne doit rester lisible derrière l'invitation */
+  #sticks,
+  #minimap {
+    display: none;
+  }
+}

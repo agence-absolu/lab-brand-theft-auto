@@ -147,8 +147,10 @@ let lookIdle = LOOK_IDLE // temps écoulé depuis la dernière entrée clavier
 function updateLook(delta) {
   if (portal || gameOver || falling || paused) return // séquences qui gardent la caméra
 
-  const turn = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)
-  const tilt = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0)
+  const turn =
+    (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0) - axis(lookStick.x)
+  const tilt =
+    (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0) - axis(lookStick.y)
   if (turn || tilt) {
     lookIdle = 0
     framingBlend = null // une entrée de l'utilisateur annule tout recadrage
@@ -1572,6 +1574,87 @@ function updatePoliceVisuals(time, alpha) {
 }
 
 
+
+/* ---------- Commandes tactiles ---------- */
+// Deux manettes virtuelles : la gauche conduit, la droite oriente la caméra.
+// Elles renvoient un vecteur normalisé dans [-1, 1], ce qui donne des
+// commandes analogiques là où le clavier est en tout ou rien.
+const STICK_RADIUS = 52   // course maximale du bouton, en pixels
+const STICK_DEADZONE = 0.14 // sous ce seuil, on considère la manette au repos
+
+function createStick(id) {
+  const element = document.querySelector(id)
+  const knob = element.querySelector('i')
+  const state = { x: 0, y: 0, active: false }
+  let pointerId = null
+
+  function move(event) {
+    const rect = element.getBoundingClientRect()
+    const dx = event.clientX - (rect.left + rect.width / 2)
+    const dy = event.clientY - (rect.top + rect.height / 2)
+
+    // Le vecteur est borné au rayon de la manette : pousser plus loin ne
+    // donne pas plus de commande, mais le doigt peut sortir du cercle.
+    const distance = Math.hypot(dx, dy)
+    const clamp = distance > STICK_RADIUS ? STICK_RADIUS / distance : 1
+    const px = dx * clamp
+    const py = dy * clamp
+
+    knob.style.transform = `translate(${px}px, ${py}px)`
+    state.x = px / STICK_RADIUS
+    state.y = -py / STICK_RADIUS // vers le haut = valeurs positives
+  }
+
+  function release() {
+    pointerId = null
+    state.active = false
+    state.x = 0
+    state.y = 0
+    knob.style.transform = ''
+    element.classList.remove('is-active')
+  }
+
+  element.addEventListener('pointerdown', (event) => {
+    pointerId = event.pointerId
+    state.active = true
+    element.classList.add('is-active')
+    element.setPointerCapture(event.pointerId)
+    move(event)
+  })
+
+  element.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== pointerId) return
+    move(event)
+  })
+
+  element.addEventListener('pointerup', release)
+  element.addEventListener('pointercancel', release)
+
+  return state
+}
+
+const driveStick = createStick('#stick-drive')
+const lookStick = createStick('#stick-look')
+
+// Une valeur sous la zone morte est traitée comme nulle : un doigt posé ne
+// doit pas faire dériver la voiture.
+function axis(value) {
+  return Math.abs(value) < STICK_DEADZONE ? 0 : value
+}
+
+// L'orientation paysage ne peut être verrouillée qu'en plein écran, et
+// seulement sur les navigateurs mobiles qui l'autorisent. On tente, sans
+// dépendre du résultat : l'invitation à pivoter reste le vrai garde-fou.
+async function lockLandscape() {
+  if (!matchMedia('(pointer: coarse)').matches) return
+  try {
+    await document.documentElement.requestFullscreen?.()
+    await screen.orientation?.lock?.('landscape')
+  } catch {
+    // Refusé par le navigateur ou déjà en plein écran : sans conséquence
+  }
+}
+
 /* ---------- Contrôleur de déplacement : Z Q S D ---------- */
 // Approche classique de character controller : une position autoritaire qui
 // n'est JAMAIS en pénétration, déplacée à pas de temps fixe par une vélocité
@@ -1628,16 +1711,16 @@ const _lateral = new THREE.Vector3()
 // KeyZ/KeyQ et KeyW/KeyA : fonctionne en AZERTY comme en QWERTY
 const pressed = {
   get throttle() {
-    return keys.has('KeyW') || keys.has('KeyZ')
+    return keys.has('KeyW') || keys.has('KeyZ') || axis(driveStick.y) > 0.2
   },
   get brake() {
-    return keys.has('KeyS')
+    return keys.has('KeyS') || axis(driveStick.y) < -0.2
   },
   get left() {
-    return keys.has('KeyA') || keys.has('KeyQ')
+    return keys.has('KeyA') || keys.has('KeyQ') || axis(driveStick.x) < -0.2
   },
   get right() {
-    return keys.has('KeyD')
+    return keys.has('KeyD') || axis(driveStick.x) > 0.2
   },
   get handbrake() {
     return keys.has('Space')
@@ -1971,7 +2054,11 @@ function step() {
      pas sur elle-même — et inversé en marche arrière, comme un vrai volant.
      Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
      la position demandée, et revient au centre quand on relâche. */
-  const steerTarget = (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
+  // La manette donne une consigne continue ; le clavier reste en tout ou rien
+  const stickSteer = axis(driveStick.x)
+  const steerTarget = stickSteer
+    ? -stickSteer
+    : (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
   steerInput += (steerTarget - steerInput) * (1 - Math.exp(-STEER_SMOOTH * FIXED_DT))
 
   const forwardSpeed = velocity.x * Math.sin(carHeading) + velocity.z * Math.cos(carHeading)
@@ -4459,6 +4546,7 @@ function closeSplash() {
   paused = false
   splashElement.classList.add('is-hidden')
   startPanelVideos()
+  lockLandscape() // tentative de verrouillage, au premier geste de l'utilisateur
 
   // Le menu a sa propre URL : en sortir remet celle du jeu, sans empiler
   // d'entrée d'historique — ce n'est pas une navigation, juste une reprise.
