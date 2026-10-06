@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
 import GUI from 'lil-gui'
 import { PROJECTS } from './projects.js'
+import { BUTTON, createGamepad } from './gamepad.js'
+import { createPadCursor } from './pad-cursor.js'
 import { PROJECT_MEDIA, PROJECT_LOGOS, PROJECT_STREAMS } from './project-media.js'
 import './style.css'
 
@@ -148,9 +150,11 @@ function updateLook(delta) {
   if (portal || gameOver || falling || paused) return // séquences qui gardent la caméra
 
   const turn =
-    (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0) - axis(lookStick.x)
+    (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0) -
+    (axis(lookStick.x) || pad.lookX)
   const tilt =
-    (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0) - axis(lookStick.y)
+    (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0) -
+    (axis(lookStick.y) || pad.lookY)
   if (turn || tilt) {
     lookIdle = 0
     framingBlend = null // une entrée de l'utilisateur annule tout recadrage
@@ -178,8 +182,27 @@ function updateLook(delta) {
 // Suivi automatique : la caméra se replace dans l'axe de la voiture, vue de
 // l'arrière. Le lacet cible suit le cap en continu, donc elle accompagne les
 // virages au lieu d'attendre l'arrêt du véhicule.
+// Regard arrière, comme dans GTA : tant que C ou le clic du stick droit est
+// maintenu, la caméra passe d'un coup devant la voiture et regarde derrière
+// elle, puis revient d'un coup en poursuite au relâchement.
+let lookingBack = false
+
 function updateFollowCamera(delta) {
   if (portal || gameOver || falling || paused || framingBlend) return // recadrages prioritaires
+
+  const back = keys.has('KeyC') || pad.lookBack
+  if (back || lookingBack) {
+    lookingBack = back
+    // Caméra orientée selon -Z : lacet égal au cap = elle fait face à la
+    // voiture depuis l'avant ; cap + PI = poursuite par l'arrière
+    yaw = carHeading + (back ? 0 : Math.PI)
+    settings.cameraPitch = DEFAULT_PITCH
+    lookIdle = LOOK_IDLE // le retour en poursuite ne doit pas attendre
+    yawVelocity = pitchVelocity = 0
+    pitchController?.updateDisplay()
+    applyCameraOrientation()
+    return
+  }
 
   if (lookIdle < LOOK_IDLE) return // une flèche vient d'être pressée : on la laisse faire
 
@@ -1412,6 +1435,7 @@ function registerHit() {
   if (gameOver || hitCooldown > 0) return
   hitCooldown = HIT_COOLDOWN
   hits += 1
+  gamepad.rumble(1, 0.8, 300)
   updateDamageStage()
   if (hits >= MAX_HITS) triggerGameOver()
   else showNotice(`Tamponné ! ${hits}/${MAX_HITS}`)
@@ -1636,6 +1660,51 @@ function createStick(id) {
 const driveStick = createStick('#stick-drive')
 const lookStick = createStick('#stick-look')
 
+// Manette physique, aux commandes de GTA V : stick gauche pour braquer,
+// gâchettes analogiques pour accélérer et freiner, RB frein à main, stick
+// droit pour la caméra et clic du stick droit pour regarder derrière. Les
+// autres boutons reprennent les raccourcis clavier (Entrée, Échap, Tab) :
+// le téléphone s'ouvre, comme dans GTA, avec la croix vers le haut.
+const gamepad = createGamepad({
+  onPress(button) {
+    if (button === BUTTON.A) {
+      // Dans les menus, A clique sous le curseur ; en jeu, il vaut Entrée
+      if (menuHome()) padCursor.click()
+      else validate()
+    } else if (button === BUTTON.B) {
+      if (confirmOpen) closeContact()
+    } else if (button === BUTTON.MENU) {
+      toggleMenu()
+    } else if (button === BUTTON.UP) {
+      togglePhone()
+    }
+  },
+  onActivity: () => setInputSource('pad'),
+  onConnect: updateControlHints,
+  onDisconnect: updateControlHints,
+})
+const pad = gamepad.state
+const padCursor = createPadCursor(pad.sticks)
+
+// Dernière source utilisée : dès que la manette sert, le curseur natif est
+// masqué et les aides passent aux boutons de la manette ; le premier vrai
+// mouvement de souris ou appui clavier rétablit l'un et l'autre.
+let inputSource = 'keyboard'
+function setInputSource(next) {
+  if (inputSource === next) return
+  inputSource = next
+  document.documentElement.classList.toggle('is-pad-input', next === 'pad')
+  if (next === 'pad') canvas.style.cursor = '' // pointeur posé au survol d'une cible
+  updateControlHints()
+}
+
+window.addEventListener('pointermove', (event) => {
+  // Un mouvement nul peut être émis quand la page bouge sous la souris
+  if (event.pointerType !== 'mouse' || !(event.movementX || event.movementY)) return
+  setInputSource('keyboard')
+})
+window.addEventListener('keydown', () => setInputSource('keyboard'))
+
 // Une valeur sous la zone morte est traitée comme nulle : un doigt posé ne
 // doit pas faire dériver la voiture.
 function axis(value) {
@@ -1708,13 +1777,23 @@ let steerInput = 0 // position lissée du volant, dans [-1, 1]
 // repart instantanément dans l'axe et le rebond latéral est invisible.
 const _lateral = new THREE.Vector3()
 
-// KeyZ/KeyQ et KeyW/KeyA : fonctionne en AZERTY comme en QWERTY
+// KeyZ/KeyQ et KeyW/KeyA : fonctionne en AZERTY comme en QWERTY.
+// Clavier et tactile sont en tout ou rien ; les gâchettes de la manette
+// dosent l'accélération et le freinage.
 const pressed = {
   get throttle() {
-    return keys.has('KeyW') || keys.has('KeyZ') || axis(driveStick.y) > 0.2
+    return this.throttleLevel > 0
+  },
+  get throttleLevel() {
+    if (keys.has('KeyW') || keys.has('KeyZ') || axis(driveStick.y) > 0.2) return 1
+    return pad.throttle
   },
   get brake() {
-    return keys.has('KeyS') || axis(driveStick.y) < -0.2
+    return this.brakeLevel > 0
+  },
+  get brakeLevel() {
+    if (keys.has('KeyS') || axis(driveStick.y) < -0.2) return 1
+    return pad.brake
   },
   get left() {
     return keys.has('KeyA') || keys.has('KeyQ') || axis(driveStick.x) < -0.2
@@ -1723,7 +1802,7 @@ const pressed = {
     return keys.has('KeyD') || axis(driveStick.x) > 0.2
   },
   get handbrake() {
-    return keys.has('Space')
+    return keys.has('Space') || pad.handbrake
   },
 }
 
@@ -1921,6 +2000,7 @@ function moveAndSlide(dt) {
     // lequel la voiture part en embardée. Nul sur un impact frontal parfait,
     // maximal quand on frotte un mur de flanc.
     if (bounce) {
+      gamepad.rumble(-vInto / MAX_SPEED, 0.4, 120)
       const cross = Math.sin(carHeading) * hit.nz - Math.cos(carHeading) * hit.nx
       spin = THREE.MathUtils.clamp(spin + cross * -vInto * SPIN_GAIN, -MAX_SPIN, MAX_SPIN)
     }
@@ -2055,7 +2135,7 @@ function step() {
      Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
      la position demandée, et revient au centre quand on relâche. */
   // La manette donne une consigne continue ; le clavier reste en tout ou rien
-  const stickSteer = axis(driveStick.x)
+  const stickSteer = axis(driveStick.x) || pad.steer
   const steerTarget = stickSteer
     ? -stickSteer
     : (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
@@ -2083,12 +2163,13 @@ function step() {
     const decel = HANDBRAKE_DECEL * FIXED_DT
     speed = Math.abs(decel) >= Math.abs(speed) ? 0 : speed - Math.sign(speed) * decel
   } else if (pressed.throttle) {
-    speed += ENGINE_ACCEL * FIXED_DT
+    speed += ENGINE_ACCEL * pressed.throttleLevel * FIXED_DT
   } else if (pressed.brake) {
     // Tant qu'on avance, S freine. Une fois à l'arrêt, il enclenche la
     // marche arrière : un seul appui maintenu fait les deux dans l'ordre.
-    if (speed > 0.1) speed -= BRAKE_DECEL * FIXED_DT
-    else speed -= REVERSE_ACCEL * FIXED_DT
+    const level = pressed.brakeLevel
+    if (speed > 0.1) speed -= BRAKE_DECEL * level * FIXED_DT
+    else speed -= REVERSE_ACCEL * level * FIXED_DT
   } else {
     // Décélération libre : traînée proportionnelle à la vitesse (courbe
     // exponentielle, mord fort en haut) + résistance constante qui finit
@@ -3617,6 +3698,7 @@ function activate(target) {
 
 // Cible sous le réticule, réévaluée à chaque frame
 let aimed = null
+let validateKey = 'Entrée' // touche affichée dans l'étiquette, selon la manette
 function updateReticle() {
   // Toujours affiché : il sert aussi de repère de direction en ville, où il
   // n'y a simplement rien à pointer.
@@ -3626,15 +3708,20 @@ function updateReticle() {
 
   reticleElement.classList.toggle('is-active', Boolean(aimed))
   reticleLabel.classList.toggle('is-active', Boolean(aimed))
-  if (aimed) reticleLabel.innerHTML = `<kbd>Entrée</kbd>${labelFor(aimed)}`
+  if (aimed) reticleLabel.innerHTML = `<kbd>${validateKey}</kbd>${labelFor(aimed)}`
 }
 
-window.addEventListener('keydown', (event) => {
-  if (event.code !== 'Enter' && event.code !== 'NumpadEnter') return
+// Entrée au clavier, A / ✕ à la manette
+function validate() {
   if (confirmOpen) return contactAgency() // Entrée valide la confirmation
   // Le téléphone prime : quand il a le focus, c'est lui qu'on valide
   if (phoneGroup.visible && (phoneHovered || phonePinned)) askContact()
   else if (aimed) activate(aimed)
+}
+
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Enter' && event.code !== 'NumpadEnter') return
+  validate()
 })
 
 canvas.addEventListener('pointermove', (event) => {
@@ -3888,7 +3975,10 @@ phoneLight.position.set(-0.45, 0.25, -0.55)
 const SCREEN_BG = '#ffffff'
 const SCREEN_BLUE = '#2970f4' // bleu de l'agence : fond de l'icône et du label
 const SCREEN_CORAL = '#f26749'
-const PHONE_MESSAGE = ['Appuie sur entrée', 'pour contacter', "l'agence"]
+const PHONE_MESSAGE = ['pour contacter', "l'agence"] // sous « Appuie sur … »
+// Bouton de validation de la manette (A, ✕) quand c'est elle qui sert ;
+// null au clavier, où la pastille porte la flèche de la touche Entrée
+let phoneScreenPadKey = null
 
 const phoneScreenCanvas = document.createElement('canvas')
 phoneScreenCanvas.width = 320
@@ -3919,7 +4009,8 @@ function drawPhoneScreen(focused) {
   const KEY = 46
   const LINE = 26
   const PAD = 16
-  const bandH = PAD + KEY + 18 + PHONE_MESSAGE.length * LINE + PAD
+  const message = [`Appuie sur ${phoneScreenPadKey ?? 'entrée'}`, ...PHONE_MESSAGE]
+  const bandH = PAD + KEY + 18 + message.length * LINE + PAD
   const bandY = height - 22 - bandH
 
   // Icône de messagerie : enveloppe blanche sur une tuile bleue
@@ -3953,7 +4044,8 @@ function drawPhoneScreen(focused) {
   roundedRect(ctx, 20, bandY, width - 40, bandH, 20)
   ctx.fill()
 
-  // Touche Entrée : pastille corail portant la flèche de retour à la ligne
+  // Pastille corail : flèche de retour à la ligne pour la touche Entrée,
+  // nom du bouton à la manette
   const key = KEY
   const keyX = (width - key) / 2
   const keyY = bandY + PAD
@@ -3961,24 +4053,30 @@ function drawPhoneScreen(focused) {
   roundedRect(ctx, keyX, keyY, key, key, 12)
   ctx.fill()
 
-  ctx.strokeStyle = SCREEN_BG
-  ctx.lineWidth = 5
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(keyX + 34, keyY + 14) // barre haute
-  ctx.lineTo(keyX + 34, keyY + 27)
-  ctx.lineTo(keyX + 14, keyY + 27) // retour vers la gauche
-  ctx.moveTo(keyX + 21, keyY + 20) // pointe de la flèche
-  ctx.lineTo(keyX + 13, keyY + 27)
-  ctx.lineTo(keyX + 21, keyY + 34)
-  ctx.stroke()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  if (phoneScreenPadKey) {
+    ctx.fillStyle = SCREEN_BG
+    ctx.font = "700 26px Poppins, ui-sans-serif, system-ui, sans-serif"
+    ctx.fillText(phoneScreenPadKey, keyX + key / 2, keyY + key / 2 + 1)
+  } else {
+    ctx.strokeStyle = SCREEN_BG
+    ctx.lineWidth = 5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(keyX + 34, keyY + 14) // barre haute
+    ctx.lineTo(keyX + 34, keyY + 27)
+    ctx.lineTo(keyX + 14, keyY + 27) // retour vers la gauche
+    ctx.moveTo(keyX + 21, keyY + 20) // pointe de la flèche
+    ctx.lineTo(keyX + 13, keyY + 27)
+    ctx.lineTo(keyX + 21, keyY + 34)
+    ctx.stroke()
+  }
 
   ctx.fillStyle = SCREEN_BG
   ctx.font = "700 21px Poppins, ui-sans-serif, system-ui, sans-serif"
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
   const textTop = keyY + key + 18 + LINE / 2
-  PHONE_MESSAGE.forEach((line, i) => {
+  message.forEach((line, i) => {
     ctx.fillText(line, width / 2, textTop + i * LINE)
   })
 
@@ -4111,13 +4209,17 @@ canvas.addEventListener('pointermove', (event) => {
 const phoneHint = document.querySelector('#phone-hint')
 const phoneHintLabel = phoneHint.querySelector('span')
 
+// « Masquer » le remet en fond perdu, « afficher » le fait remonter :
+// l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
+function togglePhone() {
+  phonePinned = !phonePinned
+  phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
+}
+
 window.addEventListener('keydown', (event) => {
   if (event.code !== 'Tab') return
   event.preventDefault() // sinon le focus part dans le GUI
-  // « Masquer » le remet en fond perdu, « afficher » le fait remonter :
-  // l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
-  phonePinned = !phonePinned
-  phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
+  togglePhone()
 })
 
 // Adresse encodée : elle n'apparaît pas en clair dans le bundle, ce qui
@@ -4581,13 +4683,98 @@ if (bootProject >= 0) {
 
 splashButton.addEventListener('click', closeSplash)
 
-window.addEventListener('keydown', (event) => {
-  if (event.code !== 'Escape') return
+// Échap au clavier, Menu / Options à la manette
+function toggleMenu() {
   // La confirmation passe avant : Échap l'annule au lieu de basculer l'accueil
   if (confirmOpen) closeContact()
   else if (paused) closeSplash()
   else openSplash()
+}
+
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Escape') return
+  toggleMenu()
 })
+
+/* ---------- Aides manette ---------- */
+// Quand la manette est la dernière source utilisée, ses boutons remplacent
+// les touches, nommés selon la marque (A / ✕, View / Share…), dans l'accueil
+// et dans le jeu.
+const keyboardControls = document.querySelector('#controls-keyboard')
+const padControls = document.querySelector('#controls-pad')
+const phoneHintKey = phoneHint.querySelector('kbd')
+const padNote = document.querySelector('#pad-note')
+const pauseHint = document.querySelector('#pause-hint')
+
+// Affiche un bouton de la manette dans une touche : pictogramme quand le
+// profil en a un (View, Menu sur Xbox), nom du bouton sinon
+function showPadButton(kbd, button) {
+  const name = pad.profile.labels[button]
+  const icon = pad.profile.icons?.[button]
+  if (icon) {
+    kbd.innerHTML = icon
+    kbd.setAttribute('aria-label', name)
+  } else {
+    kbd.textContent = name
+    kbd.removeAttribute('aria-label')
+  }
+}
+
+function updateControlHints() {
+  const usingPad = pad.connected && inputSource === 'pad'
+  const label = (button) => pad.profile.labels[button]
+  validateKey = usingPad ? label(BUTTON.A) : 'Entrée'
+  const screenKey = usingPad ? label(BUTTON.A) : null
+  if (screenKey !== phoneScreenPadKey) {
+    phoneScreenPadKey = screenKey
+    drawPhoneScreen(phoneScreenFocused) // l'écran n'est sinon redessiné qu'au focus
+  }
+  if (usingPad) {
+    showPadButton(phoneHintKey, BUTTON.UP)
+  } else {
+    phoneHintKey.textContent = 'Tab'
+    phoneHintKey.removeAttribute('aria-label')
+  }
+  // Rappel du bouton de pause, propre à la manette
+  pauseHint.hidden = !usingPad
+  if (usingPad) showPadButton(pauseHint.querySelector('kbd'), BUTTON.MENU)
+  keyboardControls.hidden = usingPad
+  padControls.hidden = !usingPad
+  // Le mot sous les contrôles accompagne chaque étape : manette à brancher,
+  // branchée mais pas encore utilisée, puis en service
+  if (!pad.connected) {
+    padNote.textContent = '🎮 Jouable à la manette : branchez-en une et appuyez sur un bouton.'
+  } else if (!usingPad) {
+    padNote.textContent = `🎮 Manette ${pad.profile.name} connectée : touchez un stick pour jouer avec.`
+  } else {
+    padNote.textContent = `🎮 Manette ${pad.profile.name} connectée.`
+  }
+  if (!usingPad) return
+
+  padControls.querySelectorAll('[data-button]').forEach((el) => {
+    el.textContent = label(BUTTON[el.dataset.button])
+  })
+}
+
+// Le curseur n'existe que dans les écrans à boutons, et n'apparaît que
+// quand la manette est la dernière source utilisée. Il se pose d'abord sur
+// l'action par défaut de l'écran.
+const confirmCancelButton = document.querySelector('#confirm-cancel')
+const gameOverButton = document.querySelector('#gameover button')
+
+function menuHome() {
+  if (confirmOpen) return confirmCancelButton
+  if (gameOver) return gameOverButton
+  if (paused) return splashButton
+  return null
+}
+
+function updatePadCursor(delta) {
+  const home = menuHome()
+  if (pad.connected && home && inputSource === 'pad') padCursor.show(home)
+  else padCursor.hide()
+  padCursor.update(delta)
+}
 
 /* ---------- Boucle ---------- */
 const clock = new THREE.Clock()
@@ -4603,6 +4790,8 @@ updateChunks()
 function tick() {
   requestAnimationFrame(tick)
   const delta = Math.min(clock.getDelta(), 0.1)
+  gamepad.poll()
+  updatePadCursor(delta)
   updateFps(delta)
   drawMinimap(delta)
   updatePhone(delta)

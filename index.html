@@ -23,12 +23,23 @@
         <div class="splash-tuto">
           <div class="splash-block">
             <h2>Contrôles</h2>
-            <ul>
+            <ul id="controls-keyboard">
               <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> conduire</li>
               <li><kbd>Espace</kbd> frein à main</li>
+              <li><kbd>C</kbd> regarder derrière</li>
               <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> orienter la caméra</li>
               <li><kbd>Entrée</kbd> activer la cible visée</li>
             </ul>
+            <ul id="controls-pad" hidden>
+              <li><kbd>Stick gauche</kbd> braquer</li>
+              <li><kbd data-button="RT"></kbd> accélérer · <kbd data-button="LT"></kbd> freiner</li>
+              <li><kbd data-button="RB"></kbd> frein à main</li>
+              <li><kbd>Stick droit</kbd> orienter la caméra · <kbd data-button="RS"></kbd> regarder derrière</li>
+              <li><kbd data-button="A"></kbd> activer la cible visée</li>
+            </ul>
+            <p class="splash-pad-note" id="pad-note">
+              🎮 Jouable à la manette : branchez-en une et appuyez sur un bouton.
+            </p>
           </div>
 
           <div class="splash-block">
@@ -46,6 +57,7 @@
     <div id="fps">-- fps</div>
     <canvas id="minimap" width="360" height="360"></canvas>
     <div id="phone-hint"><kbd>Tab</kbd><span>masquer le téléphone</span></div>
+    <div id="pause-hint" hidden><kbd></kbd><span>pause</span></div>
     <div id="wanted"></div>
     <div id="confirm">
       <div class="confirm-card">

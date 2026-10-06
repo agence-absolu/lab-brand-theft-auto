@@ -255,6 +255,18 @@ body.is-busted #wanted {
   gap: 9px;
 }
 
+/* Clavier ou manette : une seule des deux listes de contrôles est affichée */
+.splash-block ul[hidden] {
+  display: none;
+}
+
+.splash-pad-note {
+  margin-top: 14px;
+  color: #2970f4;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .splash-block li {
   display: flex;
   align-items: center;
@@ -289,7 +301,9 @@ body.is-busted #wanted {
 }
 
 #splash-start:hover,
-#gameover button:hover {
+#splash-start.is-hover,
+#gameover button:hover,
+#gameover button.is-hover {
   transform: scale(1.04);
   box-shadow: 0 8px 28px rgba(242, 103, 73, 0.45);
 }
@@ -373,7 +387,8 @@ body.is-busted #minimap {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.confirm-actions button:hover {
+.confirm-actions button:hover,
+.confirm-actions button.is-hover {
   transform: scale(1.04);
 }
 
@@ -384,7 +399,8 @@ body.is-busted #minimap {
   color: #fff;
 }
 
-#confirm-ok:hover {
+#confirm-ok:hover,
+#confirm-ok.is-hover {
   box-shadow: 0 8px 24px rgba(242, 103, 73, 0.45);
 }
 
@@ -418,11 +434,48 @@ body.is-busted #minimap {
   opacity: 1;
 }
 
-#phone-hint kbd {
+/* Rappel de la pause à la manette, en bas au centre : les coins sont pris
+   par le téléphone et la minimap */
+#pause-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 600 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+  transform: translateX(-50%);
+}
+
+#pause-hint[hidden],
+body.is-busted #pause-hint {
+  display: none;
+}
+
+#phone-hint kbd,
+#pause-hint kbd {
   padding: 3px 7px;
   border-radius: 5px;
   background: #f26749;
   font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Pictogramme de bouton de manette, à la hauteur du texte de la touche */
+.pad-icon {
+  display: block;
+  width: 14px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
 /* ---------- Tactile ---------- */
@@ -519,4 +572,52 @@ body.is-busted #minimap {
   #minimap {
     display: none;
   }
+}
+
+/* Manette en cours d'utilisation : le curseur natif disparaît jusqu'au
+   prochain mouvement de souris. Le !important est voulu : il doit l'emporter
+   sur les cursor: pointer posés par id sur les boutons. */
+html.is-pad-input,
+html.is-pad-input * {
+  cursor: none !important;
+}
+
+/* Curseur manette des menus (accueil, confirmation, capture). Il passe
+   au-dessus de tous les écrans mais ne capte aucun clic. */
+.pad-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  display: none;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.pad-cursor.is-visible {
+  display: block;
+}
+
+.pad-cursor i {
+  position: absolute;
+  left: -11px;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: rgba(41, 112, 244, 0.35);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.pad-cursor.is-over i {
+  background: #f26749;
+  transform: scale(1.2);
+}
+
+.pad-cursor.is-pressed i {
+  transform: scale(0.8);
 }
