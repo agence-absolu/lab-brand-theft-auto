@@ -4,6 +4,8 @@
 // chaque frame. Le mapping « standard » donne le même ordre d'index pour
 // toutes les manettes, seuls les libellés changent selon la marque.
 
+import { createSwitchHid } from './switch-hid.js'
+
 const DEADZONE = 0.12 // zone morte des sticks
 const TRIGGER_DEADZONE = 0.05 // les gâchettes ne reviennent pas toujours à 0
 
@@ -41,16 +43,25 @@ const PROFILES = {
     name: 'PlayStation',
     labels: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Share', 'Options', 'L3', 'R3', '↑'],
   },
+  // Le mapping standard suit la position des boutons : chez Nintendo, celui
+  // du bas est B et celui de droite A, l'inverse d'une manette Xbox
+  nintendo: {
+    name: 'Switch Pro',
+    labels: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L3', 'R3', '↑'],
+  },
 }
 
-// Identifiant fabricant USB (Microsoft 045e, Sony 054c) ou nom du modèle selon
+// Identifiant fabricant USB (Microsoft 045e, Sony 054c, Nintendo 057e) ou nom du modèle selon
 // le navigateur. Xbox est testé en premier : son id contient souvent aussi
 // « Wireless Controller », comme celui des manettes Sony.
 const XBOX_ID = /045e|xbox|xinput/i
 const PLAYSTATION_ID = /054c|dualsense|dualshock|playstation|wireless controller/i
+// Nintendo 057e ; les clones génériques reprennent le même identifiant
+const NINTENDO_ID = /057e|nintendo|pro controller/i
 
 function detectProfile(id) {
   if (XBOX_ID.test(id)) return PROFILES.xbox
+  if (NINTENDO_ID.test(id)) return PROFILES.nintendo
   if (PLAYSTATION_ID.test(id)) return PROFILES.playstation
   return PROFILES.xbox
 }
@@ -96,27 +107,44 @@ export function createGamepad({ onPress, onActivity, onConnect, onDisconnect } =
     Object.assign(state.sticks, { lx: 0, ly: 0, rx: 0, ry: 0 })
   }
 
+  // Deux sources possibles : l'API Gamepad, et à défaut la Switch Pro lue en
+  // WebHID quand Chrome ne l'expose pas. La première branchée garde la main.
+  function attach(profile) {
+    if (state.connected) return
+    state.connected = true
+    state.profile = profile
+    onConnect?.(profile)
+  }
+
+  function detach() {
+    previousButtons = []
+    state.connected = false
+    reset()
+    onDisconnect?.()
+  }
+
+  const hid = createSwitchHid({
+    onConnect: () => attach(PROFILES.nintendo),
+    onDisconnect: () => {
+      if (padIndex === null) detach()
+    },
+  })
+
   addEventListener('gamepadconnected', (event) => {
     // On garde la première manette : une seconde branchée ne vole pas la main
-    if (padIndex !== null) return
+    if (padIndex !== null || hid.connected) return
     padIndex = event.gamepad.index
-    state.connected = true
-    state.profile = detectProfile(event.gamepad.id)
-    onConnect?.(state.profile)
+    attach(detectProfile(event.gamepad.id))
   })
 
   addEventListener('gamepaddisconnected', (event) => {
     if (event.gamepad.index !== padIndex) return
     padIndex = null
-    previousButtons = []
-    state.connected = false
-    reset()
-    onDisconnect?.()
+    detach()
   })
 
   function poll() {
-    if (padIndex === null) return
-    const pad = navigator.getGamepads()[padIndex]
+    const pad = padIndex !== null ? navigator.getGamepads()[padIndex] : hid.connected ? hid.read() : null
     if (!pad) return
 
     const [lx = 0, ly = 0, rx = 0, ry = 0] = pad.axes.map(stick)
@@ -137,10 +165,13 @@ export function createGamepad({ onPress, onActivity, onConnect, onDisconnect } =
     previousButtons = buttons
   }
 
-  // Vibration, si le navigateur l'expose : intensités de 0 à 1 pour le gros
+  // Vibration, si le navigateur l'expose (ou en WebHID) : intensités de 0 à 1 pour le gros
   // moteur (basses fréquences) et le petit (hautes fréquences)
   function rumble(strong, weak, duration = 150) {
-    if (padIndex === null) return
+    if (padIndex === null) {
+      hid.rumble(strong, weak, duration)
+      return
+    }
     const actuator = navigator.getGamepads()[padIndex]?.vibrationActuator
     if (!actuator?.playEffect) return
     actuator
@@ -152,5 +183,6 @@ export function createGamepad({ onPress, onActivity, onConnect, onDisconnect } =
       .catch(() => {}) // effet refusé ou interrompu : sans conséquence
   }
 
-  return { state, poll, rumble }
+  // `connectHid()` doit être appelé depuis un clic (sélecteur de Chrome)
+  return { state, poll, rumble, hidSupported: hid.supported, connectHid: hid.request }
 }

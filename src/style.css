@@ -267,6 +267,18 @@ body.is-busted #wanted {
   line-height: 1.45;
 }
 
+.splash-pad-link {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2970f4;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .splash-block li {
   display: flex;
   align-items: center;

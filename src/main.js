@@ -4704,6 +4704,10 @@ const keyboardControls = document.querySelector('#controls-keyboard')
 const padControls = document.querySelector('#controls-pad')
 const phoneHintKey = phoneHint.querySelector('kbd')
 const padNote = document.querySelector('#pad-note')
+const padHidButton = document.querySelector('#pad-hid')
+padHidButton.hidden = !gamepad.hidSupported // les aides ne sont redessinées qu'au premier changement
+// Sélecteur refusé ou fermé : la note invite toujours à brancher la manette
+padHidButton.addEventListener('click', () => gamepad.connectHid().catch(() => {}))
 const pauseHint = document.querySelector('#pause-hint')
 
 // Affiche un bouton de la manette dans une touche : pictogramme quand le
@@ -4742,6 +4746,8 @@ function updateControlHints() {
   padControls.hidden = !usingPad
   // Le mot sous les contrôles accompagne chaque étape : manette à brancher,
   // branchée mais pas encore utilisée, puis en service
+  // Recours WebHID pour les Switch Pro que Chrome ne présente pas au jeu
+  padHidButton.hidden = pad.connected || !gamepad.hidSupported
   if (!pad.connected) {
     padNote.textContent = '🎮 Jouable à la manette : branchez-en une et appuyez sur un bouton.'
   } else if (!usingPad) {
