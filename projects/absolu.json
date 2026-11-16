@@ -1,0 +1,276 @@
+{
+ "source": "https://agence-absolu.com/projets",
+ "projects": [
+  {
+   "slug": "martinique-tourisme",
+   "name": "Martinique Tourisme",
+   "title": "Repenser l’expérience digitale d’une destination d’exception, entre immersion, innovation et ancrage local.",
+   "url": "https://agence-absolu.com/projets/martinique-tourisme",
+   "tags": [
+    "Développement web",
+    "UX Design",
+    "Création digitale",
+    "SEO",
+    "Rédaction web",
+    "Stratégie digitale",
+    "Webanalyse",
+    "IA & Automatisation",
+    "Content Factory"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/01-martinique-intro.mp4",
+    "/sites/default/files/media-local-video/2025/martinique.mp4",
+    "/sites/default/files/media-local-video/2025/martinique-zoom.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/01-martinique-intro.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/frame-1118.jpg.webp",
+    "/sites/default/files/media-local-video/2025/martinique.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/shutterstock_2144439813-1-4.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-444.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1118.jpg.webp",
+    "/sites/default/files/media-image/2025/03-image2.jpg.webp",
+    "/sites/default/files/media-image/2025/03-image3.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-448.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-4_0.jpg.webp",
+    "/sites/default/files/media-image/2025/video-ile-2.jpg.webp",
+    "/sites/default/files/media-image/2025/video-ile-3.jpg.webp",
+    "/sites/default/files/media-image/2025/17b0fc982a51abb851ccd3a3332679541611a523-1.png.webp",
+    "/sites/default/files/media-image/2025/frame-1105-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/c5a5684b7b3c70664189b71ba78318e2595dc756-1.png.webp",
+    "/sites/default/files/media-local-video/2025/martinique-zoom.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/shutterstock_2144439813-1-5.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-5_0.jpg.webp",
+    "/sites/default/files/media-image/2025/maps_0.jpg.webp"
+   ]
+  },
+  {
+   "slug": "parrot-world",
+   "name": "Parrot World",
+   "title": "Créer & développer la performance digitale d’un parc animalier immersif",
+   "url": "https://agence-absolu.com/projets/parrot-world",
+   "tags": [
+    "Développement web",
+    "Création digitale",
+    "SEO",
+    "Rédaction web",
+    "Stratégie digitale",
+    "Paid Media",
+    "Webanalyse"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/case-parrot.mp4",
+    "/sites/default/files/media-local-video/2025/03-mockup-parrot_world.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/case-parrot.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/parrot-world-logo.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-2-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-442-1-1.jpg.webp",
+    "/sites/default/files/media-local-video/2025/03-mockup-parrot_world.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/shutterstock_2144439813-1-3.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-446-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1103-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/video-ile-1.jpg.webp",
+    "/sites/default/files/media-image/2025/shutterstock_2144439813-1.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c4848-0023-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5127-0209-1-1.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5092-0164-1.jpg.webp"
+   ]
+  },
+  {
+   "slug": "vins-de-loire",
+   "name": "Vins de Loire",
+   "title": "Donner aux Vins de Loire un nouvel élan digital, entre héritage et désirabilité.",
+   "url": "https://agence-absolu.com/projets/vins-de-loire",
+   "tags": [
+    "Développement web",
+    "SEO",
+    "Rédaction web"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/home.mp4",
+    "/sites/default/files/media-local-video/2025/vins_de_loire_1x1_0.mp4",
+    "/sites/default/files/media-local-video/2025/maps.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/home.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/vindeloire-vignette.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-2.png.webp",
+    "/sites/default/files/media-image/2025/frame-27.png.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c4848-0023-1.png.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5127-0209-1.png.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5092-0164-1-1.png.webp",
+    "/sites/default/files/media-image/2025/04-image.jpg.webp",
+    "/sites/default/files/media-local-video/2025/vins_de_loire_1x1_0.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/shutterstock_2144439813-1.png.webp",
+    "/sites/default/files/media-image/2025/frame-444.png.webp",
+    "/sites/default/files/media-image/2025/video-ile.png.webp",
+    "/sites/default/files/media-local-video/2025/maps.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/maps.png.webp",
+    "/sites/default/files/media-image/2025/frame-445.png.webp",
+    "/sites/default/files/media-image/2025/frame-441.png.webp",
+    "/sites/default/files/media-image/2025/video-sport.png.webp"
+   ]
+  },
+  {
+   "slug": "mr-bricolage",
+   "name": "Mr. Bricolage",
+   "title": "Transformer des contraintes techniques en opportunités de croissance SEO.",
+   "url": "https://agence-absolu.com/projets/mr-bricolage",
+   "tags": [
+    "UX Design",
+    "SEO"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/01-mrb-intro.mp4",
+    "/sites/default/files/media-local-video/2025/design-sans-titre.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/01-mrb-intro.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/mrbricolage-vignette.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440_0.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-27_0.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5127-0209-1.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c4848-0023-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1106.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-444_0.jpg.webp",
+    "/sites/default/files/media-local-video/2025/design-sans-titre.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/frame-441.jpg.webp",
+    "/sites/default/files/media-image/2025/video-ile.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-440-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-441-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-445_0.jpg.webp"
+   ]
+  },
+  {
+   "slug": "aluclos",
+   "name": "Aluclos",
+   "title": "Faire rayonner l’innovation industrielle avec une expérience digitale performante",
+   "url": "https://agence-absolu.com/projets/aluclos",
+   "tags": [
+    "Développement web",
+    "UX Design",
+    "Stratégie digitale"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/case-aluclos.mp4",
+    "/sites/default/files/media-local-video/2025/03_1_video.mp4",
+    "/sites/default/files/media-local-video/2025/aluclos.mp4",
+    "/sites/default/files/media-local-video/2025/07_2_video.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/case-aluclos.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/logo-aluclos.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1109.jpg.webp",
+    "/sites/default/files/media-local-video/2025/03_1_video.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/frame-1110.jpg.webp",
+    "/sites/default/files/media-image/2025/rectangle-4.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1110-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1111.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1110-2.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1111-1.jpg.webp",
+    "/sites/default/files/media-local-video/2025/aluclos.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/rectangle-5.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1115.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-1110-3.jpg.webp",
+    "/sites/default/files/media-local-video/2025/07_2_video.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/frame-1111-2.jpg.webp"
+   ]
+  },
+  {
+   "slug": "le-guerandais",
+   "name": "Le Guérandais",
+   "title": "Sublimer un produit du quotidien par l’émotion, le territoire et la performance",
+   "url": "https://agence-absolu.com/projets/le-guerandais",
+   "tags": [
+    "Développement web",
+    "SEO",
+    "Rédaction web",
+    "Stratégie digitale"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/film-site-le_guerandais_0-720p.mp4",
+    "/sites/default/files/media-local-video/2025/02_charte-logo_0.mp4",
+    "/sites/default/files/media-local-video/2025/03_video-01.mp4",
+    "/sites/default/files/media-local-video/2025/04_video-01_0.mp4",
+    "/sites/default/files/media-local-video/2025/08_video-01_1.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/film-site-le_guerandais_0-720p.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/guerandais-vignette.jpg.webp",
+    "/sites/default/files/media-local-video/2025/02_charte-logo_0.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/logo-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/couleurs-le-guerandais_0.png.webp",
+    "/sites/default/files/media-local-video/2025/03_video-01.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/noirmoutier-session-1-30-10-20-c8c4848-0023-1.png.webp",
+    "/sites/default/files/media-image/2025/marais-salant-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/fleur-de-sel-le-guerandais.png.webp",
+    "/sites/default/files/media-local-video/2025/04_video-01_0.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/mock-up-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/photos-site-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/oiseau-noirmoutier-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/paragraphe-site-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/equipe-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/paragraphe-actualite-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/video-ile-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/maraiss-salant-le-guerandais.png.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5092-0164-1.png.webp",
+    "/sites/default/files/media-image/2025/paragraphe-recettes-le-guerandais.png.webp",
+    "/sites/default/files/media-local-video/2025/08_video-01_1.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/video-ile.png.webp",
+    "/sites/default/files/media-contact/2025/maxime.png.webp"
+   ]
+  },
+  {
+   "slug": "noirmoutier-tourisme",
+   "name": "Noirmoutier Tourisme",
+   "title": "Une vitrine digitale pour une destination d’exception, à vivre toute l’année.",
+   "url": "https://agence-absolu.com/projets/noirmoutier-tourisme",
+   "tags": [
+    "Développement web",
+    "UX Design",
+    "Création digitale",
+    "SEO",
+    "Rédaction web",
+    "Webanalyse"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2025/01-noirmoutier-intro.mp4",
+    "/sites/default/files/media-local-video/2025/03-noirmoutier-logo.mp4",
+    "/sites/default/files/media-local-video/2025/noirmoutier-9x17.mp4",
+    "/sites/default/files/media-local-video/2025/05-noirmoutier-mobile-1x1.mp4",
+    "/sites/default/files/media-local-video/2025/video-ile.mp4",
+    "/sites/default/files/media-local-video/2025/maps_0.mp4",
+    "/sites/default/files/media-local-video/2025/07-video-1.mp4",
+    "/sites/default/files/media-local-video/2025/08-end_0.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-local-video/2025/01-noirmoutier-intro.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/noirmoutier-vignette.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c4848-0023-1-2.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5127-0209-1-4.jpg.webp",
+    "/sites/default/files/media-image/2025/noirmoutier-session-1-30-10-20-c8c5092-0164-1-3.jpg.webp",
+    "/sites/default/files/media-local-video/2025/03-noirmoutier-logo.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/maps-1.jpg.webp",
+    "/sites/default/files/media-image/2025/frame-27-1.jpg.webp",
+    "/sites/default/files/media-image/2025/04-image1_0.jpg.webp",
+    "/sites/default/files/media-local-video/2025/noirmoutier-9x17.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/shutterstock_2144439813-1-2.jpg.webp",
+    "/sites/default/files/media-local-video/2025/05-noirmoutier-mobile-1x1.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/image.jpg.webp",
+    "/sites/default/files/media-local-video/2025/video-ile.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/video-ile-5.jpg.webp",
+    "/sites/default/files/media-local-video/2025/maps_0.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/maps-2.jpg.webp",
+    "/sites/default/files/media-image/2025/06-image2.jpg.webp",
+    "/sites/default/files/media-local-video/2025/07-video-1.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/video-ile-6.jpg.webp",
+    "/sites/default/files/media-image/2025/07-iuage2.jpg.webp",
+    "/sites/default/files/media-local-video/2025/08-end_0.mp4",
+    "/sites/default/files/media-video-local-placeholder/2025/frame-448-1.jpg.webp"
+   ]
+  }
+ ]
+}

@@ -1,12 +1,12 @@
 import * as THREE from 'three'
-import Hls from 'hls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import GUI from 'lil-gui'
 import { PROJECTS } from './projects.js'
 import { BUTTON, createGamepad } from './gamepad.js'
 import { createPadCursor } from './pad-cursor.js'
-import { PROJECT_MEDIA, PROJECT_LOGOS, PROJECT_STREAMS } from './project-media.js'
+import { PROJECT_MEDIA, PROJECT_STREAMS } from './project-media.js'
 import './style.css'
 
 // Tous les médias sont servis depuis public/. En production le site vit sous
@@ -15,10 +15,16 @@ import './style.css'
 const asset = (path) =>
   /^https?:/.test(path) ? path : `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
 
-const SKY = new THREE.Color('#244697')
-const SUN = new THREE.Color('#F26749')
-const GROUND = new THREE.Color('#2970F4')
-const BUILDING = new THREE.Color('#244697') // teinte de base des façades
+// Le ciel peint et la lumière qu'il dégage sont deux réglages séparés : on
+// choisit ainsi la teinte du dôme sans toucher à l'accord des couleurs au
+// sol. SKY ne sert qu'au dôme et au brouillard ; SKY_LIGHT est ce que la
+// lumière d'ambiance emprunte au ciel, et il tire bien plus franchement
+// vers le bleu que le gris qu'on voit au-dessus des toits.
+const SKY = new THREE.Color('#CFD0D2')
+const SKY_LIGHT = new THREE.Color('#0550FF')
+const SUN = new THREE.Color('#85A9FF')
+const GROUND = new THREE.Color('#3E78FF')
+const BUILDING = new THREE.Color('#CFD0D2') // teinte de base des façades
 const ROAD_COLOR = SKY.clone().lerp(new THREE.Color('#000000'), 0.45)
 const SIDEWALK_COLOR = new THREE.Color('#bfc6d4')
 // Couleur d'horizon : le ciel éclairci. Partagée par le dégradé et le
@@ -27,26 +33,59 @@ const HORIZON = new THREE.Color()
 
 // Valeurs pilotées par l'interface
 const settings = {
-  fov: 60,                // champ de vision de la caméra perspective
-  cameraHeight: 1.9,      // hauteur du point visé, au-dessus du toit de la voiture
-  cameraDistance: 9,      // recul de la caméra derrière la voiture
-  carScale: 0.7,          // échelle du véhicule
+  fov: 57,                // champ de vision de la caméra perspective
+  cameraHeight: 0.6,      // hauteur du point visé, au-dessus du toit de la voiture
+  // Recul de la caméra. Sur un écran de téléphone elle est ramenée plus près
+  // encore, voir TOUCH_CAMERA_DISTANCE.
+  cameraDistance: 7.5,
+  carScale: 0.75,         // échelle du véhicule
   cameraPitch: -11,       // inclinaison en degrés : négatif = regard vers le bas
-  sunColor: '#f26749',
-  buildingColor: '#d3d3d3',
-  roadColor: '#244697',
-  sidewalkColor: '#bfc6d4',
-  skyColor: '#244697',
+  sunColor: '#85a9ff',
+  buildingColor: '#cfd0d2',
+  roadColor: '#1e1e1e',
+  sidewalkColor: '#cfd0d2',
+  skyColor: '#cfd0d2',
+  skyLightColor: '#0550ff',
+  lampColor: '#cfd0d2',      // gris clair de la charte, pour les mâts
+  lampLightColor: '#f2ff28', // jaune de la charte, pour la lampe allumée
   sunHeight: 0.349,       // élévation du soleil, de l'horizon (0) au zénith (1)
+  // Le disque solaire n'est qu'un dessin du shader de ciel : l'éclairage de
+  // la scène vient d'une lumière directionnelle à part, que ce réglage ne
+  // touche pas. L'éteindre ne change donc rien à la lumière reçue au sol.
+  showSun: false,
+  pixelRatio: 1.5,        // plafond de densité de pixels : le poste le plus lourd
+  shadows: true,          // passe d'ombre : toute la géométrie dessinée deux fois
+  shadowSize: 4096,       // définition de la carte d'ombre : la finesse du bord
+  whiteCameraGaze: 12.5,  // relèvement du regard dans l'espace blanc, en degrés
+  titleHeight: 0.21,      // part de la hauteur d'écran occupée par le titre
+  titleOffset: 0.29,      // remontée du bloc, en part d'écran
+  titleWidth: 0.62,       // plafond de largeur, en part d'écran
+
+  /* Leviers de qualité. Ils sont pilotés par le palier (voir applyQuality) et
+     non réglés à la main : chacun est lourd à sa manière, et les descendre
+     ensemble est le seul moyen de gagner vraiment sur un appareil modeste. */
+  viewRadius: 4,          // chunks chargés autour de la caméra
+  // La fin du brouillard doit rester EN DEÇÀ du bord de la zone chargée,
+  // sinon on voit la ville s'arrêter net. Bord = viewRadius × 104 − 52.
+  fogFar: 300,
+  lampRadius: 2,          // chunks où les lampadaires restent allumés
+  maxVideos: 5,           // vidéos de panneaux lues simultanément
+  quality: 0,             // palier courant, posé au démarrage par applyQuality
+  qualityAuto: true,      // descend d'un cran tant que le framerate ne suit pas
 }
 BUILDING.set(settings.buildingColor)
 SUN.set(settings.sunColor)
 ROAD_COLOR.set(settings.roadColor)
 SIDEWALK_COLOR.set(settings.sidewalkColor)
+SKY_LIGHT.set(settings.skyLightColor)
+
+// Éclaircissement de l'horizon : la ville se fond dans un ciel un peu plus
+// clair que son zénith, et le brouillard suit la même teinte.
+const HORIZON_LIFT = 0.35
 
 function applySkyColor() {
   SKY.set(settings.skyColor)
-  HORIZON.copy(SKY).lerp(new THREE.Color('#ffffff'), 0.35)
+  HORIZON.copy(SKY).lerp(new THREE.Color('#ffffff'), HORIZON_LIFT)
 }
 applySkyColor()
 
@@ -63,11 +102,187 @@ const city = {
   billboardFrequency: 0.2, // proportion d'immeubles portant un panneau
 }
 
+// Type de pointeur, relevé une fois : il ne change pas en cours de partie et
+// plusieurs décisions d'interface en dépendent.
+const COARSE = matchMedia('(pointer: coarse)').matches
+
+/* ---------- Paliers de qualité ---------- */
+// Le jeu est dimensionné pour un GPU de bureau : 4096² d'ombre, 81 chunks de
+// ville, seize cents lampadaires. Un téléphone d'entrée de gamme n'a aucune
+// chance, et il n'existe pas de liste fiable d'appareils pour le deviner.
+// On mesure donc, et on descend d'un cran tant que ça ne suit pas.
+//
+// Chaque palier baisse PLUSIEURS leviers à la fois : sur une image trop
+// lourde, diviser un seul poste par deux ne se voit pas — c'est le cumul qui
+// ramène dans le budget.
+// `maxVideos` plafonne le nombre de vidéos lues EN MÊME TEMPS. C'est un coût
+// de processeur, pas de GPU : un décodeur matériel d'entrée de gamme ne tient
+// qu'un ou deux flux, au-delà il bascule en logiciel et s'effondre. Baisser
+// la résolution n'y change rien — d'où sa présence au barème.
+const QUALITY_LEVELS = [
+  { pixelRatio: 1.5, shadows: true, shadowSize: 4096, viewRadius: 4, fogFar: 300, lampRadius: 2, maxVideos: 5 },
+  { pixelRatio: 1.25, shadows: true, shadowSize: 2048, viewRadius: 4, fogFar: 300, lampRadius: 2, maxVideos: 4 },
+  { pixelRatio: 1.0, shadows: true, shadowSize: 1024, viewRadius: 3, fogFar: 250, lampRadius: 1, maxVideos: 3 },
+  { pixelRatio: 0.85, shadows: false, shadowSize: 1024, viewRadius: 3, fogFar: 250, lampRadius: 1, maxVideos: 2 },
+  { pixelRatio: 0.7, shadows: false, shadowSize: 1024, viewRadius: 2, fogFar: 150, lampRadius: -1, maxVideos: 1 },
+]
+
+// Tout le monde démarre en haut. Rétrograder les tactiles en bloc punissait
+// les téléphones qui tenaient très bien le palier maximum — c'est précisément
+// ce que la mesure est là pour éviter : on ne présume pas, on constate.
+const QUALITY_START = 0
+const QUALITY_MIN_FPS = 26      // en deçà, on considère que ça ne suit pas
+const QUALITY_DIRE_FPS = 15     // en deçà, il y a urgence : on saute des crans
+const QUALITY_GOOD_FPS = 48     // au-dessus, il reste du budget à reprendre
+const QUALITY_PATIENCE = 2      // secondes sous le seuil avant de descendre
+const QUALITY_CLIMB_PATIENCE = 6 // secondes de confort avant de remonter
+const QUALITY_GRACE = 3         // secondes de répit après un changement
+// Gain minimum attendu d'une baisse. En deçà, c'est que le goulot n'était pas
+// la qualité : continuer à dégrader ne ferait qu'abîmer l'image pour rien.
+const QUALITY_PAYOFF = 1.15
+
+let qualityHold = 0      // temps passé sous le seuil, ou répit si négatif
+let qualityComfort = 0   // temps passé au-dessus du seuil de confort
+let qualityLimit = 0     // meilleur palier encore autorisé
+let qualityStuck = false // une baisse n'a rien rapporté : on cesse de descendre
+let qualityProbe = null  // { level, fps } de la dernière baisse, à valider
+
+// Seuil au-delà duquel on prévient le joueur : à ce stade, l'appareil a déjà
+// renoncé aux ombres et à la moitié de la ville. Ce n'est plus un réglage,
+// c'est un constat.
+const WEAK_QUALITY = 2
+// Le message n'est pas posé au moment où le palier tombe, mais seulement
+// s'il s'y maintient. Le gouverneur révoque une baisse qui n'a rien rapporté :
+// annoncer un appareil trop faible pour le démentir trois secondes plus tard
+// serait pire que de ne rien dire.
+const WEAK_SETTLE = 5 // secondes passées sous le seuil avant d'avertir
+const weakElement = document.querySelector('#weak')
+let weakTime = 0
+let weakDismissed = false
+
+function updateWeakNotice(elapsed) {
+  if (settings.quality <= WEAK_QUALITY) {
+    // Remonté au-dessus du seuil : le constat n'a plus lieu d'être.
+    weakTime = 0
+    weakElement.classList.remove('is-visible')
+    return
+  }
+  if (weakDismissed) return
+  weakTime += elapsed
+  if (weakTime >= WEAK_SETTLE) weakElement.classList.add('is-visible')
+}
+
+document.querySelector('#weak-close').addEventListener('click', () => {
+  weakDismissed = true
+  weakElement.classList.remove('is-visible')
+})
+
+function applyQuality(level) {
+  const clamped = THREE.MathUtils.clamp(Math.round(level), 0, QUALITY_LEVELS.length - 1)
+  settings.quality = clamped
+  Object.assign(settings, QUALITY_LEVELS[clamped])
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio))
+  renderer.shadowMap.enabled = settings.shadows
+  sunLight.shadow.mapSize.set(settings.shadowSize, settings.shadowSize)
+  // La carte est déjà allouée : il faut la jeter pour que three la recrée.
+  sunLight.shadow.map?.dispose()
+  sunLight.shadow.map = null
+  cityFog.far = settings.fogFar
+  // Couper les ombres change le programme compilé : sans invalidation, la
+  // scène garde l'ancien rendu jusqu'au prochain matériau touché.
+  scene.traverse((o) => {
+    if (o.material) o.material.needsUpdate = true
+  })
+  qualityController?.updateDisplay()
+}
+
+// Appelé une fois par fenêtre de mesure du compteur, avec sa moyenne.
+function governQuality(fps, elapsed) {
+  updateWeakNotice(elapsed)
+  if (!settings.qualityAuto) return
+
+  // Répit après un changement : la mesure n'a pas encore de sens.
+  if (qualityHold < 0) {
+    qualityHold += elapsed
+    return
+  }
+
+  // Rendement de la dernière baisse. C'est le garde-fou qui manquait : une
+  // image bridée par le système, un pilote lent ou un décodeur saturé ne
+  // s'améliorent pas d'un pixel en moins. Sans cette vérification, le jeu
+  // dégringolait jusqu'au palier le plus laid pour exactement zéro gain.
+  if (qualityProbe) {
+    const probe = qualityProbe
+    qualityProbe = null
+    if (fps < probe.fps * QUALITY_PAYOFF) {
+      applyQuality(probe.level)
+      qualityStuck = true
+      showNotice('Qualité rétablie')
+      qualityHold = -QUALITY_GRACE
+      return
+    }
+    // La baisse a payé : le palier qu'on vient de quitter est hors de portée
+    // de cet appareil, on ne cherchera plus à y revenir.
+    qualityLimit = probe.level + 1
+  }
+
+  if (fps < QUALITY_MIN_FPS) {
+    qualityComfort = 0
+    if (qualityStuck || settings.quality >= QUALITY_LEVELS.length - 1) return
+    qualityHold += elapsed
+    // À dix images par seconde, un cran toutes les deux secondes demanderait
+    // une demi-minute pour toucher le fond. On saute d'autant que le retard
+    // est grand, et sans attendre.
+    const dire = fps < QUALITY_DIRE_FPS
+    if (!dire && qualityHold < QUALITY_PATIENCE) return
+
+    qualityProbe = { level: settings.quality, fps }
+    applyQuality(settings.quality + (dire ? 2 : 1))
+    showNotice(`Qualité réduite (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
+    qualityHold = -QUALITY_GRACE
+    return
+  }
+
+  qualityHold = 0
+  // Le jeu respire de nouveau : si une baisse avait été jugée inutile, c'est
+  // que les conditions ont changé depuis — batterie rebranchée, appareil
+  // refroidi. On lui rend le droit de redescendre le jour où il faudra.
+  if (fps >= QUALITY_GOOD_FPS) qualityStuck = false
+
+  // Remontée. Elle n'est tentée que bien au-dessus du seuil de chute, et
+  // jamais au-delà d'un palier déjà jugé hors de portée : c'est ce qui
+  // empêche l'oscillation entre deux crans.
+  if (fps < QUALITY_GOOD_FPS || settings.quality <= qualityLimit) {
+    qualityComfort = 0
+    return
+  }
+  qualityComfort += elapsed
+  if (qualityComfort < QUALITY_CLIMB_PATIENCE) return
+  qualityComfort = 0
+  applyQuality(settings.quality - 1)
+  showNotice(`Qualité rétablie (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
+  qualityHold = -QUALITY_GRACE
+}
+
+
 const canvas = document.querySelector('#scene')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+// Plafond de densité de pixels. Sur un écran retina, 2 contre 1,5 c'est
+// presque deux fois plus de pixels à remplir à chaque image — c'est le poste
+// le plus lourd d'un rendu plein écran, et l'antialiasing masque l'essentiel
+// de la différence.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio))
 renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
+// Le filtrage ne rend pas l'ombre floue, il lisse l'escalier de texels sur
+// son bord. Sans lui, le contour épouse la grille de la carte de profondeur
+// et se découpe en marches — c'est le crénelage, pas de la netteté. La
+// finesse réelle du bord ne tient qu'à la densité de texels, réglée plus bas
+// par la définition de la carte et le cadrage de sa caméra.
+// PCFSoftShadowMap est retiré depuis three r186 et retombe silencieusement
+// sur celui-ci : autant le nommer, plutôt que de lire un avertissement en
+// console à chaque démarrage.
+renderer.shadowMap.type = THREE.PCFShadowMap
 
 const scene = new THREE.Scene()
 
@@ -78,7 +293,7 @@ const world = new THREE.Group()
 scene.add(world)
 // Le brouillard fond la ville dans le ciel : la limite de chargement des
 // chunks n'est jamais visible, contrairement à une coupure nette.
-const cityFog = new THREE.Fog(HORIZON, 60, 420)
+const cityFog = new THREE.Fog(HORIZON, 45, 300)
 scene.fog = cityFog
 
 /* ---------- Caméra immersive ---------- */
@@ -100,7 +315,9 @@ const _back = new THREE.Vector3()
 // toujours au centre de l'image, quel que soit l'angle.
 function applyCameraOrientation() {
   camera.rotation.y = yaw
-  camera.rotation.x = THREE.MathUtils.degToRad(settings.cameraPitch)
+  // Le regard porte l'inclinaison de poursuite ET le relèvement de l'espace
+  // blanc ; la position, elle, ne connaît que la première — voir placeCamera.
+  camera.rotation.x = THREE.MathUtils.degToRad(settings.cameraPitch + whiteGaze)
   placeCamera()
 }
 
@@ -111,7 +328,16 @@ const cameraOffset = new THREE.Vector3()
 function placeCamera() {
   if (portal) return // la caméra est pilotée par la transition
   _pivot.set(carPosition.x, city.sidewalkHeight + settings.cameraHeight, carPosition.z)
+
+  // Le bras est mesuré sur la seule inclinaison de poursuite : relever le
+  // regard dans l'espace blanc ne doit pas faire reculer ni descendre la
+  // caméra. On neutralise donc le relèvement le temps de lire la direction,
+  // plutôt que de recalculer un vecteur à la main — l'ordre d'Euler de la
+  // caméra est ainsi respecté quoi qu'il arrive.
+  const gaze = camera.rotation.x
+  camera.rotation.x = THREE.MathUtils.degToRad(settings.cameraPitch)
   camera.getWorldDirection(_back).multiplyScalar(-1)
+  camera.rotation.x = gaze
 
   // Spring arm : le bras se rétracte si un immeuble s'intercale entre la
   // voiture et la caméra, au lieu de laisser la caméra passer au travers.
@@ -182,6 +408,11 @@ function updateLook(delta) {
 // Suivi automatique : la caméra se replace dans l'axe de la voiture, vue de
 // l'arrière. Le lacet cible suit le cap en continu, donc elle accompagne les
 // virages au lieu d'attendre l'arrêt du véhicule.
+// Seuil en deçà duquel on considère que le joueur lit l'écran plutôt qu'il
+// ne conduit. La caméra de poursuite existe pour suivre un mouvement : sans
+// mouvement, elle n'a rien à suivre.
+const WHITE_PARKED_SPEED = 1.2
+
 // Regard arrière, comme dans GTA : tant que C ou le clic du stick droit est
 // maintenu, la caméra passe d'un coup devant la voiture et regarde derrière
 // elle, puis revient d'un coup en poursuite au relâchement.
@@ -189,6 +420,12 @@ let lookingBack = false
 
 function updateFollowCamera(delta) {
   if (portal || gameOver || falling || paused || framingBlend) return // recadrages prioritaires
+
+  // Dans l'espace blanc, à l'arrêt, le recentrage derrière la voiture n'a
+  // aucun sens : il ramenait la caméra au cadrage neutre à chaque fois que
+  // l'aimant lâchait un CTA, et c'est ce détour par le centre qu'on voyait
+  // en passant d'un bouton à l'autre. Dès qu'on roule, il reprend la main.
+  if (whiteSpace && Math.abs(speed) < WHITE_PARKED_SPEED) return
 
   const back = keys.has('KeyC') || pad.lookBack
   if (back || lookingBack) {
@@ -225,10 +462,21 @@ function updateFollowCamera(delta) {
 // Retour progressif au cadrage mémorisé, après la sortie d'un portail
 const FRAMING_RETURN = 1.1  // secondes
 const WHITE_EXIT_PITCH = -18 // plongée du cadrage d'arrivée, en degrés
+// Dans l'espace blanc, la caméra relève le regard sans bouger d'un pouce :
+// la scène descend à l'écran et dégage le haut, où vivent le titre et les
+// boutons, mais le cadrage reste celui de la poursuite, derrière la voiture.
+const WHITE_GAZE_SMOOTH = 2.4 // résorption de l'écart, par seconde
+let whiteGaze = 0
 const FRAMING_DECAY = 2.6  // résorption de l'écart de position
 let framingBlend = null
 
 function updateFraming(delta) {
+  // Le relèvement s'installe et se retire en fondu : posé d'un coup, il
+  // ferait sauter le cadrage à l'entrée comme à la sortie.
+  const gazeTarget = whiteSpace ? settings.whiteCameraGaze : 0
+  whiteGaze += (gazeTarget - whiteGaze) * (1 - Math.exp(-WHITE_GAZE_SMOOTH * delta))
+  if (Math.abs(gazeTarget - whiteGaze) > 1e-3) applyCameraOrientation()
+
   // L'écart de position se résorbe même après la fin du recadrage angulaire
   if (cameraOffset.lengthSq() > 1e-4) {
     cameraOffset.multiplyScalar(Math.exp(-FRAMING_DECAY * delta))
@@ -281,6 +529,7 @@ const skyMaterial = new THREE.ShaderMaterial({
     uSkyBottom: { value: HORIZON },
     uSunColor: { value: SUN },
     uSunDirection: { value: new THREE.Vector3() },
+    uSunGlow: { value: settings.showSun ? 1 : 0 },
   },
   vertexShader: /* glsl */ `
     varying vec3 vWorldDirection;
@@ -294,6 +543,7 @@ const skyMaterial = new THREE.ShaderMaterial({
     uniform vec3 uSkyBottom;
     uniform vec3 uSunColor;
     uniform vec3 uSunDirection;
+    uniform float uSunGlow;
     varying vec3 vWorldDirection;
 
     void main() {
@@ -303,12 +553,13 @@ const skyMaterial = new THREE.ShaderMaterial({
       float h = smoothstep(-0.15, 0.75, dir.y);
       vec3 color = mix(uSkyBottom, uSkyTop, h);
 
-      // Halo + disque solaire
+      // Halo + disque solaire. Les deux s'éteignent ensemble : un halo sans
+      // disque ne serait qu'une tache lumineuse creuse au milieu du ciel.
       float d = dot(dir, normalize(uSunDirection));
       float halo = pow(max(d, 0.0), 48.0);
       float disc = smoothstep(0.9965, 0.9985, d);
-      color = mix(color, uSunColor, halo * 0.75);
-      color = mix(color, uSunColor, disc);
+      color = mix(color, uSunColor, halo * 0.75 * uSunGlow);
+      color = mix(color, uSunColor, disc * uSunGlow);
 
       gl_FragColor = vec4(color, 1.0);
       #include <colorspace_fragment>
@@ -377,7 +628,7 @@ world.add(ground)
 
 /* ---------- Paramètres de la ville ---------- */
 const BLOCK = 12                      // côté d'un bloc bâti
-const ROAD = 9                        // largeur de rue
+const ROAD = 14                       // largeur de rue
 const CELL = BLOCK + ROAD             // pas de la grille
 const BLOCKS_PER_CHUNK = 4            // blocs par côté de chunk
 const CHUNK = BLOCKS_PER_CHUNK * CELL // côté d'un chunk en unités monde
@@ -386,7 +637,7 @@ const BILLBOARD_THICKNESS = 0.14      // épaisseur des panneaux
 const BILLBOARD_RATIO = 9 / 16        // les panneaux sont toujours en 16:9
 const PORTAL_MIN_WIDTH = 3.4          // largeur mini pour laisser entrer la voiture
 const PORTAL_DEPTH = 2.2              // profondeur de la zone de déclenchement, DEVANT le panneau
-const VIEW_RADIUS = 4                 // chunks chargés autour de la caméra (rayon)
+
 
 /* ---------- Bruit déterministe ---------- */
 // Hash 2D entier -> [0,1). Même coordonnée = même valeur, pour toujours :
@@ -418,13 +669,21 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: SIDEWALK_COLOR,
 // l'heure ou l'orientation — elle ne dépend plus de l'éclairage de la scène.
 const billboardGeometry = new THREE.BoxGeometry(1, 1, 1) // pivot au centre
 
-// Tranche du caisson : blanc neutre, commun à tous les panneaux.
-const billboardEdgeMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  emissive: 0xffffff,
-  emissiveIntensity: 0.35,
-  roughness: 0.4,
-})
+// Tranche du caisson : commune à tous les panneaux, projets comme marque.
+// Tranches des panneaux. Deux teintes, et non une seule : le noir de charte
+// cerne les médias des projets sans leur disputer l'attention, tandis que le
+// bleu foncé des panneaux de marque prolonge leurs propres fonds.
+function edgeMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0.35,
+    roughness: 0.4,
+  })
+}
+
+const billboardEdgeMaterial = edgeMaterial('#1E1E1E')
+const brandEdgeMaterial = edgeMaterial('#364B9E')
 
 // Recadrage `object-fit: cover` : le média garde ses proportions et déborde
 // sur l'axe le plus long, qui est rogné symétriquement. Sans ça une vidéo
@@ -454,11 +713,28 @@ function panelTexture(map) {
   return map
 }
 
-const textureLoader = new THREE.TextureLoader()
+// Gestionnaire commun à tous les chargeurs : il compte les requêtes en cours
+// et permet d'afficher une vraie progression, plutôt qu'une barre décorative.
+const loadingManager = new THREE.LoadingManager()
+const textureLoader = new THREE.TextureLoader(loadingManager)
 
 // Un matériau par projet. La face avant du caisson (groupe 4 de la BoxGeometry,
 // soit +Z) porte le média ; les cinq autres gardent la tranche blanche.
-const projectMaterials = PROJECTS.map((project) => {
+// Chaque projet n'a qu'UNE vidéo, partagée par toutes les instances de son
+// panneau dans la ville. Le poster s'affiche immédiatement ; la vidéo n'est
+// téléchargée que lorsqu'un de ces panneaux s'approche du véhicule, et elle
+// est mise en pause dès qu'ils s'en éloignent tous. Voir updatePanelVideos.
+const panelVideos = PROJECTS.map((project) => ({
+  project,
+  material: null,
+  poster: null,
+  video: null,     // l'élément <video>, créé à la demande
+  texture: null,   // la VideoTexture, tant que la vidéo est chargée
+  playing: false,
+  distance: Infinity,
+}))
+
+const projectMaterials = PROJECTS.map((project, index) => {
   const material = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     emissive: 0xffffff,
@@ -468,34 +744,21 @@ const projectMaterials = PROJECTS.map((project) => {
   })
 
   // Le poster s'affiche tout de suite, la vidéo prend le relais quand elle
-  // a de quoi jouer : jamais de panneau noir en attendant le réseau.
+  // a de quoi jouer : jamais de panneau noir en attendant le réseau. Il est
+  // conservé, et non libéré : c'est lui qu'on réaffiche quand la vidéo est
+  // relâchée, et le retélécharger à chaque aller-retour serait absurde.
   const poster = panelTexture(textureLoader.load(asset(project.poster), (t) => {
-    if (material.map === t) coverTexture(t, t.image.width, t.image.height)
+    // Recadré sans condition : il reprend du service à chaque libération de
+    // la vidéo, bien après ce chargement. Le conditionner à son affichage du
+    // moment le laissait en UV plein cadre, donc déformé, au retour.
+    coverTexture(t, t.image.width, t.image.height)
   }))
   material.map = poster
   material.emissiveMap = poster
 
-  if (project.video) {
-    const video = document.createElement('video')
-    video.src = asset(project.video)
-    video.loop = true
-    video.muted = true // sans quoi l'autoplay est refusé par le navigateur
-    video.playsInline = true
-    video.preload = 'auto'
-    video.crossOrigin = 'anonymous'
-    project.element = video
-
-    video.addEventListener('loadeddata', () => {
-      const map = panelTexture(new THREE.VideoTexture(video))
-      coverTexture(map, video.videoWidth, video.videoHeight)
-      material.map = map
-      material.emissiveMap = map
-      material.needsUpdate = true
-      poster.dispose()
-      video.play().catch(() => {}) // voir startPanelVideos pour les reprises
-    })
-    video.load()
-  }
+  const entry = panelVideos[index]
+  entry.material = material
+  entry.poster = poster
 
   return [
     billboardEdgeMaterial,
@@ -507,14 +770,251 @@ const projectMaterials = PROJECTS.map((project) => {
   ]
 })
 
-// Logo du client, plaqué en blanc sur le média du panneau. Les fichiers
-// sources sont sombres : on les aplatit en blanc dans un canvas, en ne
-// gardant que leur silhouette.
-const logoGeometry = new THREE.PlaneGeometry(1, 1)
-const projectLogos = [] // { material, aspect, ready } par projet
+/* ---------- Panneaux de marque ---------- */
+// Les panneaux en hauteur sont hors d'atteinte : annoncer un projet qu'on ne
+// pourra jamais franchir n'aurait pas de sens. Ils portent donc la marque,
+// tirée au sort entre deux formats de logo et trois fonds de charte.
+//
+// Les appariements ne sont pas libres : le jaune et le gris clair ne
+// supportent que l'encre noire, le bleu foncé que le logo blanc.
+const BRAND_SURFACES = [
+  { bg: '#364B9E', ink: '#F6F6F6' }, // bleu foncé, logo blanc
+  { bg: '#F2FF28', ink: '#1E1E1E' }, // jaune, logo noir
+  { bg: '#CFD0D2', ink: '#1E1E1E' }, // gris clair, logo noir
+]
+const BRAND_LOGOS = ['logo-absolu.svg', 'logo-absolu-compact.svg']
+const BRAND_VARIANTS = BRAND_SURFACES.length * BRAND_LOGOS.length
+const BRAND_CANVAS_W = 1024 // 16:9, les proportions du panneau
+const BRAND_FILL = 0.62     // part du panneau occupée par le logo
 
-function projectLogo(index) {
-  if (projectLogos[index]) return projectLogos[index]
+const brandMaterials = []
+
+function brandMaterial(variant) {
+  if (brandMaterials[variant]) return brandMaterials[variant]
+
+  const surface = BRAND_SURFACES[variant % BRAND_SURFACES.length]
+  const logoUrl = BRAND_LOGOS[Math.floor(variant / BRAND_SURFACES.length)]
+
+  const canvas = document.createElement('canvas')
+  canvas.width = BRAND_CANVAS_W
+  canvas.height = Math.round(BRAND_CANVAS_W / PANEL_ASPECT)
+  const ctx = canvas.getContext('2d')
+  // Le fond est peint tout de suite : le panneau a sa couleur avant même que
+  // le logo n'arrive, au lieu de rester noir le temps du réseau.
+  ctx.fillStyle = surface.bg
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  const texture = panelTexture(new THREE.CanvasTexture(canvas))
+  const face = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xffffff,
+    emissiveIntensity: 1,
+    roughness: 0.4,
+    side: THREE.DoubleSide,
+    map: texture,
+    emissiveMap: texture,
+  })
+
+  // Vu de dos, le panneau n'est qu'un aplat de sa propre couleur : le même
+  // fond, sans le logo.
+  const back = new THREE.MeshStandardMaterial({
+    color: surface.bg,
+    emissive: surface.bg,
+    emissiveIntensity: 0.6,
+    roughness: 0.4,
+  })
+
+  // Un matériau par face, comme les panneaux de projet. Appliquer la texture
+  // au volume entier — ce qu'on faisait — la comprimait sur les tranches, où
+  // le logo se retrouvait écrasé, et la répétait à l'envers au dos.
+  const materials = [
+    brandEdgeMaterial,
+    brandEdgeMaterial,
+    brandEdgeMaterial,
+    brandEdgeMaterial,
+    face, // +Z : la face visible depuis la rue
+    back,
+  ]
+  brandMaterials[variant] = materials
+
+  const image = new Image()
+  image.onload = () => {
+    // Le fichier est fourni en blanc : pour l'encrer en noir il faut repeindre
+    // sa seule silhouette, dans un canvas à part. Le faire sur le panneau
+    // lui-même recouvrirait aussi le fond.
+    const stamp = document.createElement('canvas')
+    stamp.width = image.width
+    stamp.height = image.height
+    const sctx = stamp.getContext('2d')
+    sctx.drawImage(image, 0, 0)
+    sctx.globalCompositeOperation = 'source-in'
+    sctx.fillStyle = surface.ink
+    sctx.fillRect(0, 0, stamp.width, stamp.height)
+
+    const scale = Math.min(
+      (canvas.width * BRAND_FILL) / stamp.width,
+      (canvas.height * BRAND_FILL) / stamp.height
+    )
+    const w = stamp.width * scale
+    const h = stamp.height * scale
+    ctx.drawImage(stamp, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
+    texture.needsUpdate = true
+  }
+  image.src = asset(logoUrl)
+
+  return materials
+}
+
+/* ---------- Diffusion des vidéos de panneaux ---------- */
+// Trois cercles concentriques autour du véhicule, et non un seul seuil : si
+// charger et jouer se décidaient au même rayon, la vidéo commencerait toujours
+// par un à-coup, le temps que le réseau réponde. Elle est donc téléchargée
+// bien avant d'être vue, et n'est relâchée que loin derrière, pour qu'un
+// demi-tour ne provoque pas un nouveau téléchargement.
+const VIDEO_PLAY_RADIUS = 95     // en deçà, la vidéo joue
+const VIDEO_PRELOAD_RADIUS = 150 // en deçà, elle est téléchargée
+const VIDEO_RELEASE_RADIUS = 260 // au-delà, la mémoire est rendue
+const VIDEO_SCAN_EVERY = 0.35    // secondes entre deux relevés de distance
+// Au-delà, inutile de chercher : c'est déjà plus loin que le rayon de rejet
+const VIDEO_SCAN_REACH = Math.ceil(VIDEO_RELEASE_RADIUS / CELL)
+
+let videoScan = 0
+let videosUnlocked = false // la lecture exige un geste préalable du visiteur
+
+function createPanelVideo(entry) {
+  const video = document.createElement('video')
+  video.src = asset(entry.project.video)
+  video.loop = true
+  video.muted = true // sans quoi l'autoplay est refusé par le navigateur
+  video.playsInline = true
+  video.preload = 'auto'
+  video.crossOrigin = 'anonymous'
+  entry.video = video
+
+  video.addEventListener('loadeddata', () => {
+    if (entry.video !== video) return // relâchée entre-temps
+    const map = panelTexture(new THREE.VideoTexture(video))
+    coverTexture(map, video.videoWidth, video.videoHeight)
+    // Par défaut, une VideoTexture se téléverse à CHAQUE image, même sur une
+    // vidéo en pause : ce serait autant de transferts par image pour des
+    // trames identiques. On ne la renouvelle donc que pendant la lecture —
+    // mais il faut bien en téléverser UNE, sinon le panneau reste vide entre
+    // le chargement et l'entrée dans la zone de lecture, et l'on n'y voit ni
+    // la vidéo ni le poster qu'elle vient de remplacer.
+    let painted = false
+    map.update = function () {
+      if (video.readyState < video.HAVE_CURRENT_DATA) return
+      if (video.paused && painted) return
+      painted = true
+      this.needsUpdate = true
+    }
+    entry.texture = map
+    entry.material.map = map
+    entry.material.emissiveMap = map
+    entry.material.needsUpdate = true
+  })
+  video.load()
+}
+
+// Rend la mémoire : l'élément est détaché de sa source, la texture détruite,
+// et le panneau revient à son poster.
+function releasePanelVideo(entry) {
+  if (!entry.video) return
+  entry.video.pause()
+  entry.video.removeAttribute('src')
+  entry.video.load() // sans cela, Chrome garde le tampon de décodage
+  entry.video = null
+  entry.playing = false
+  if (entry.texture) {
+    entry.texture.dispose()
+    entry.texture = null
+  }
+  entry.material.map = entry.poster
+  entry.material.emissiveMap = entry.poster
+  entry.material.needsUpdate = true
+}
+
+// Distance au panneau le plus proche, projet par projet. `eachBuilding` est
+// une fonction pure : les panneaux se recalculent sans qu'il faille parcourir
+// les chunks, et donc sans dépendre de ce qui est chargé à l'écran.
+function scanPanelDistances() {
+  panelVideos.forEach((entry) => (entry.distance = Infinity))
+
+  const blockX = Math.floor(body.x / CELL)
+  const blockZ = Math.floor(body.z / CELL)
+  for (let bx = blockX - VIDEO_SCAN_REACH; bx <= blockX + VIDEO_SCAN_REACH; bx++) {
+    for (let bz = blockZ - VIDEO_SCAN_REACH; bz <= blockZ + VIDEO_SCAN_REACH; bz++) {
+      eachBuilding(bx, bz, (b) => {
+        const p = b.billboard
+        if (!p) return
+        const entry = panelVideos[p.project]
+        if (!entry) return
+        const dx = p.x - body.x
+        const dz = p.z - body.z
+        const d = Math.sqrt(dx * dx + dz * dz)
+        if (d < entry.distance) entry.distance = d
+      })
+    }
+  }
+}
+
+function updatePanelVideos(delta) {
+  // Dans l'espace blanc et pendant la traversée du portail, plus aucun
+  // panneau n'est visible : tout se met en pause. L'espace blanc a ses
+  // propres vidéos, il ne dépend plus de celles des panneaux.
+  if (whiteSpace || portal) {
+    panelVideos.forEach((entry) => {
+      if (entry.video && !entry.video.paused) {
+        entry.video.pause()
+        entry.playing = false
+      }
+    })
+    return
+  }
+
+  videoScan -= delta
+  if (videoScan > 0) return
+  videoScan = VIDEO_SCAN_EVERY
+  scanPanelDistances()
+
+  // Les plus proches d'abord : quand le plafond de lectures simultanées mord,
+  // ce sont les panneaux que le joueur a sous les yeux qui gardent la vidéo,
+  // les autres se figent sur leur dernière image sans qu'on le remarque.
+  const playable = panelVideos
+    .filter((entry) => entry.project.video && entry.distance <= VIDEO_PLAY_RADIUS)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, settings.maxVideos)
+
+  panelVideos.forEach((entry) => {
+    if (!entry.project.video) return // projet sans vidéo : le poster suffit
+    const d = entry.distance
+
+    if (d > VIDEO_RELEASE_RADIUS) return releasePanelVideo(entry)
+    if (d <= VIDEO_PRELOAD_RADIUS && !entry.video) createPanelVideo(entry)
+    if (!entry.video) return
+
+    const shouldPlay = videosUnlocked && playable.includes(entry)
+    if (shouldPlay && entry.video.paused) {
+      entry.video.play().then(() => (entry.playing = true)).catch(() => {})
+    } else if (!shouldPlay && !entry.video.paused) {
+      entry.video.pause()
+      entry.playing = false
+    }
+  })
+}
+
+// Nom du projet, peint en blanc sur le média du panneau. Les projets Absolu
+// n'ont pas de logo détouré exploitable : c'est donc le nom qui identifie le
+// panneau. Tout le mécanisme d'instanciation est inchangé — seule la source
+// de la texture diffère, un canvas de texte au lieu d'un fichier.
+const logoGeometry = new THREE.PlaneGeometry(1, 1)
+const projectLabels = [] // { material, aspect, ready } par projet
+
+const LABEL_FACE = "700 96px 'Instrument Serif'"
+const LABEL_PAD = 36 // marge autour du texte, dans le canvas
+
+function projectLabel(index) {
+  if (projectLabels[index]) return projectLabels[index]
 
   const entry = {
     material: new THREE.MeshBasicMaterial({
@@ -523,46 +1023,56 @@ function projectLogo(index) {
       toneMapped: false,
       opacity: 0.95,
     }),
-    aspect: 3,
+    aspect: 4,
     ready: false,
   }
-  projectLogos[index] = entry
+  projectLabels[index] = entry
 
-  const url = PROJECT_LOGOS[PROJECTS[index].slug]
-  if (!url) return entry
+  const name = PROJECTS[index].name
+  if (!name) return entry
 
-  const image = new Image()
-  image.onload = () => {
+  const paint = () => {
     const canvas = document.createElement('canvas')
-    canvas.width = image.width
-    canvas.height = image.height
     const ctx = canvas.getContext('2d')
-    ctx.drawImage(image, 0, 0)
-    // On ne repeint que les pixels déjà opaques : la silhouette devient
-    // blanche et la transparence d'origine est préservée.
-    ctx.globalCompositeOperation = 'source-in'
+    ctx.font = LABEL_FACE
+    const width = Math.ceil(ctx.measureText(name).width)
+    canvas.width = width + LABEL_PAD * 2
+    canvas.height = 96 + LABEL_PAD * 2
+    // Redimensionner le canvas a réinitialisé le contexte : la police doit
+    // être reposée, sinon le texte sort dans la fonte par défaut.
+    ctx.font = LABEL_FACE
     ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    // Ombre portée franche : le nom se détache du média, quel qu'il soit
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)'
+    ctx.shadowBlur = 12
+    ctx.fillText(name, canvas.width / 2, canvas.height / 2)
 
     const texture = new THREE.CanvasTexture(canvas)
     texture.colorSpace = THREE.SRGBColorSpace
     texture.minFilter = THREE.LinearFilter
     texture.generateMipmaps = false
+    entry.material.map?.dispose()
     entry.material.map = texture
     entry.material.needsUpdate = true
-    entry.aspect = image.width / image.height
+    entry.aspect = canvas.width / canvas.height
     entry.ready = true
     // Les chunks déjà construits ont été dimensionnés sur l'aspect par
-    // défaut : on les recale maintenant que le logo est connu.
-    refreshLogoInstances(index)
+    // défaut : on les recale maintenant que le texte est mesuré.
+    refreshLabelInstances(index)
   }
-  image.src = asset(url)
+
+  paint()
+  // La mesure faite avant l'arrivée d'Instrument Serif porte sur la fonte de
+  // repli : on repeint une fois la vraie police disponible.
+  document.fonts?.load(LABEL_FACE).then(paint).catch(() => {})
   return entry
 }
 
-// Position et taille du logo sur un panneau, partagées par la construction
-// des chunks et le recalage après chargement.
-const LOGO_WIDTH = 0.26  // part de la largeur du panneau
+// Position et taille du libellé sur un panneau, partagées par la
+// construction des chunks et le recalage après mesure du texte.
+const LOGO_WIDTH = 0.62  // part de la largeur du panneau
 const LOGO_MARGIN = 0.07 // marge basse, en part de la hauteur
 
 function logoMatrix(billboard, aspect, out) {
@@ -581,11 +1091,11 @@ function logoMatrix(billboard, aspect, out) {
   )
 }
 
-function refreshLogoInstances(projectIndex) {
+function refreshLabelInstances(projectIndex) {
   for (const chunk of chunks.values()) {
     chunk.userData.logos?.forEach((entry) => {
       if (entry.project !== projectIndex) return
-      const aspect = projectLogos[projectIndex].aspect
+      const aspect = projectLabels[projectIndex].aspect
       entry.items.forEach((b, i) => {
         entry.mesh.setMatrixAt(i, logoMatrix(b.billboard, aspect, _matrix))
       })
@@ -597,11 +1107,11 @@ function refreshLogoInstances(projectIndex) {
 // Trois raisons de devoir relancer la lecture : l'autoplay muet est refusé par
 // certains navigateurs, un onglet en arrière-plan diffère le chargement des
 // médias, et revenir sur l'onglet laisse les vidéos en pause.
+// Le navigateur refuse toute lecture avant un geste du visiteur. On ne lance
+// donc rien ici : on lève le verrou, et updatePanelVideos démarre les seules
+// vidéos qui sont effectivement dans la zone de lecture.
 function startPanelVideos() {
-  PROJECTS.forEach((project) => {
-    const video = project.element
-    if (video && video.paused) video.play().catch(() => {})
-  })
+  videosUnlocked = true
 }
 window.addEventListener('pointerdown', startPanelVideos)
 window.addEventListener('keydown', startPanelVideos)
@@ -720,8 +1230,14 @@ function eachBuilding(blockX, blockZ, emit) {
             tz: z + nz * (out + PORTAL_DEPTH / 2),
             thx: alongX ? bw / 2 : PORTAL_DEPTH / 2,
             thz: alongX ? PORTAL_DEPTH / 2 : bw / 2,
-            // Projet affiché sur ce panneau, tiré lui aussi du hash
+            // Projet affiché sur ce panneau, tiré lui aussi du hash. Il ne
+            // sert qu'aux panneaux au sol : ceux en hauteur portent la marque.
             project: Math.floor(hash(blockX * 3 + 1, blockZ * 7 + 5, 121 + salt) * PROJECTS.length),
+            // Déclinaison de marque des panneaux hors d'atteinte : format de
+            // logo et fond, tirés du même hash déterministe que le reste.
+            brand: atGround
+              ? -1
+              : Math.floor(hash(blockX * 5 + 3, blockZ * 11 + 7, 131 + salt) * BRAND_VARIANTS),
           }
         }
       }
@@ -805,10 +1321,36 @@ function buildChunk(cx, cz) {
     group.userData.panels = []
     group.userData.logos = []
     const byProject = new Map()
+    const byBrand = new Map()
     billboards.forEach((b) => {
-      const list = byProject.get(b.billboard.project)
+      // Au sol, un projet à franchir ; en hauteur, la marque.
+      const map = b.billboard.ground ? byProject : byBrand
+      const k = b.billboard.ground ? b.billboard.project : b.billboard.brand
+      const list = map.get(k)
       if (list) list.push(b)
-      else byProject.set(b.billboard.project, [b])
+      else map.set(k, [b])
+    })
+
+    // Panneaux de marque : ni libellé ni inscription dans panelLookup, ils ne
+    // sont jamais visés ni franchis.
+    byBrand.forEach((group_, variant) => {
+      const panels = new THREE.InstancedMesh(
+        billboardGeometry,
+        brandMaterial(variant),
+        group_.length
+      )
+      panels.castShadow = true
+      panels.receiveShadow = true
+      group_.forEach((b, i) => {
+        const p = b.billboard
+        _matrix.compose(
+          _position.set(p.x, city.sidewalkHeight + p.y, p.z),
+          _quat.setFromEuler(_euler.set(0, p.angle, 0)),
+          _scale.set(p.w, p.h, p.thick)
+        )
+        panels.setMatrixAt(i, _matrix)
+      })
+      group.add(panels)
     })
 
     byProject.forEach((group_, projectIndex) => {
@@ -832,14 +1374,18 @@ function buildChunk(cx, cz) {
       group.add(panels)
       group.userData.panels.push(panels)
 
-      // Logo du client, en blanc, plaqué sur la face du panneau
-      const logo = projectLogo(projectIndex)
-      const logos = new THREE.InstancedMesh(logoGeometry, logo.material, group_.length)
-      group_.forEach((b, i) => logos.setMatrixAt(i, logoMatrix(b.billboard, logo.aspect, _matrix)))
-      group.add(logos)
-      group.userData.logos.push({ mesh: logos, project: projectIndex, items: group_ })
+      // Nom du projet, en blanc, plaqué sur la face du panneau
+      const label = projectLabel(projectIndex)
+      const labels = new THREE.InstancedMesh(logoGeometry, label.material, group_.length)
+      group_.forEach((b, i) => labels.setMatrixAt(i, logoMatrix(b.billboard, label.aspect, _matrix)))
+      group.add(labels)
+      group.userData.logos.push({ mesh: labels, project: projectIndex, items: group_ })
     })
-    group.userData.panelKeys = billboards.map((b) => panelKey(b.billboard))
+    // Seuls les panneaux au sol ont été inscrits dans panelLookup : lister
+    // les autres ici ferait supprimer des clés qui ne sont pas les leurs.
+    group.userData.panelKeys = billboards
+      .filter((b) => b.billboard.ground)
+      .map((b) => panelKey(b.billboard))
   }
 
   /* Trottoirs : une dalle par bloc, le bâti repose dessus */
@@ -878,8 +1424,169 @@ function buildChunk(cx, cz) {
   }
   group.add(roads)
 
+  /* Lampadaires : seulement si le modèle est déjà arrivé. Sinon ils sont
+     ajoutés après coup, au chargement. */
+  addLamps(group, cx, cz)
+
   return group
 }
+
+/* ---------- Lampadaires ---------- */
+// Quatre par bloc, au milieu de chaque bord de trottoir : le long d'une rue,
+// l'écart entre deux lampadaires vaut donc exactement un pas de grille.
+const LAMP_HEIGHT = 7        // hauteur du mât, en unités monde
+const LAMP_INSET = 0.6       // recul depuis le bord du trottoir
+// Les lampadaires ne suivent pas le rayon de chargement : à 4 chunks cela fait
+// plus de cinq mille mâts à l'écran, soit une dizaine de millions de
+// triangles par image. Au-delà de deux chunks le brouillard les a de toute
+// façon avalés, on éteint donc simplement les lots trop lointains.
+
+
+const lampPostMaterial = new THREE.MeshStandardMaterial({
+  color: settings.lampColor,
+  roughness: 0.55,
+  metalness: 0.1,
+})
+
+// La lampe elle-même : le seul point allumé du lampadaire. Émissive, donc
+// elle garde son jaune quelle que soit la lumière qui l'atteint.
+const lampGlassMaterial = new THREE.MeshStandardMaterial({
+  color: '#2b2b16',
+  emissive: new THREE.Color(settings.lampLightColor),
+  emissiveIntensity: 2.6,
+  roughness: 0.25,
+})
+
+// Déduites du modèle une fois chargé : le mât et la vasque, fusionnés chacun
+// en une seule géométrie pour tenir en deux InstancedMesh par chunk.
+let lampPostGeometry = null
+let lampGlassGeometry = null
+
+// Le bras du modèle part vers +X : l'angle fait pointer ce +X vers la rue.
+const LAMP_EDGES = [
+  { dx: 1, dz: 0, angle: 0 },
+  { dx: -1, dz: 0, angle: Math.PI },
+  { dx: 0, dz: 1, angle: -Math.PI / 2 },
+  { dx: 0, dz: -1, angle: Math.PI / 2 },
+]
+
+// Chunk sous la caméra, tenu à jour par updateChunks : il décide quels lots
+// de lampadaires sont allumés.
+const lampCenter = { x: 0, z: 0 }
+
+function addLamps(group, cx, cz) {
+  if (!lampPostGeometry || group.userData.lamps) return
+
+  const count = BLOCKS_PER_CHUNK * BLOCKS_PER_CHUNK * LAMP_EDGES.length
+  const posts = new THREE.InstancedMesh(lampPostGeometry, lampPostMaterial, count)
+  const glass = new THREE.InstancedMesh(lampGlassGeometry, lampGlassMaterial, count)
+  // Ni l'un ni l'autre ne porte d'ombre : un mât est trop fin pour que la
+  // sienne se lise, et la passe d'ombre redessinait toute la géométrie une
+  // seconde fois.
+
+  const edge = BLOCK / 2 - LAMP_INSET
+  let i = 0
+  for (let bx = 0; bx < BLOCKS_PER_CHUNK; bx++) {
+    for (let bz = 0; bz < BLOCKS_PER_CHUNK; bz++) {
+      const centerX = (cx * BLOCKS_PER_CHUNK + bx) * CELL + CELL / 2
+      const centerZ = (cz * BLOCKS_PER_CHUNK + bz) * CELL + CELL / 2
+      for (const e of LAMP_EDGES) {
+        const x = centerX + e.dx * edge
+        const z = centerZ + e.dz * edge
+        _matrix.compose(
+          _position.set(x, city.sidewalkHeight, z),
+          _quat.setFromEuler(_euler.set(0, e.angle, 0)),
+          ONE
+        )
+        posts.setMatrixAt(i, _matrix)
+        glass.setMatrixAt(i, _matrix)
+        i++
+      }
+    }
+  }
+
+  group.add(posts, glass)
+  group.userData.lamps = [posts, glass]
+  // updateChunks tranche à la frame suivante ; d'ici là, mieux vaut éteint
+  // qu'un lot lointain allumé le temps d'une image.
+  const near =
+    Math.abs(cx - lampCenter.x) <= settings.lampRadius &&
+    Math.abs(cz - lampCenter.z) <= settings.lampRadius
+  group.userData.lamps.forEach((mesh) => (mesh.visible = near))
+}
+
+// Attributs réduits au strict nécessaire : les sous-objets du modèle n'ont
+// pas tous les mêmes canaux, et la fusion refuse un jeu d'attributs mélangé.
+function lampGeometry(mesh) {
+  const geometry = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld)
+  const kept = new THREE.BufferGeometry()
+  kept.setAttribute('position', geometry.getAttribute('position'))
+  const normal = geometry.getAttribute('normal')
+  if (normal) kept.setAttribute('normal', normal)
+  else kept.computeVertexNormals()
+  return kept
+}
+
+new OBJLoader(loadingManager).load(asset('models/street-lamp.obj'), (object) => {
+  object.updateMatrixWorld(true)
+
+  const postParts = []
+  const glassParts = []
+  const foot = new THREE.Box3()
+  object.traverse((o) => {
+    if (!o.isMesh) return
+    // Le modèle embarque un carré de sol pour son rendu d'origine : il n'a
+    // rien à faire ici, la ville a déjà le sien.
+    if (o.name === 'ground') return
+    const geometry = lampGeometry(o)
+    if (o.name === 'Glass_Cap') glassParts.push(geometry)
+    else postParts.push(geometry)
+    // L'embase donne l'aplomb du mât : c'est elle, et non le volume total
+    // (bras compris), qui doit tomber sur le point de pose.
+    if (o.name.startsWith('Cube.1')) foot.expandByObject(o)
+  })
+  if (!postParts.length || !glassParts.length) return
+
+  const post = mergeGeometries(postParts)
+  const glass = mergeGeometries(glassParts)
+  if (!post || !glass) return
+
+  // Repère cible : pied du mât à l'origine, sol à y = 0, bras vers +X
+  const bounds = new THREE.Box3().setFromBufferAttribute(post.getAttribute('position'))
+  bounds.union(new THREE.Box3().setFromBufferAttribute(glass.getAttribute('position')))
+  const pivot = foot.isEmpty() ? bounds.getCenter(new THREE.Vector3()) : foot.getCenter(new THREE.Vector3())
+  const scale = LAMP_HEIGHT / (bounds.max.y - bounds.min.y)
+
+  for (const geometry of [post, glass]) {
+    geometry.translate(-pivot.x, -bounds.min.y, -pivot.z)
+    geometry.scale(scale, scale, scale)
+    geometry.computeVertexNormals()
+  }
+
+  // La vasque du modèle pèse 828 triangles pour une lentille de onze
+  // centimètres, qui ne fait jamais plus que quelques pixels à l'écran et
+  // qui est entièrement émissive. Une primitive calée sur son encombrement
+  // donne exactement la même lueur pour quarante triangles.
+  const head = new THREE.Box3().setFromBufferAttribute(glass.getAttribute('position'))
+  const headSize = head.getSize(new THREE.Vector3())
+  const headCenter = head.getCenter(new THREE.Vector3())
+  const radius = Math.max(headSize.x, headSize.z) / 2
+  lampGlassGeometry = new THREE.CylinderGeometry(radius, radius * 0.75, headSize.y, 10)
+  lampGlassGeometry.translate(headCenter.x, headCenter.y, headCenter.z)
+  glass.dispose()
+
+  // Posé en dernier : addLamps s'en sert comme drapeau « tout est prêt », et
+  // un chunk bâti entre-temps repartirait sans vasque.
+  lampPostGeometry = post
+
+  // Les premiers chunks sont bâtis bien avant l'arrivée du modèle : on les
+  // rattrape, les suivants seront équipés dès leur construction.
+  chunks.forEach((group, k) => {
+    const [gx, gz] = k.split(',').map(Number)
+    addLamps(group, gx, gz)
+  })
+})
+
 
 /* ---------- Streaming des chunks ---------- */
 const chunks = new Map()
@@ -896,10 +1603,12 @@ function updateChunks() {
   cameraTarget(_target)
   const cx = Math.round(_target.x / CHUNK)
   const cz = Math.round(_target.z / CHUNK)
+  lampCenter.x = cx
+  lampCenter.z = cz
 
   // Charge ce qui entre dans le rayon
-  for (let x = cx - VIEW_RADIUS; x <= cx + VIEW_RADIUS; x++) {
-    for (let z = cz - VIEW_RADIUS; z <= cz + VIEW_RADIUS; z++) {
+  for (let x = cx - settings.viewRadius; x <= cx + settings.viewRadius; x++) {
+    for (let z = cz - settings.viewRadius; z <= cz + settings.viewRadius; z++) {
       const k = key(x, z)
       if (chunks.has(k)) continue
       const chunk = buildChunk(x, z)
@@ -911,7 +1620,16 @@ function updateChunks() {
   // Décharge ce qui en sort (avec une marge d'un chunk pour éviter le yoyo)
   for (const [k, chunk] of chunks) {
     const [x, z] = k.split(',').map(Number)
-    if (Math.abs(x - cx) > VIEW_RADIUS + 1 || Math.abs(z - cz) > VIEW_RADIUS + 1) {
+
+    // Les lampadaires ne vivent que dans les chunks proches : au-delà, ils
+    // sont éteints plutôt que déchargés — c'est gratuit et sans à-coup.
+    if (chunk.userData.lamps) {
+      const near =
+        Math.abs(x - cx) <= settings.lampRadius && Math.abs(z - cz) <= settings.lampRadius
+      chunk.userData.lamps.forEach((mesh) => (mesh.visible = near))
+    }
+
+    if (Math.abs(x - cx) > settings.viewRadius + 1 || Math.abs(z - cz) > settings.viewRadius + 1) {
       world.remove(chunk)
       chunk.traverse((o) => o.isInstancedMesh && o.dispose())
       chunk.userData.panelKeys?.forEach((pk) => panelLookup.delete(pk))
@@ -921,7 +1639,7 @@ function updateChunks() {
 }
 
 /* ---------- Lumières ---------- */
-const hemiLight = new THREE.HemisphereLight(SKY, GROUND, 1.2)
+const hemiLight = new THREE.HemisphereLight(SKY_LIGHT, GROUND, 1.2)
 scene.add(hemiLight)
 
 // Direction du soleil, partagée par le shader du ciel et la lumière directionnelle
@@ -942,11 +1660,19 @@ function updateSun() {
 
 const sunLight = new THREE.DirectionalLight(SUN, 2.2)
 sunLight.castShadow = true
-sunLight.shadow.mapSize.set(2048, 2048)
+sunLight.shadow.mapSize.set(settings.shadowSize, settings.shadowSize)
 const shadowCam = sunLight.shadow.camera
-shadowCam.left = -120; shadowCam.right = 120; shadowCam.top = 120; shadowCam.bottom = -120
+// Cadrage resserré : c'est lui qui fait la netteté. Le même nombre de texels
+// étalé sur 200 unités au lieu de 240 gagne 20 % de définition, et la passe
+// d'ombre dessine d'autant moins de géométrie. Au-delà, les ombres ne sont de
+// toute façon plus lisibles à la taille où les bâtiments apparaissent.
+shadowCam.left = -100; shadowCam.right = 100; shadowCam.top = 100; shadowCam.bottom = -100
 shadowCam.near = 1; shadowCam.far = 400
-sunLight.shadow.bias = -0.0008
+// Décalage le long de la normale plutôt que dans la profondeur seule : c'est
+// ce qui permet de garder un biais minuscule à haute définition sans voir
+// réapparaître le moirage, et sans décoller l'ombre de son objet.
+sunLight.shadow.bias = -0.0002
+sunLight.shadow.normalBias = 0.02
 scene.add(sunLight, sunLight.target)
 
 
@@ -986,7 +1712,7 @@ function normalizeCarModel(model) {
   return model
 }
 
-new GLTFLoader().load(asset('models/car_1.glb'), (gltf) => {
+new GLTFLoader(loadingManager).load(asset('models/car_1.glb'), (gltf) => {
   carGroup.add(normalizeCarModel(gltf.scene))
   applyCarScale()
 })
@@ -1096,7 +1822,10 @@ function updateDamageSprite(delta) {
 const POLICE_SPACING = [9, 8, 7, 6, 5] // en blocs, selon le niveau de recherche
 const POLICE_VIEW = 170      // rayon de présence autour du joueur
 const POLICE_FORGET = 260    // au-delà, la voiture est retirée
-const POLICE_SPEED = 19.5    // toujours sous la pointe du joueur (24)
+// Au doigt, la conduite est moins précise : une police calée à 81 % de la
+// pointe du joueur ne lui laisse aucune marge d'erreur et la poursuite tourne
+// à la corvée. On la ralentit, sans la rendre semable pour autant.
+const POLICE_SPEED = COARSE ? 20 : 26 // toujours sous la pointe du joueur (32)
 const POLICE_ACCEL = 10
 const POLICE_TURN = 1.5      // vitesse de braquage, rad/s : elles ratent leurs virages
 // Seules les plus proches attaquent. Les autres suivent à distance, sans quoi
@@ -1127,7 +1856,7 @@ let wanted = 1
 const policeCars = []
 let policeTemplate = null
 
-new GLTFLoader().load(asset('models/car_2.glb'), (gltf) => {
+new GLTFLoader(loadingManager).load(asset('models/car_2.glb'), (gltf) => {
   policeTemplate = normalizeCarModel(gltf.scene)
   restorePolice() // rien à faire s'il n'y a pas de sauvegarde
   refreshPoliceFleet()
@@ -1137,7 +1866,7 @@ new GLTFLoader().load(asset('models/car_2.glb'), (gltf) => {
 function makeBeacon() {
   const beacon = new THREE.Mesh(
     new THREE.BoxGeometry(0.9, 0.22, 0.34),
-    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x2970f4, emissiveIntensity: 2 })
+    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x3e78ff, emissiveIntensity: 2 })
   )
   beacon.position.set(0, 1.45, 0)
   return beacon
@@ -1459,6 +2188,9 @@ function triggerGameOver() {
   // derrière eux jusqu'au noir complet
   gameOverElement.classList.add('is-visible')
   keys.clear()
+  // Le contact prend le focus : c'est l'action que l'écran propose, et elle
+  // doit être atteignable sans toucher la souris.
+  gameOverElement.querySelector('#gameover-contact')?.focus({ preventScroll: true })
 }
 
 function updateBusted(delta) {
@@ -1593,7 +2325,7 @@ function updatePoliceVisuals(time, alpha) {
     car.group.rotation.y = car.prevHeading + diff * alpha
     car.group.scale.setScalar(settings.carScale)
     const beacon = car.group.children[1]
-    if (beacon) beacon.material.emissive.setHex(blue ? 0x2970f4 : 0xf26749)
+    if (beacon) beacon.material.emissive.setHex(blue ? 0x3e78ff : 0xf2ff28)
   })
 }
 
@@ -1658,7 +2390,17 @@ function createStick(id) {
 }
 
 const driveStick = createStick('#stick-drive')
-const lookStick = createStick('#stick-look')
+
+// Écran tactile : la voiture doit occuper assez de place pour qu'on la suive
+// du coin de l'œil tout en gardant le pouce sur la manette.
+const TOUCH_CAMERA_DISTANCE = 6.4
+if (COARSE) {
+  settings.cameraDistance = TOUCH_CAMERA_DISTANCE
+}
+// Au doigt, la caméra se recadre toute seule derrière la voiture : un second
+// joystick pour l'orienter prenait de la place et de l'attention pour un
+// gain nul. L'objet reste défini pour que updateLook garde une forme unique.
+const lookStick = { x: 0, y: 0 }
 
 // Manette physique, aux commandes de GTA V : stick gauche pour braquer,
 // gâchettes analogiques pour accélérer et freiner, RB frein à main, stick
@@ -1714,15 +2456,69 @@ function axis(value) {
 // L'orientation paysage ne peut être verrouillée qu'en plein écran, et
 // seulement sur les navigateurs mobiles qui l'autorisent. On tente, sans
 // dépendre du résultat : l'invitation à pivoter reste le vrai garde-fou.
+function isFullscreen() {
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement)
+}
+
 async function lockLandscape() {
-  if (!matchMedia('(pointer: coarse)').matches) return
+  if (!COARSE || isFullscreen()) return
+  const root = document.documentElement
+  // Safari n'a jamais adopté la version sans préfixe sur l'élément racine :
+  // sans ce repli, le plein écran ne se déclenchait pas du tout sur iPad.
+  const request = root.requestFullscreen || root.webkitRequestFullscreen
   try {
-    await document.documentElement.requestFullscreen?.()
-    await screen.orientation?.lock?.('landscape')
+    await request?.call(root)
+    // Le verrouillage d'orientation exige le plein écran : inutile d'essayer
+    // si la demande précédente n'a rien donné.
+    if (isFullscreen()) await screen.orientation?.lock?.('landscape')
   } catch {
     // Refusé par le navigateur ou déjà en plein écran : sans conséquence
   }
 }
+
+/* ---------- Installation sur l'écran d'accueil ---------- */
+// Safari n'accorde l'API Fullscreen qu'aux vidéos : sur iPhone, aucun réglage
+// ni aucune astuce ne donnera le plein écran dans l'onglet. La seule voie est
+// l'écran d'accueil — une page lancée de là s'ouvre sans barre d'adresse ni
+// barre d'outils. D'où ce mode d'emploi, proposé en portrait, au moment où le
+// joueur est de toute façon arrêté par l'invitation à tourner l'écran.
+const installBlock = document.querySelector('#install')
+
+// Déjà installé : la page tourne hors du navigateur, il n'y a rien à montrer.
+const standalone =
+  matchMedia('(display-mode: standalone)').matches ||
+  matchMedia('(display-mode: fullscreen)').matches ||
+  navigator.standalone === true
+
+// Le geste diffère d'un système à l'autre, et il n'existe aucun moyen fiable
+// de le deviner autrement que par l'agent utilisateur. Un iPad récent se
+// déclare en Mac : on le reconnaît à son écran tactile.
+function mobileOS() {
+  const ua = navigator.userAgent
+  if (/android/i.test(ua)) return 'android'
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios'
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return 'ios'
+  return null
+}
+
+if (!standalone) {
+  const os = mobileOS()
+  // Sans système identifié, on n'affiche aucun parcours : un mode d'emploi
+  // qui ne correspond à rien est pire que pas de mode d'emploi du tout.
+  if (os) installBlock.dataset.os = os
+}
+
+
+// Le plein écran exige un geste de l'utilisateur, et le navigateur peut
+// refuser le premier. On retente donc au contact suivant avec la scène,
+// jusqu'à l'obtenir — puis l'écouteur se retire de lui-même.
+canvas.addEventListener('pointerdown', function retryLandscape() {
+  if (isFullscreen()) {
+    canvas.removeEventListener('pointerdown', retryLandscape)
+    return
+  }
+  lockLandscape()
+})
 
 /* ---------- Contrôleur de déplacement : Z Q S D ---------- */
 // Approche classique de character controller : une position autoritaire qui
@@ -1732,22 +2528,30 @@ const keys = new Set()
 
 // Dynamique longitudinale : la voiture n'avance que sur son propre axe.
 // Z accélère, S freine puis passe en marche arrière, Q/D braquent.
-const ENGINE_ACCEL = 16    // accélération moteur, u/s²
+const ENGINE_ACCEL = 21    // accélération moteur, u/s²
 const BRAKE_DECEL = 30     // freinage, bien plus mordant que le moteur
-const REVERSE_ACCEL = 8    // marche arrière, plus molle que la marche avant
-const MAX_SPEED = 24       // vitesse de pointe en marche avant
-const MAX_REVERSE = 8      // vitesse de pointe en marche arrière
+const REVERSE_ACCEL = 10   // marche arrière, plus molle que la marche avant
+const MAX_SPEED = 32       // vitesse de pointe en marche avant
+const MAX_REVERSE = 10     // vitesse de pointe en marche arrière
 const DRAG = 0.9           // traînée proportionnelle à la vitesse (aéro)
 const ROLL_RESIST = 2.5    // résistance constante (frein moteur, roulement)
 const STEER_RATE = 2.0     // braquage max, rad/s
-const STEER_SMOOTH = 5.5   // montée et retour au centre du volant
+// Montée et retour au centre du volant. Plus mou au doigt : un pouce n'a ni
+// la précision ni la course d'un clavier, et la même réactivité y donne une
+// voiture qui part au quart de tour.
+const STEER_SMOOTH = COARSE ? 3.6 : 5.5
 const HANDBRAKE_DECEL = 9  // ralentissement roues bloquées
 const HANDBRAKE_GRIP = 0.5 // adhérence latérale frein à main tiré : ça glisse
 const HANDBRAKE_STEER = 1.6// gain de braquage pendant la glissade
 const GRIP_SPEED = 7       // vitesse à partir de laquelle on braque à fond
 
 const FIXED_DT = 1 / 60    // pas de simulation
-const MAX_STEPS = 5        // garde-fou si le rendu décroche
+// Garde-fou contre la spirale : si le rendu décroche, on cesse de rattraper.
+// Mais le plafond doit couvrir la plus longue image qu'on accepte — `delta`
+// est écrêté à 0,1 s dans la boucle, soit six pas. À cinq, une image de
+// 100 ms ne simulait que 83 ms : le jeu tournait au ralenti sur un appareil
+// à 10 images par seconde, et la voiture semblait ne plus répondre.
+const MAX_STEPS = Math.ceil(0.1 / FIXED_DT)
 const SKIN = 0.01          // marge anti-recollage sur les façades
 const MAX_SLIDES = 4       // itérations de glissement par pas
 const RESTITUTION = 0.7    // rebond sur les façades : 0 = on colle, 1 = billard
@@ -1759,7 +2563,10 @@ const MAX_SPIN = 3.5       // embardée max, rad/s
 
 window.addEventListener('keydown', (e) => {
   keys.add(e.code)
-  // Espace et flèches font défiler la page par défaut
+  // Espace et flèches font défiler la page par défaut. Menu ouvert, on les
+  // laisse au navigateur : Espace active le bouton focalisé, et les flèches
+  // servent à naviguer.
+  if (paused) return
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault()
 })
 window.addEventListener('keyup', (e) => keys.delete(e.code))
@@ -2011,10 +2818,61 @@ function moveAndSlide(dt) {
 // que de le téléporter, la voiture fait un bond et survole ce qui la bloque —
 // en l'air, les collisions sont ignorées.
 const STUCK_DELAY = 1.1 // secondes bloqué avant le saut de dégagement
+// Le saut suffit à sortir d'un mur affleurant, pas d'un interstice entre deux
+// bâtiments : on y retombe aussi serré qu'on en est parti. Au-delà de ce
+// nombre de tentatives, on cesse d'insister et on repose la voiture au milieu
+// de la chaussée la plus proche.
+const STUCK_HOPS_BEFORE_RESCUE = 2
 const STUCK_SPEED = 1.5 // en dessous, on considère la voiture immobile
 const HOP_SPEED = 15    // impulsion verticale du saut
 const HOP_PUSH = 11     // poussée horizontale qui accompagne le saut
 let stuckTime = 0
+let stuckHops = 0
+
+// Milieu de la chaussée la plus proche. Les rues courent sur les frontières
+// de blocs, en x comme en z : on ramène donc la coordonnée la plus proche de
+// sa ligne de grille, et on laisse l'autre où elle est — la voiture glisse
+// latéralement jusqu'à l'axe plutôt que d'être expédiée à un croisement.
+function nearestRoadCentre(out) {
+  const gx = Math.round(body.x / CELL) * CELL
+  const gz = Math.round(body.z / CELL) * CELL
+  if (Math.abs(body.x - gx) <= Math.abs(body.z - gz)) out.set(gx, 0, body.z)
+  else out.set(body.x, 0, gz)
+  return out
+}
+
+const _rescue = new THREE.Vector3()
+
+// Dernier recours : la voiture est déposée sur la chaussée, à l'arrêt et
+// tournée dans l'axe de la rue. Ce n'est pas une réapparition — on ne perd ni
+// sa position dans la ville, ni sa partie.
+function rescueToRoad() {
+  nearestRoadCentre(_rescue)
+  body.x = _rescue.x
+  body.z = _rescue.z
+  // Dégagement de sécurité : le milieu de la chaussée est libre par
+  // construction, mais un véhicule de police peut s'y trouver.
+  depenetrate(body)
+  prevBody.copy(body)
+  carPosition.copy(body)
+
+  // Orientation le long de la rue : sur un axe en x, la rue court en z.
+  const alongZ = Math.abs(body.x - Math.round(body.x / CELL) * CELL) < 0.5
+  const facing = alongZ ? (velocity.z < 0 ? Math.PI : 0) : velocity.x < 0 ? -Math.PI / 2 : Math.PI / 2
+  carHeading = facing
+  prevHeading = facing
+
+  velocity.set(0, 0, 0)
+  _lateral.set(0, 0, 0)
+  speed = 0
+  spin = 0
+  airborne = false
+  fallHeight = 0
+  fallSpeed = 0
+  stuckTime = 0
+  stuckHops = 0
+  showNotice('Remise sur la route')
+}
 
 function checkStuck() {
   const pushing = pressed.throttle || pressed.brake
@@ -2022,13 +2880,18 @@ function checkStuck() {
 
   if (!pushing || moving) {
     stuckTime = 0
+    stuckHops = 0
     return
   }
 
   stuckTime += FIXED_DT
   if (stuckTime < STUCK_DELAY) return
 
+  // Le saut n'a rien donné les fois précédentes : on ne s'acharne pas.
+  if (stuckHops >= STUCK_HOPS_BEFORE_RESCUE) return rescueToRoad()
+
   stuckTime = 0
+  stuckHops++
   airborne = true
   fallHeight = 0.01
   fallSpeed = -HOP_SPEED
@@ -2137,7 +3000,7 @@ function step() {
   // La manette donne une consigne continue ; le clavier reste en tout ou rien
   const stickSteer = axis(driveStick.x) || pad.steer
   const steerTarget = stickSteer
-    ? -stickSteer
+    ? -eased
     : (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
   steerInput += (steerTarget - steerInput) * (1 - Math.exp(-STEER_SMOOTH * FIXED_DT))
 
@@ -2301,9 +3164,10 @@ function enterWhiteSpace({ push = true } = {}) {
   yaw = _euler.y
   settings.cameraPitch = THREE.MathUtils.radToDeg(_euler.x)
 
-  // Cadrage d'arrivée : pile dans l'axe de la voiture, vue de l'arrière et
-  // légèrement en plongée. `chase` demande de recalculer la cible à chaque
-  // frame, pour finir exactement derrière elle même si elle a tourné.
+  // Cadrage d'arrivée par défaut : pile dans l'axe de la voiture, vue de
+  // l'arrière et légèrement en plongée. `chase` demande de recalculer la
+  // cible à chaque frame, pour finir exactement derrière elle même si elle a
+  // tourné. aimAtMainMedia() le remplace plus bas, une fois les plans posés.
   framingBlend = { chase: true, pitch: WHITE_EXIT_PITCH, elapsed: 0 }
 
   portal = null
@@ -2342,6 +3206,7 @@ function enterWhiteSpace({ push = true } = {}) {
   titleMesh.visible = true
   titleGround.visible = true
   spawnProjectPlanes(project)
+  aimAtMainMedia()
   placeCta(project)
   placeHole()
   mediaGroup.visible = true
@@ -2367,12 +3232,12 @@ function exitWhiteSpace() {
   wanted = Math.min(MAX_WANTED, wanted + 1)
   updateWantedHud()
   sunLight.color.set(settings.sunColor)
-  hemiLight.color.copy(SKY)
+  hemiLight.color.copy(SKY_LIGHT)
   hemiLight.groundColor.copy(GROUND)
   mediaGroup.visible = false
   titleMesh.visible = false
   titleGround.visible = false
-  ctaMesh.visible = false
+  hideCta()
   holeMesh.visible = false
   whiteGroundHole.value.w = 0 // le sol se referme en quittant l'espace blanc
   canvas.style.cursor = ''
@@ -2621,8 +3486,10 @@ function resize() {
   camera.fov = settings.fov
   camera.updateProjectionMatrix()
   renderer.setSize(w, h)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio))
+  // Le titre est peint à la résolution de l'affichage : changer celle-ci
+  // périme la texture, il faut la repeindre pour qu'elle reste nette.
+  if (whiteSpace && titleProject) setProjectTitle(titleProject)
 }
 window.addEventListener('resize', resize)
 resize()
@@ -2666,12 +3533,56 @@ gui.add(settings, 'fov', 25, 110, 1).name('Champ de vision').onChange(resize)
 gui.add(settings, 'carScale', 0.2, 2, 0.05).name('Taille du véhicule').onChange(applyCarScale)
 gui.add(settings, 'sunHeight', 0, 1, 0.001).name('Hauteur du soleil').onChange(updateSun)
 
+// Les deux postes qui pèsent vraiment, réglables à chaud : on voit tout de
+// suite lequel des deux tient le compteur, ce qu'aucune lecture du code ne
+// dira à ma place.
+const perf = gui.addFolder('Performance')
+perf.add(settings, 'pixelRatio', 0.5, 2, 0.05).name('Densité de pixels').onChange(resize)
+// Le cadrage de la vue projet se juge à l'œil : tout ce qui le compose est
+// réglable à chaud plutôt que figé dans des constantes.
+const projectView = gui.addFolder('Vue projet')
+projectView.add(settings, 'whiteCameraGaze', 0, 40, 0.5).name('Relèvement du regard')
+projectView.add(settings, 'titleHeight', 0.08, 0.4, 0.005).name('Taille du titre')
+projectView.add(settings, 'titleOffset', 0, 0.45, 0.005).name('Remontée du titre')
+projectView.add(settings, 'titleWidth', 0.25, 1, 0.01).name('Largeur max du titre')
+
+let qualityController = null
+qualityController = perf
+  .add(settings, 'quality', 0, QUALITY_LEVELS.length - 1, 1)
+  .name('Palier de qualité')
+  .onChange(applyQuality)
+perf.add(settings, 'qualityAuto').name('Baisse automatique')
+perf.add(settings, 'viewRadius', 1, 5, 1).name('Rayon de ville')
+perf.add(settings, 'maxVideos', 0, 7, 1).name('Vidéos simultanées')
+
+perf.add(settings, 'shadowSize', [1024, 2048, 4096]).name('Netteté des ombres').onChange((v) => {
+  sunLight.shadow.mapSize.set(v, v)
+  // La carte est déjà allouée : il faut la jeter pour que three la recrée à
+  // la nouvelle définition.
+  sunLight.shadow.map?.dispose()
+  sunLight.shadow.map = null
+})
+perf.add(settings, 'shadows').name('Ombres portées').onChange((v) => {
+  renderer.shadowMap.enabled = v
+  // Activer ou couper les ombres change le programme compilé : sans cette
+  // invalidation, la scène garde l'ancien rendu jusqu'au prochain matériau.
+  scene.traverse((o) => {
+    if (o.material) o.material.needsUpdate = true
+  })
+})
+
 const colors = gui.addFolder('Couleurs')
 colors.addColor(settings, 'skyColor').name('Ciel').onChange(() => {
-  // SKY et HORIZON sont référencés par les uniforms, le fog et la lumière
-  // d'ambiance : il suffit de les muter sur place.
+  // SKY et HORIZON sont référencés par les uniforms et le fog : il suffit de
+  // les muter sur place. La lumière d'ambiance, elle, ne les suit plus.
   applySkyColor()
-  hemiLight.color.copy(SKY)
+})
+colors.addColor(settings, 'skyLightColor').name('Lumière du ciel').onChange((v) => {
+  SKY_LIGHT.set(v)
+  hemiLight.color.copy(SKY_LIGHT)
+})
+colors.add(settings, 'showSun').name('Disque solaire').onChange((v) => {
+  skyMaterial.uniforms.uSunGlow.value = v ? 1 : 0
 })
 colors.addColor(settings, 'sunColor').name('Soleil').onChange((v) => {
   SUN.set(v)
@@ -2684,6 +3595,8 @@ colors.addColor(settings, 'buildingColor').name('Immeubles').onChange((v) => {
 })
 colors.addColor(settings, 'roadColor').name('Rues').onChange((v) => roadMaterial.color.set(v))
 colors.addColor(settings, 'sidewalkColor').name('Trottoirs').onChange((v) => sidewalkMaterial.color.set(v))
+colors.addColor(settings, 'lampColor').name('Lampadaires').onChange((v) => lampPostMaterial.color.set(v))
+colors.addColor(settings, 'lampLightColor').name('Lampes').onChange((v) => lampGlassMaterial.emissive.set(v))
 
 // Bouton « copier en JSON » réutilisable : chaque onglet a le sien, sur son
 // propre objet de réglages, avec son propre retour visuel.
@@ -2781,8 +3694,17 @@ const planeShader = {
 const MEDIA_ENTRY_FAR = 45      // multiplicateur de distance au départ
 const MEDIA_ENTRY_TIME = 0.75   // secondes de vol, par plan
 const MEDIA_ENTRY_STAGGER = 0.05 // décalage d'un plan au suivant
-const MEDIA_ARC = THREE.MathUtils.degToRad(165) // ouverture du demi-cercle
-const MEDIA_RINGS = [17, 26, 35] // trois profondeurs, pour dégager la vue
+// Cercle complet : les plans cernent la scène au lieu de la barrer. Le rayon
+// doit englober le trou de sortie, posé à HOLE_DISTANCE derrière la voiture —
+// sous 25 unités (sa distance plus son rayon), la couronne lui passerait au
+// travers. Au-delà, plus la couronne est resserrée, plus les médias sont gros
+// et lisibles à l'écran.
+const MEDIA_ARC = Math.PI * 2
+const MEDIA_RINGS = [25, 31, 37] // trois profondeurs, toutes au-delà du trou
+// Un cercle complet est bien plus long à garnir qu'un arc : en dessous de ce
+// compte, les médias du projet sont repris pour le refermer. Resserrée, la
+// couronne a besoin de moins de plans pour se fermer sans les empiler.
+const MEDIA_MIN_PLANES = 22
 const TITLE_FADE = 0.7          // secondes de fondu du titre, après les plans
 
 const mediaGroup = new THREE.Group()
@@ -2898,9 +3820,13 @@ function layoutMediaPlanes() {
   mediaEntryTotal = (count - 1) * MEDIA_ENTRY_STAGGER + MEDIA_ENTRY_TIME
 
   items.forEach((mesh, i) => {
-    // Demi-cercle ouvert devant la voiture, dans l'axe où elle a débouché
-    const ratio = count > 1 ? i / (count - 1) : 0.5
-    const angle = carHeading - MEDIA_ARC / 2 + ratio * MEDIA_ARC
+    // Cercle refermé : le dernier plan ne doit pas retomber sur le premier,
+    // on divise donc par le compte et non par le compte moins un.
+    const ratio = count ? i / count : 0
+    // Le tour commence dans l'axe de la voiture, et non derrière elle : le
+    // premier plan — le média principal du projet — se retrouve donc pile
+    // devant, et les autres se répartissent de part et d'autre.
+    const angle = carHeading + ratio * MEDIA_ARC
     const radius = MEDIA_RINGS[i % MEDIA_RINGS.length]
 
     mesh.position.set(
@@ -2919,25 +3845,64 @@ function layoutMediaPlanes() {
 }
 
 // Dispersion déterministe : même projet, même constellation de plans.
+const _aimTarget = new THREE.Vector3()
+
+// À l'arrivée, la mire se pose au centre du média principal — celui qui est
+// planté dans l'axe de la voiture. Le calcul part du point visé par la
+// caméra, pas de la caméra elle-même : celle-ci orbite autour de ce point,
+// donc toute direction alignée avec lui l'est aussi avec l'axe de visée. Ça
+// évite d'avoir à résoudre une position qui dépend elle-même de l'angle
+// cherché.
+function aimAtMainMedia() {
+  const hero = mediaGroup.children[0]
+  if (!hero) return
+  // Sa place définitive, pas sa position courante : les plans arrivent encore
+  // en vol, et viser leur point de départ enverrait la caméra à l'opposé.
+  _aimTarget.copy(hero.userData.home || hero.position)
+
+  const dx = _aimTarget.x - carPosition.x
+  const dz = _aimTarget.z - carPosition.z
+  const dy = _aimTarget.y - (city.sidewalkHeight + settings.cameraHeight)
+  const ground = Math.hypot(dx, dz)
+  if (ground < 1e-3) return
+
+  // La caméra regarde selon -Z : le lacet qui pointe vers une direction est
+  // donc celui de son opposé.
+  const yawTo = Math.atan2(-dx, -dz)
+  // Le relèvement de l'espace blanc s'ajoute au tangage au moment du rendu :
+  // on le retranche ici pour que la somme vise juste.
+  const pitchTo =
+    THREE.MathUtils.radToDeg(Math.atan2(dy, ground)) - settings.whiteCameraGaze
+
+  framingBlend = { yaw: yawTo, pitch: pitchTo, elapsed: 0 }
+}
+
 function spawnProjectPlanes(project) {
   clearProjectPlanes()
   mediaAnchor.copy(carPosition)
   mediaEntry = 0
   const files = PROJECT_MEDIA[project.slug] || []
 
-  // La vidéo d'en-tête du projet occupe le premier plan de la constellation.
-  // On repart de l'élément <video> déjà créé pour les panneaux de la ville :
-  // une seule lecture alimente les deux textures.
-  if (project.element) addVideoPlane(project.element)
-
-  // Vidéos supplémentaires du projet, plafonnées pour préserver le framerate
+  // Les vidéos du projet, en version non recadrée — celle du panneau est
+  // rognée au 16:9 et ferait un plan tronqué. On ne réutilise donc plus son
+  // élément ici : chaque monde a son encodage.
+  // Plafonnées en nombre pour préserver le framerate.
   const streams = (PROJECT_STREAMS[project.slug] || []).slice(0, MAX_STREAMS)
   streams.forEach((url, i) => {
     const video = createStreamVideo(url)
-    if (video) addVideoPlane(video, i + 1)
+    if (video) addVideoPlane(video, i)
   })
 
-  files.forEach((url, i) => {
+  // Les médias sont repris autant de fois qu'il le faut pour refermer le
+  // cercle. Chaque fichier n'est chargé qu'une fois : les doublons partagent
+  // la texture, ils ne coûtent qu'un quadrilatère de plus.
+  const wanted = []
+  while (files.length && wanted.length + mediaGroup.children.length < MEDIA_MIN_PLANES) {
+    wanted.push(...files)
+  }
+  const loaded = new Map()
+
+  wanted.forEach((url) => {
     const material = makeMediaMaterial(null)
     const mesh = new THREE.Mesh(mediaGeometry, material)
 
@@ -2945,21 +3910,39 @@ function spawnProjectPlanes(project) {
     mesh.visible = false
     mediaGroup.add(mesh)
 
-    textureLoader.load(asset(url), (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace
+    const apply = (texture) => {
       material.uniforms.uMap.value = texture
       // Proportions réelles du média, une fois connues
       const aspect = texture.image.width / texture.image.height
       mesh.scale.set(MEDIA_HEIGHT * aspect, MEDIA_HEIGHT, 1)
       mesh.visible = true
+      layoutMediaPlanes() // l'échelle a changé : le plan se repose au sol
+    }
+
+    const cached = loaded.get(url)
+    if (cached) {
+      if (cached.texture) apply(cached.texture)
+      else cached.waiting.push(apply)
+      return
+    }
+
+    const entry = { texture: null, waiting: [apply] }
+    loaded.set(url, entry)
+    textureLoader.load(asset(url), (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace
+      entry.texture = texture
+      entry.waiting.forEach((fn) => fn(texture))
+      entry.waiting.length = 0
     })
   })
 
   layoutMediaPlanes()
 }
 
-// Vidéos secondaires : flux HLS Mux, montés à la volée. Safari lit le .m3u8
-// nativement, les autres navigateurs passent par hls.js.
+// Vidéos secondaires du projet. Elles étaient des flux HLS distants servis
+// par Mux ; ce sont désormais des MP4 transcodés par tools/absolu-projects.py
+// et servis avec le jeu. Plus de dépendance réseau tierce, plus de lecteur
+// HLS à embarquer, et un poids qu'on maîtrise puisqu'on encode nous-mêmes.
 const MAX_STREAMS = 3 // décoder plus de flux simultanés fait chuter le framerate
 const activeStreams = []
 
@@ -2968,25 +3951,21 @@ function createStreamVideo(url) {
   video.loop = true
   video.muted = true // sans quoi l'autoplay est refusé
   video.playsInline = true
-  video.crossOrigin = 'anonymous'
-
-  if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = url
-  } else if (Hls.isSupported()) {
-    const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 8 })
-    hls.loadSource(url)
-    hls.attachMedia(video)
-    activeStreams.push(hls) // conservé pour pouvoir détruire le flux à la sortie
-  } else {
-    return null
-  }
-
+  video.preload = 'auto'
+  video.src = asset(url)
+  activeStreams.push(video) // conservé pour pouvoir le libérer à la sortie
   video.play().catch(() => {})
   return video
 }
 
+// À la sortie de l'espace blanc, les éléments sont détachés de leur source :
+// sans cela Chrome garde les tampons de décodage de chaque vidéo visitée.
 function releaseStreams() {
-  activeStreams.forEach((hls) => hls.destroy())
+  activeStreams.forEach((video) => {
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+  })
   activeStreams.length = 0
 }
 
@@ -3009,9 +3988,19 @@ function addVideoPlane(video, index = 0) {
   }
   applyRatio()
   if (!video.videoWidth) video.addEventListener('loadedmetadata', applyRatio, { once: true })
+
+  // Invisible tant que la vidéo n'a pas de quoi peindre — exactement ce que
+  // font déjà les plans images. Sans ça, le plan s'affichait dès sa création
+  // avec une texture vide : un rectangle sans rien dedans, au centre de la
+  // constellation, le temps que les quelques mégaoctets arrivent. C'est le
+  // plan principal qui en souffrait le plus, puisque c'est le plus lourd.
+  mesh.visible = video.readyState >= video.HAVE_CURRENT_DATA
+  if (!mesh.visible) {
+    video.addEventListener('loadeddata', () => (mesh.visible = true), { once: true })
+  }
   mediaGroup.add(mesh)
 
-  video.play().catch(() => {}) // relancée aussi par startPanelVideos
+  video.play().catch(() => {}) // flux de l'espace blanc : géré à part
 }
 
 function clearProjectPlanes() {
@@ -3059,10 +4048,6 @@ function updateMediaPlanes(delta) {
     mesh.position.y =
       mesh.userData.baseY + Math.sin(t + mesh.userData.phase) * planeShader.floatAmplitude
   })
-  if (ctaMesh.visible) {
-    ctaMesh.position.y =
-      ctaMesh.userData.baseY + Math.sin(t * 0.8) * planeShader.floatAmplitude * 1.6
-  }
 }
 
 /* ---------- Onglet Plans ---------- */
@@ -3094,9 +4079,9 @@ gui
 // taille est recalculée en fonction de la distance et du FOV, donc il occupe
 // toujours la même surface d'écran : la perspective ne le déforme pas.
 const TITLE_DISTANCE = 260        // bien au-delà de la constellation de plans
-const TITLE_SCREEN_HEIGHT = 0.28  // part de la hauteur de l'écran occupée
-const TITLE_SCREEN_OFFSET = 0.16  // décalage vertical, en part d'écran
-const TITLE_SCREEN_WIDTH = 0.92   // largeur max : un titre long doit tenir en entier
+// Cadrage du bloc de titre, en parts d'écran. Le plafond de largeur borne le
+// bloc quoi qu'il arrive : un sous-titre long se réduit au lieu de s'étaler,
+// puisque la hauteur suit la largeur à proportions constantes.
 
 const titleMesh = new THREE.Mesh(
   new THREE.PlaneGeometry(1, 1),
@@ -3116,16 +4101,46 @@ scene.add(titleMesh)
 
 let titleAspect = 8
 
-// La composition — logo au-dessus, titre en dessous sur plusieurs lignes —
-// est dessinée dans un canvas 2D. Une seule texture, pas de géométrie de
-// texte ni de dépendance à une police 3D.
-const TITLE_FACE = '700 120px Poppins' // format attendu par document.fonts.load
-const TITLE_FONT = `${TITLE_FACE}, ui-sans-serif, system-ui, sans-serif`
-const TITLE_CANVAS_WIDTH = 1800
-const TITLE_LINE_HEIGHT = 148
-const TITLE_LOGO_HEIGHT = 250 // hauteur du logo, relative au corps du titre
-const TITLE_LOGO_GAP = 70
+// La composition — nom du projet au-dessus, baseline en dessous sur
+// plusieurs lignes — est dessinée dans un canvas 2D. Une seule texture, pas
+// de géométrie de texte ni de dépendance à une police 3D. Le nom remplace le
+// logo de l'ancienne version : les projets Absolu n'en ont pas de détouré.
+// Le nom porte le grand style serif, la baseline le suit en Poppins léger :
+// c'est le nom qu'on doit lire en premier, pas la phrase.
+// Les `*_FACE` servent à document.fonts.load, qui charge la fonte entière
+// quel que soit le corps demandé.
+const NAME_PX = 136
+const SUB_PX = 54
+const NAME_FACE = `400 ${NAME_PX}px 'Instrument Serif'`
+// Graisse allégée : en gras, une phrase longue à ce corps écrasait le nom.
+const TITLE_FACE = `300 ${SUB_PX}px Poppins`
+
+// Métriques de référence. Elles ne décrivent pas des pixels de texture mais
+// des proportions : c'est l'échelle calculée au moment de peindre qui les
+// convertit, voir titlePixelScale.
+const TITLE_WRAP_BASE = 1800 * 0.78 // largeur de retour à la ligne
+const TITLE_LINE_BASE = 74          // interligne de la baseline
+const NAME_BLOCK_BASE = 176         // hauteur réservée au nom, interligne compris
+const TITLE_PAD_BASE = 40
 const TITLE_INK = '#000000'
+
+const nameFontAt = (s) => `400 ${NAME_PX * s}px 'Instrument Serif', Georgia, serif`
+const subFontAt = (s) => `300 ${SUB_PX * s}px Poppins, ui-sans-serif, system-ui, sans-serif`
+
+// Nombre de pixels d'écran que le bloc va réellement couvrir, rapporté à sa
+// largeur de référence. Peindre à cette échelle, c'est obtenir une texture
+// qui n'est ni agrandie ni réduite à l'affichage : le seul cas où un texte
+// reste parfaitement net. Peindre plus gros ne sert à rien — le GPU réduit,
+// et la réduction coûte précisément la finesse qu'on croyait gagner.
+function titlePixelScale(baseWidth) {
+  const heightFraction = Math.min(
+    settings.titleHeight,
+    (settings.titleWidth * camera.aspect) / titleAspect
+  )
+  const screenWidth = (heightFraction * titleAspect) / camera.aspect
+  const target = renderer.domElement.width * screenWidth
+  return THREE.MathUtils.clamp(target / baseWidth, 1, 4)
+}
 
 // Découpe le titre en lignes qui tiennent dans la largeur donnée
 function wrapTitle(ctx, text, maxWidth) {
@@ -3144,71 +4159,74 @@ function wrapTitle(ctx, text, maxWidth) {
   return lines
 }
 
-function drawTitleComposition(text, logo) {
+function drawTitleComposition(name, text) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
 
-  // Première passe : mesurer pour dimensionner le canvas au plus juste
-  canvas.width = TITLE_CANVAS_WIDTH
-  ctx.font = TITLE_FONT
-  const lines = wrapTitle(ctx, text, TITLE_CANVAS_WIDTH * 0.92)
-
-  const logoWidth = logo ? (logo.width / logo.height) * TITLE_LOGO_HEIGHT : 0
-  const logoBlock = logo ? TITLE_LOGO_HEIGHT + TITLE_LOGO_GAP : 0
+  // Première passe au corps de référence : elle donne le découpage en lignes
+  // et les proportions du bloc — les seules choses dont dépend le cadrage.
+  ctx.font = subFontAt(1)
+  const lines = wrapTitle(ctx, text, TITLE_WRAP_BASE)
   const textWidth = Math.max(...lines.map((l) => ctx.measureText(l).width))
+  ctx.font = nameFontAt(1)
+  const nameWidth = name ? ctx.measureText(name).width : 0
 
-  canvas.width = Math.ceil(Math.max(textWidth, logoWidth)) + 40
-  canvas.height = Math.ceil(logoBlock + lines.length * TITLE_LINE_HEIGHT)
+  const baseWidth = Math.ceil(Math.max(textWidth, nameWidth)) + TITLE_PAD_BASE
+  const baseBlock = name ? NAME_BLOCK_BASE : 0
+  const baseHeight = Math.ceil(baseBlock + lines.length * TITLE_LINE_BASE)
+  titleAspect = baseWidth / baseHeight
+
+  // Seconde passe à la résolution d'affichage, maintenant que les proportions
+  // sont connues — et elles ne dépendent pas de l'échelle.
+  const scale = titlePixelScale(baseWidth)
+  canvas.width = Math.ceil(baseWidth * scale)
+  canvas.height = Math.ceil(baseHeight * scale)
 
   // Redimensionner le canvas réinitialise le contexte : tout est à refaire
-  ctx.font = TITLE_FONT
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = TITLE_INK
   ctx.globalAlpha = 1
 
   const center = canvas.width / 2
-  if (logo) {
-    const x = center - logoWidth / 2
-    ctx.drawImage(logo, x, 0, logoWidth, TITLE_LOGO_HEIGHT)
-    // Le logo est aplati en noir : on peint un rectangle noir en ne gardant
-    // que les pixels déjà opaques, ce qui revient à encrer sa silhouette.
-    ctx.globalCompositeOperation = 'source-atop'
-    ctx.fillRect(x, 0, logoWidth, TITLE_LOGO_HEIGHT)
-    ctx.globalCompositeOperation = 'source-over'
+  if (name) {
+    ctx.font = nameFontAt(scale)
+    ctx.fillText(name, center, (NAME_BLOCK_BASE * scale) / 2)
   }
 
+  ctx.font = subFontAt(scale)
   lines.forEach((line, i) => {
-    ctx.fillText(line, center, logoBlock + (i + 0.5) * TITLE_LINE_HEIGHT)
+    ctx.fillText(line, center, (baseBlock + (i + 0.5) * TITLE_LINE_BASE) * scale)
   })
 
-  titleAspect = canvas.width / canvas.height
   titleMesh.material.map?.dispose()
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
+  // Ni mipmaps ni filtrage adouci : la texture fait déjà la taille de son
+  // affichage, il n'y a donc rien à réduire. Une pyramide de mipmaps ferait
+  // ici l'inverse de ce qu'on attend d'elle — le GPU basculerait vers un
+  // niveau deux fois plus grossier et rendrait le texte pâteux.
   texture.minFilter = THREE.LinearFilter
+  texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
   titleMesh.material.map = texture
   titleMesh.material.needsUpdate = true
 }
 
+let titleProject = null
+
 function setProjectTitle(project) {
-  const logoUrl = PROJECT_LOGOS[project.slug]
+  titleProject = project
+  // Les polices arrivent de façon asynchrone : on compose une première fois
+  // avec ce qu'on a — quitte à mesurer sur la fonte de repli — puis on
+  // recompose dès qu'elles sont disponibles.
+  const render = () => drawTitleComposition(project.name, project.title)
+  render()
 
-  // La police et le logo arrivent de façon asynchrone : on compose une
-  // première fois avec ce qu'on a, puis on recompose dès qu'ils sont prêts.
-  const render = (logo) => drawTitleComposition(project.title, logo)
-  render(null)
-
-  const ready = document.fonts ? document.fonts.load(TITLE_FACE) : Promise.resolve()
-  if (!logoUrl) {
-    ready.then(() => render(null))
-    return
-  }
-
-  const image = new Image()
-  image.onload = () => ready.then(() => render(image))
-  image.src = asset(logoUrl)
+  if (!document.fonts) return
+  Promise.all([document.fonts.load(TITLE_FACE), document.fonts.load(NAME_FACE)])
+    .then(render)
+    .catch(() => {})
 }
 
 // Projection au sol : le même titre, peint sur le plancher, exactement dans
@@ -3284,19 +4302,19 @@ function updateProjectTitle(delta) {
   // Hauteur d'écran visée, mais rabotée si le titre déborde en largeur :
   // les phrases longues étaient coupées à gauche et à droite.
   const heightFraction = Math.min(
-    TITLE_SCREEN_HEIGHT,
-    (TITLE_SCREEN_WIDTH * camera.aspect) / titleAspect
+    settings.titleHeight,
+    (settings.titleWidth * camera.aspect) / titleAspect
   )
   const height = viewHeight * heightFraction
   titleMesh.scale.set(height * titleAspect, height, 1)
   // Décalage appliqué dans le repère de la caméra, pour rester à la même
   // hauteur d'écran quelle que soit l'inclinaison
-  titleMesh.translateY(viewHeight * TITLE_SCREEN_OFFSET)
+  titleMesh.translateY(viewHeight * settings.titleOffset)
 
   // Le rectangle occupé à l'écran est constant : il découle directement des
   // fractions choisies, pas d'une reprojection.
   const uniforms = titleGroundMaterial.uniforms
-  uniforms.uCenter.value.set(0, 2 * TITLE_SCREEN_OFFSET)
+  uniforms.uCenter.value.set(0, 2 * settings.titleOffset)
   uniforms.uSize.value.set((2 * heightFraction * titleAspect) / camera.aspect, 2 * heightFraction)
   uniforms.uMap.value = titleMesh.material.map
   // gl_FragCoord est en pixels physiques : la résolution doit l'être aussi.
@@ -3310,111 +4328,39 @@ function updateProjectTitle(delta) {
 // Dalle peinte sur le sol de l'espace blanc : rouler dessus ouvre la page du
 // projet. C'est une navigation dans le même onglet, donc elle n'est pas
 // bloquée comme le serait une popup déclenchée hors interaction utilisateur.
-const CTA_COLOR = '#F26749'
 const CTA_LABEL = 'Voir le projet'
-// Placé au-delà de la constellation de plans, donc agrandi pour rester lisible
-const CTA_WIDTH = 30          // unités monde
-const CTA_HEIGHT = 9.4
-const CTA_DISTANCE = 115      // devant la voiture, dans son axe d'arrivée
-const CTA_FLOAT = 6           // hauteur de flottaison du bas de la dalle
+const BACK_LABEL = 'Retour en ville'
 
-function makeCtaTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 1024
-  canvas.height = 320
-  const ctx = canvas.getContext('2d')
-
-  const radius = 60
-  ctx.fillStyle = CTA_COLOR
-  ctx.beginPath()
-  ctx.roundRect(0, 0, canvas.width, canvas.height, radius)
-  ctx.fill()
-
-  ctx.fillStyle = '#ffffff'
-  ctx.font = '700 104px Poppins, ui-sans-serif, system-ui, sans-serif'
-  ctx.textBaseline = 'middle'
-
-  // Libellé et icône sont centrés ensemble : on mesure d'abord le bloc entier
-  const icon = 78
-  const gap = 34
-  const textWidth = ctx.measureText(CTA_LABEL).width
-  const startX = (canvas.width - (textWidth + gap + icon)) / 2
-  const middle = canvas.height / 2
-
-  ctx.textAlign = 'left'
-  ctx.fillText(CTA_LABEL, startX, middle + 6)
-
-  // Icône "lien externe" : un cadre ouvert et une flèche sortante
-  const ix = startX + textWidth + gap
-  const iy = middle - icon / 2
-  ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = 9
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.beginPath()
-  ctx.moveTo(ix + icon * 0.58, iy + icon * 0.06)
-  ctx.lineTo(ix + icon * 0.06, iy + icon * 0.06)
-  ctx.lineTo(ix + icon * 0.06, iy + icon * 0.94)
-  ctx.lineTo(ix + icon * 0.94, iy + icon * 0.94)
-  ctx.lineTo(ix + icon * 0.94, iy + icon * 0.42)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(ix + icon * 0.44, iy + icon * 0.56)
-  ctx.lineTo(ix + icon * 0.96, iy + icon * 0.04)
-  ctx.moveTo(ix + icon * 0.62, iy + icon * 0.04)
-  ctx.lineTo(ix + icon * 0.96, iy + icon * 0.04)
-  ctx.lineTo(ix + icon * 0.96, iy + icon * 0.38)
-  ctx.stroke()
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.minFilter = THREE.LinearFilter
-  texture.generateMipmaps = false
-  return texture
-}
-
-const ctaMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(CTA_WIDTH, CTA_HEIGHT),
-  new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, depthWrite: false })
-)
-ctaMesh.visible = false
-// Les plans médias ont depthWrite:false et ne peuvent pas masquer le CTA par
-// le depth buffer : c'est l'ordre de rendu qui le renvoie à l'arrière-plan.
-ctaMesh.renderOrder = -1
-scene.add(ctaMesh)
+// Les deux appels à l'action étaient des dalles peintes dans la scène, à
+// viser au réticule. Ils sont désormais de vrais boutons HTML posés en bas à
+// droite : lisibles d'emblée quelle que soit la taille d'écran, cliquables
+// au doigt, et sans la gymnastique de cadrage qu'imposait leur ancienne
+// présence dans le flux 3D.
+const projectActions = document.querySelector('#project-actions')
+const projectOpen = document.querySelector('#project-open')
+const projectBack = document.querySelector('#project-back')
 
 let ctaUrl = null
 
 function placeCta(project) {
-  if (!ctaMesh.material.map) {
-    // La police doit être chargée avant de peindre le libellé
-    const paint = () => (ctaMesh.material.map = makeCtaTexture())
-    paint()
-    document.fonts?.load('700 104px Poppins').then(() => {
-      ctaMesh.material.map?.dispose()
-      paint()
-      ctaMesh.material.needsUpdate = true
-    })
-  }
-
-  // Flottant dans l'axe d'arrivée de la voiture, comme les plans médias
-  const x = carPosition.x + Math.sin(carHeading) * CTA_DISTANCE
-  const z = carPosition.z + Math.cos(carHeading) * CTA_DISTANCE
-  ctaMesh.position.set(x, CAR_GROUND + CTA_FLOAT + CTA_HEIGHT / 2, z)
-  ctaMesh.lookAt(carPosition.x, ctaMesh.position.y, carPosition.z)
-  ctaMesh.userData.baseY = ctaMesh.position.y
-  ctaMesh.visible = true
-
   ctaUrl = project.url
+  projectActions.classList.add('is-visible')
 }
+
+function hideCta() {
+  projectActions.classList.remove('is-visible')
+}
+
+projectOpen.addEventListener('click', () => openExternal(ctaUrl))
+projectBack.addEventListener('click', () => returnToCity())
 
 
 /* ---------- Trou dans le sol ---------- */
 // Sortie de l'espace blanc : un puits creusé dans le sol blanc, dont le fond
 // laisse voir la ville vue du ciel. Y conduire la voiture la fait tomber.
-const HOLE_RADIUS = 7
+const HOLE_RADIUS = 3.4
 const HOLE_DEPTH = 30
-const HOLE_DISTANCE = 34 // derrière la voiture : il faut faire demi-tour
+const HOLE_DISTANCE = 15 // derrière la voiture : il faut faire demi-tour
 
 // Résolution volontairement basse : l'image est vue au fond d'un puits, la
 // différence ne se voit pas et la passe coûte deux fois moins.
@@ -3469,7 +4415,7 @@ function renderCityWindow() {
   if (!holeMesh.visible) return
   if (cityViewFrame++ % CITY_VIEW_EVERY !== 0) return
 
-  const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, ctaMesh, holeMesh, carGroup]
+  const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, holeMesh, carGroup]
   hidden.forEach((o) => (o.visible = false))
   world.visible = true
   sky.visible = true
@@ -3518,6 +4464,44 @@ const HOLE_GRAVITY = 26
 const HOLE_TUMBLE = 1.6 // basculement vers l'avant, rad/s
 let falling = null
 
+// Retour en ville depuis le bouton : une coupure franche, sans mise en scène.
+// Le puits garde la sienne — on y entre en roulant, la chute raconte quelque
+// chose ; cliquer un bouton, non.
+const WIPE_FADE = 300 // millisecondes, à garder en phase avec la feuille de style
+const wipeElement = document.querySelector('#wipe')
+let wiping = false
+
+function returnToCity() {
+  if (wiping || falling) return
+  wiping = true
+  wipeElement.classList.add('is-visible')
+
+  setTimeout(() => {
+    respawn()
+    // Pas de chute depuis le ciel ici : le blanc doit se retirer sur une
+    // voiture déjà posée, pas sur une voiture en vol.
+    fallHeight = 0
+    fallSpeed = 0
+    airborne = false
+    // Sauter la chute, c'est aussi sauter le dégagement que fait
+    // l'atterrissage : sans lui, rien ne garantit que le point de réapparition
+    // ne tombe pas dans une façade.
+    depenetrate(body)
+    carPosition.copy(body)
+    prevBody.copy(body)
+    carGroup.position.set(carPosition.x, CAR_GROUND, carPosition.z)
+
+    // Deux images d'attente : la première bâtit les chunks du nouveau point
+    // de chute, la seconde les rend. Découvrir avant, c'est découvrir du vide.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        wipeElement.classList.remove('is-visible')
+        wiping = false
+      })
+    )
+  }, WIPE_FADE)
+}
+
 function startFalling() {
   if (falling) return
   falling = { y: CAR_GROUND, speed: 2, tilt: 0 }
@@ -3559,14 +4543,12 @@ function updateHole() {
 // Approcher le réticule d'une cible suffit : la caméra termine l'alignement
 // toute seule et la cible devient activable. Viser au pixel près en roulant
 // serait pénible.
-const MAGNET_RADIUS = 0.34   // rayon d'accroche, en coordonnées écran (NDC)
-const MAGNET_PULL = 3.4      // vitesse d'alignement
 
 // En ville, l'aimant vise les panneaux franchissables. Il est volontairement
 // plus étroit et plus mou : il doit aider à cadrer un panneau repéré, jamais
 // contrarier une manœuvre ou une esquive.
 const CITY_MAGNET_RADIUS = 0.26 // rayon d'accroche à l'écran
-const CITY_MAGNET_PULL = 2.2    // attraction, plus douce qu'en espace blanc
+const CITY_MAGNET_PULL = 2.2    // attraction, volontairement douce
 const CITY_MAGNET_MIN = 14      // trop près : on n'a plus le temps de se placer
 const CITY_MAGNET_MAX = 70      // trop loin : le panneau n'est pas encore un objectif
 const CITY_MAGNET_STEER = 0.55  // au-delà, le joueur manœuvre : on le laisse tranquille
@@ -3612,33 +4594,29 @@ function nearbyPortals() {
   return found
 }
 
+// L'aimant ne sert plus qu'en ville, pour aider à cadrer un panneau avant de
+// foncer dedans. Dans l'espace blanc il visait les deux appels à l'action,
+// devenus des boutons HTML : il n'a plus rien à viser, et le regard y est
+// entièrement rendu au joueur.
 function updateMagnet(delta) {
   magnetTarget = null
-  if (portal || gameOver || falling || paused) return
+  if (portal || gameOver || falling || paused || whiteSpace) return
 
-  let best = null
-  let pull = MAGNET_PULL
-
-  if (whiteSpace) {
-    const targets = interactiveTargets()
-    if (!targets.length) return
-    best = screenClosest(targets, MAGNET_RADIUS, (t, out) => t.getWorldPosition(out))
-    if (best) magnetTarget = best.candidate
-  } else {
-    // Une manœuvre en cours prime sur l'aide au cadrage
-    if (Math.abs(steerInput) > CITY_MAGNET_STEER) return
-    best = screenClosest(nearbyPortals(), CITY_MAGNET_RADIUS, (p, out) =>
-      out.set(p.x, city.sidewalkHeight + p.y, p.z)
-    )
-    pull = CITY_MAGNET_PULL
-  }
+  // Une manœuvre en cours prime sur l'aide au cadrage
+  if (Math.abs(steerInput) > CITY_MAGNET_STEER) return
+  const best = screenClosest(nearbyPortals(), CITY_MAGNET_RADIUS, (p, out) =>
+    out.set(p.x, city.sidewalkHeight + p.y, p.z)
+  )
   if (!best) return
 
-  const radius = whiteSpace ? MAGNET_RADIUS : CITY_MAGNET_RADIUS
+  const pull = CITY_MAGNET_PULL
+  const reach = CITY_MAGNET_RADIUS
 
   // Attraction proportionnelle à la proximité : franche au centre, douce au
-  // bord, pour qu'on puisse encore balayer la scène sans être happé.
-  const strength = (1 - best.distance / radius) * pull
+  // bord, pour qu'on puisse encore balayer la scène sans être happé. Le rayon
+  // est celui qui a servi à retenir la cible — s'en écarter rendrait la
+  // force négative, donc répulsive, dès qu'on dépasse le rayon d'accroche.
+  const strength = (1 - best.distance / reach) * pull
   const k = 1 - Math.exp(-strength * delta)
 
   // L'écart écran est converti en angles : la moitié du champ vertical vaut
@@ -3647,9 +4625,8 @@ function updateMagnet(delta) {
   yaw -= best.x * Math.atan(Math.tan(halfFov) * camera.aspect) * k
   settings.cameraPitch += THREE.MathUtils.radToDeg(best.y * halfFov) * k
 
-  // En ville, le retour derrière la voiture reste prioritaire : l'aimant ne
-  // fait que ralentir le recentrage, il ne le bloque pas.
-  if (whiteSpace) lookIdle = 0
+  // Le retour derrière la voiture reste prioritaire : l'aimant ne fait que
+  // ralentir le recentrage, il ne le bloque pas.
   pitchController?.updateDisplay()
   applyCameraOrientation()
 }
@@ -3664,16 +4641,15 @@ const reticleLabel = document.querySelector('#reticle-label')
 
 // Seul l'espace blanc propose des cibles : en ville, on franchit un panneau
 // en roulant dedans, il n'y a rien à valider.
+// Le trou de sortie est désormais la seule cible de la scène : les appels à
+// l'action sont sortis du flux 3D.
 function interactiveTargets() {
-  if (!whiteSpace) return []
-  const targets = []
-  if (ctaMesh.visible) targets.push(ctaMesh)
-  if (holeMesh.visible) targets.push(holeMesh)
-  return targets
+  if (!whiteSpace || !holeMesh.visible) return []
+  return [holeMesh]
 }
 
-function labelFor(target) {
-  return target === ctaMesh ? 'Voir le projet' : 'Retour en ville'
+function labelFor() {
+  return BACK_LABEL
 }
 
 function pickAt(ndcX, ndcY) {
@@ -3692,8 +4668,7 @@ function pickAt(ndcX, ndcY) {
 }
 
 function activate(target) {
-  if (target === ctaMesh) window.open(ctaUrl, '_blank', 'noopener')
-  else if (target === holeMesh) startFalling()
+  if (target === holeMesh) startFalling()
 }
 
 // Cible sous le réticule, réévaluée à chaque frame
@@ -3714,6 +4689,7 @@ function updateReticle() {
 // Entrée au clavier, A / ✕ à la manette
 function validate() {
   if (confirmOpen) return contactAgency() // Entrée valide la confirmation
+  if (paused) return // menu ouvert : Entrée revient au bouton focalisé
   // Le téléphone prime : quand il a le focus, c'est lui qu'on valide
   if (phoneGroup.visible && (phoneHovered || phonePinned)) askContact()
   else if (aimed) activate(aimed)
@@ -3866,16 +4842,16 @@ function updatePortalVisual() {
   // Le tunnel s'installe avec l'agrandissement, puis reste à fond
   portalFrontMaterial.uniforms.uWarp.value = t
 
-  // Logo : ses proportions sont exprimées dans le repère local du panneau,
+  // Libellé : ses proportions sont exprimées dans le repère local du panneau,
   // dont les deux axes sont mis à l'échelle différemment.
-  const logo = projectLogo(b.project)
-  portalLogo.material.map = logo.material.map
-  // Il s'efface au rythme du masque : le logo disparaît avec le média qu'il
+  const label = projectLabel(b.project)
+  portalLogo.material.map = label.material.map
+  // Il s'efface au rythme du masque : le nom disparaît avec le média qu'il
   // accompagne, au lieu de flotter seul sur le blanc.
   portalLogo.material.opacity = 1 - ease.outExpo(portal.mask)
-  portalLogo.visible = Boolean(logo.material.map) && portalLogo.material.opacity > 0.01
+  portalLogo.visible = Boolean(label.material.map) && portalLogo.material.opacity > 0.01
   const localW = LOGO_WIDTH
-  const localH = (localW * b.w) / (logo.aspect * b.h)
+  const localH = (localW * b.w) / (label.aspect * b.h)
   portalLogo.scale.set(localW, localH, 1)
   portalLogo.position.y = -0.5 + localH / 2 + LOGO_MARGIN
 
@@ -3951,12 +4927,14 @@ camera.add(phoneGroup)
 // depthTest désactivé et renderOrder élevé : c'est un élément d'interface,
 // il ne doit jamais être mangé par un immeuble au premier plan.
 const phoneMaterial = new THREE.MeshStandardMaterial({
-  color: 0x39445c,
+  color: 0x1e1e1e, // le noir de la charte
+  transparent: true, // pour passer dans la même passe que le halo, voir plus bas
   roughness: 0.5,
   metalness: 0.1,
   // Un fond d'émission garantit qu'il reste lisible même si le soleil est
   // rasant ou dans son dos : c'est une interface, pas un objet de la scène.
-  emissive: 0x263149,
+  // Sur une coque noire il doit rester très sourd, sinon elle vire au gris.
+  emissive: 0x141414,
   emissiveIntensity: 1,
   depthTest: false,
 })
@@ -3973,9 +4951,12 @@ phoneLight.position.set(-0.45, 0.25, -0.55)
 // qu'au focus — le tout redessiné dans le même canvas, c'est plus fidèle
 // qu'une étiquette HTML posée par-dessus.
 const SCREEN_BG = '#ffffff'
-const SCREEN_BLUE = '#2970f4' // bleu de l'agence : fond de l'icône et du label
-const SCREEN_CORAL = '#f26749'
-const PHONE_MESSAGE = ['pour contacter', "l'agence"] // sous « Appuie sur … »
+const SCREEN_BLUE = '#3e78ff' // bleu de l'agence : fond de l'icône et du label
+const SCREEN_ACCENT = '#f2ff28' // jaune de charte : le fond du bouton
+const SCREEN_INK = '#1e1e1e' // encre du bouton jaune, le blanc s'y perdrait
+const SCREEN_MUTED = '#929292'
+const PHONE_HINT = 'Appuyez sur Entrée'
+const PHONE_CTA = "Contacter l'agence"
 // Bouton de validation de la manette (A, ✕) quand c'est elle qui sert ;
 // null au clavier, où la pastille porte la flèche de la touche Entrée
 let phoneScreenPadKey = null
@@ -4003,14 +4984,12 @@ function drawPhoneScreen(focused) {
   ctx.fillStyle = SCREEN_BG
   ctx.fillRect(0, 0, width, height)
 
-  // Bandeau d'appel à l'action : sa hauteur découle de son contenu, et
-  // l'icône se cale au-dessus. Sans ce calcul, la dernière ligne de texte
-  // débordait du bloc bleu.
-  const KEY = 46
-  const LINE = 26
-  const PAD = 16
-  const message = [`Appuie sur ${phoneScreenPadKey ?? 'entrée'}`, ...PHONE_MESSAGE]
-  const bandH = PAD + KEY + 18 + message.length * LINE + PAD
+  // Appel à l'action : le bouton de la charte, repris au format de l'écran.
+  // Sa hauteur est fixe, le rappel de raccourci se cale juste au-dessus.
+  const BTN_H = 54
+  const BTN_MARGIN = 20
+  const HINT_GAP = 26
+  const bandH = HINT_GAP + BTN_H
   const bandY = height - 22 - bandH
 
   // Icône de messagerie : enveloppe blanche sur une tuile bleue
@@ -4040,45 +5019,50 @@ function drawPhoneScreen(focused) {
     return
   }
 
-  ctx.fillStyle = SCREEN_BLUE
-  roundedRect(ctx, 20, bandY, width - 40, bandH, 20)
-  ctx.fill()
-
-  // Pastille corail : flèche de retour à la ligne pour la touche Entrée,
-  // nom du bouton à la manette
-  const key = KEY
-  const keyX = (width - key) / 2
-  const keyY = bandY + PAD
-  ctx.fillStyle = SCREEN_CORAL
-  roundedRect(ctx, keyX, keyY, key, key, 12)
-  ctx.fill()
-
+  // Rappel du raccourci, au-dessus du bouton
+  ctx.fillStyle = SCREEN_MUTED
+  ctx.font = '400 17px Poppins, ui-sans-serif, system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  if (phoneScreenPadKey) {
-    ctx.fillStyle = SCREEN_BG
-    ctx.font = "700 26px Poppins, ui-sans-serif, system-ui, sans-serif"
-    ctx.fillText(phoneScreenPadKey, keyX + key / 2, keyY + key / 2 + 1)
-  } else {
-    ctx.strokeStyle = SCREEN_BG
-    ctx.lineWidth = 5
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(keyX + 34, keyY + 14) // barre haute
-    ctx.lineTo(keyX + 34, keyY + 27)
-    ctx.lineTo(keyX + 14, keyY + 27) // retour vers la gauche
-    ctx.moveTo(keyX + 21, keyY + 20) // pointe de la flèche
-    ctx.lineTo(keyX + 13, keyY + 27)
-    ctx.lineTo(keyX + 21, keyY + 34)
-    ctx.stroke()
-  }
+  ctx.fillText(PHONE_HINT, width / 2, bandY + HINT_GAP / 2)
 
-  ctx.fillStyle = SCREEN_BG
-  ctx.font = "700 21px Poppins, ui-sans-serif, system-ui, sans-serif"
-  const textTop = keyY + key + 18 + LINE / 2
-  message.forEach((line, i) => {
-    ctx.fillText(line, width / 2, textTop + i * LINE)
-  })
+  // Le bouton de la charte : pastille jaune, libellé noir à gauche, carré
+  // d'icône sombre à droite portant la flèche nord-est.
+  const btnY = bandY + HINT_GAP
+  const btnX = BTN_MARGIN
+  const btnW = width - BTN_MARGIN * 2
+  ctx.fillStyle = SCREEN_ACCENT
+  roundedRect(ctx, btnX, btnY, btnW, BTN_H, 10)
+  ctx.fill()
+
+  const pad = 5
+  const square = BTN_H - pad * 2
+  const squareX = btnX + btnW - pad - square
+  ctx.fillStyle = SCREEN_INK
+  roundedRect(ctx, squareX, btnY + pad, square, square, 8)
+  ctx.fill()
+
+  ctx.fillStyle = SCREEN_INK
+  ctx.font = '400 19px Poppins, ui-sans-serif, system-ui, sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText(PHONE_CTA, btnX + 16, btnY + BTN_H / 2)
+
+  // Flèche nord-est, tracée au trait : même signe que le carré d'icône des
+  // boutons de l'interface, à la taille où un glyphe serait illisible.
+  const a = square * 0.3 // demi-longueur de la diagonale
+  const cx = squareX + square / 2
+  const cy = btnY + pad + square / 2
+  ctx.strokeStyle = SCREEN_BG
+  ctx.lineWidth = 3
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(cx - a, cy + a)
+  ctx.lineTo(cx + a, cy - a)
+  ctx.moveTo(cx - a * 0.1, cy - a) // barbes de la pointe
+  ctx.lineTo(cx + a, cy - a)
+  ctx.lineTo(cx + a, cy + a * 0.1)
+  ctx.stroke()
 
   phoneScreenTexture.needsUpdate = true
 }
@@ -4096,9 +5080,10 @@ function makeHaloTexture() {
   canvas.width = canvas.height = 256
   const ctx = canvas.getContext('2d')
   const gradient = ctx.createRadialGradient(128, 128, 20, 128, 128, 128)
-  gradient.addColorStop(0, 'rgba(41, 112, 244, 0.55)')
-  gradient.addColorStop(0.55, 'rgba(41, 112, 244, 0.22)')
-  gradient.addColorStop(1, 'rgba(41, 112, 244, 0)')
+  // Bleu de la charte, le même que l'icône de messagerie de l'écran
+  gradient.addColorStop(0, 'rgba(62, 120, 255, 0.55)')
+  gradient.addColorStop(0.55, 'rgba(62, 120, 255, 0.22)')
+  gradient.addColorStop(1, 'rgba(62, 120, 255, 0)')
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, 256, 256)
   const texture = new THREE.CanvasTexture(canvas)
@@ -4122,7 +5107,12 @@ phoneHalo.visible = false
 
 const phoneScreen = new THREE.Mesh(
   new THREE.PlaneGeometry(1, 1),
-  new THREE.MeshBasicMaterial({ map: phoneScreenTexture, depthTest: false, toneMapped: false })
+  new THREE.MeshBasicMaterial({
+    map: phoneScreenTexture,
+    transparent: true,
+    depthTest: false,
+    toneMapped: false,
+  })
 )
 phoneScreen.renderOrder = 22
 
@@ -4131,7 +5121,12 @@ phoneScreen.renderOrder = 22
 // les bords d'un écran LCD éclairé par l'arrière.
 const phoneBacklight = new THREE.Mesh(
   new THREE.PlaneGeometry(1, 1),
-  new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, toneMapped: false })
+  new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    depthTest: false,
+    toneMapped: false,
+  })
 )
 phoneBacklight.renderOrder = 21
 phoneGroup.add(phoneHalo)
@@ -4141,19 +5136,21 @@ phoneGroup.add(phoneLight)
 
 // Touches : le modèle porte un matériau nommé "keypad" sur les douze touches,
 // ce qui permet de les rétro-éclairer sans les identifier une à une.
+// Clavier : les seules touches claires de la coque noire, à peine allumées
 const keypadMaterial = new THREE.MeshStandardMaterial({
-  color: 0xbfe4ff,
-  emissive: 0x2f8ff5,
-  emissiveIntensity: 1.6,
+  color: 0x5e5e5e,
+  transparent: true,
+  emissive: 0x272727,
+  emissiveIntensity: 1.4,
   roughness: 0.4,
   depthTest: false,
 })
 
-new OBJLoader().load(asset('models/nokia-3310.obj'), (object) => {
+new OBJLoader(loadingManager).load(asset('models/nokia-3310.obj'), (object) => {
   object.traverse((o) => {
     if (!o.isMesh) return
     o.material = o.material?.name === 'keypad' ? keypadMaterial : phoneMaterial
-    o.renderOrder = 21
+    o.renderOrder = 20
     o.layers.enable(PHONE_LAYER) // reste sur la couche 0 : la caméra le voit
   })
 
@@ -4178,7 +5175,9 @@ new OBJLoader().load(asset('models/nokia-3310.obj'), (object) => {
   phoneBacklight.scale.set(screenWidth * 1.06, screenHeight * 1.05, 1)
   phoneBacklight.position.copy(phoneScreen.position).setZ(phoneScreen.position.z - 0.001)
   phoneHalo.userData.size = Math.max(width, height) * 1.9
-  phoneHalo.position.set(0, 0, -0.02) // derrière la coque
+  // Derrière la face arrière, pas à l'intérieur du boîtier : le décalage se
+  // déduit de l'épaisseur réelle du modèle une fois mis à l'échelle.
+  phoneHalo.position.set(0, 0, -(size.z * scale) / 2 - 0.02)
 })
 
 /* ---------- Focus du téléphone ---------- */
@@ -4207,11 +5206,23 @@ canvas.addEventListener('pointermove', (event) => {
 })
 
 const phoneHint = document.querySelector('#phone-hint')
-const phoneHintLabel = phoneHint.querySelector('span')
+const phoneHintLabel = phoneHint.querySelector('.hint-label')
+const phoneContactHint = phoneHint.querySelector('.hint--contact')
 
-// « Masquer » le remet en fond perdu, « afficher » le fait remonter :
-// l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
-function togglePhone() {
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Tab' || paused) return // menu ouvert : Tab navigue
+  event.preventDefault() // sinon le focus part dans le panneau de réglages
+
+  // Écran de capture : le téléphone n'y est même pas affiché, intercepter Tab
+  // pour une bascule invisible revenait à confisquer la touche. Elle passe
+  // d'un bouton à l'autre — on garde la main plutôt que de rendre la
+  // tabulation native, qui irait se perdre dans le panneau de réglages.
+  if (gameOver) {
+    moveFocus(gameOverElement, event.shiftKey ? -1 : 1)
+    return
+  }
+  // « Masquer » le remet en fond perdu, « afficher » le fait remonter :
+  // l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
   phonePinned = !phonePinned
   phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
 }
@@ -4224,7 +5235,7 @@ window.addEventListener('keydown', (event) => {
 
 // Adresse encodée : elle n'apparaît pas en clair dans le bundle, ce qui
 // suffit à décourager les robots qui moissonnent les sources.
-const CONTACT = 'bmV3Yml6QGxtd3IuZnI='
+const CONTACT = 'bmV3Yml6QGFnZW5jZS1hYnNvbHUuY29t'
 
 // Quitter la page pour le client mail est brutal : on demande confirmation
 // avant, et le jeu est mis en pause le temps de la décision.
@@ -4244,15 +5255,33 @@ function closeContact() {
   paused = false
 }
 
+// Navigation directe plutôt qu'un clic sur un lien détaché du document :
+// celui-ci était ignoré par certains navigateurs, la page n'ayant jamais vu
+// l'élément. Déclenchée depuis un vrai clic, elle passe sans blocage.
+function openMailTo() {
+  const subject = encodeURIComponent('Brand Theft Auto')
+  window.location.href = `mailto:${atob(CONTACT)}?subject=${subject}`
+}
+
+// Lancée depuis l'écran d'accueil, l'application n'a plus de barre d'adresse :
+// une page ouverte en son sein y resterait prisonnière, sans moyen d'en
+// revenir. Un vrai lien cliqué ouvre le navigateur par défaut, là où
+// window.open se contente d'une vue intégrée — ou de rien du tout.
+function openExternal(url) {
+  const link = document.createElement('a')
+  link.href = url
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  // Safari ignore un clic sur un élément qu'il n'a jamais vu dans le document
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
 function contactAgency() {
   closeContact()
   openSplash() // on revient sur l'écran de pause, le jeu reprend d'un clic
-
-  // Navigation directe plutôt qu'un clic sur un lien détaché du document :
-  // celui-ci était ignoré par certains navigateurs, la page n'ayant jamais
-  // vu l'élément. Déclenchée depuis un vrai clic, elle passe sans blocage.
-  const subject = encodeURIComponent('Brand Theft Auto')
-  window.location.href = `mailto:${atob(CONTACT)}?subject=${subject}`
+  openMailTo()
 }
 
 document.querySelector('#confirm-ok').addEventListener('click', contactAgency)
@@ -4260,13 +5289,41 @@ document.querySelector('#confirm-cancel').addEventListener('click', closeContact
 
 // Le téléphone n'a de sens qu'en ville : dans l'espace blanc, on est déjà
 // dans le projet qu'il sert à annoncer.
-function updatePhone(delta) {
-  const inCity = !whiteSpace && !portal && !falling && !gameOver && !paused
-  phoneGroup.visible = inCity
-  phoneHint.classList.toggle('is-visible', inCity)
-  if (!inCity) return
+// Rappel du menu. Son état se calcule à chaque image plutôt qu'au gré des
+// bascules : la partie passe par trop d'états — portail, chute, capture — pour
+// qu'une poignée d'appels dispersés reste juste longtemps.
+const menuButton = document.querySelector('#menu-open')
+menuButton.addEventListener('click', () => openSplash())
 
-  const focused = phoneHovered || phonePinned
+function updateMenuButton() {
+  menuButton.classList.toggle(
+    'is-visible',
+    !paused && !portal && !falling && !gameOver && !confirmOpen
+  )
+}
+
+function updatePhone(delta) {
+  const playable = !whiteSpace && !portal && !falling && !gameOver
+  // Au doigt, l'écran est trop petit pour que le téléphone reste en fond
+  // perdu pendant la conduite : il n'apparaît que dans le menu, et disparaît
+  // dès qu'on reprend la main. Au curseur, c'est l'inverse — le menu le
+  // masque, puisqu'il n'y a rien à y faire.
+  const shown = playable && (COARSE ? paused : !paused)
+  phoneGroup.visible = shown
+  // Les rappels de raccourci n'ont de sens qu'au clavier, et seulement en
+  // cours de partie.
+  phoneHint.classList.toggle('is-visible', shown && !COARSE)
+  if (!shown) {
+    phoneContactHint.classList.remove('is-visible')
+    return
+  }
+
+  // Dans le menu mobile, le téléphone est la raison d'être de l'écran : il
+  // est mis en avant d'office, sans attendre un survol impossible au doigt.
+  const focused = (COARSE && paused) || phoneHovered || phonePinned
+  // L'appel à l'action ne s'affiche que quand Entrée ferait vraiment quelque
+  // chose : exactement la condition que teste le gestionnaire de touche.
+  phoneContactHint.classList.toggle('is-visible', focused && !COARSE)
   const target = focused ? PHONE_FOCUS_LIFT : 0
   phoneLift += (target - phoneLift) * (1 - Math.exp(-PHONE_FOCUS_SMOOTH * delta))
   phoneGroup.position.y = PHONE_POSITION.y + phoneLift
@@ -4295,6 +5352,11 @@ function updatePhone(delta) {
 // a une trame de rues à lire et des poursuivants à repérer.
 const MAP_RANGE = 68        // rayon couvert, en unités monde
 const MAP_REFRESH = 0.25    // secondes entre deux relevés des panneaux
+// La minimap est redessinée en canvas 2D : à 60 images par seconde c'est
+// autant de travail que personne ne voit. Vingt fois par seconde suffisent
+// largement pour un disque de cent quatre-vingts pixels.
+const MAP_DRAW_EVERY = 1 / 20
+let mapDraw = 0
 const MAP_CONE_LENGTH = 26  // portée du cône de vue des poursuivants
 const MAP_CONE_ANGLE = 0.6  // demi-angle du cône, en radians
 
@@ -4307,9 +5369,9 @@ const MAP_SCALE = MAP_CENTER / MAP_RANGE // unités monde -> pixels
 let mapBillboards = []
 let mapRefresh = 0
 
-// Logo lmwr des marqueurs, aplati en blanc une fois pour toutes dans un
+// Logo Absolu des marqueurs, aplati en blanc une fois pour toutes dans un
 // canvas hors écran : le dessiner à chaque frame depuis le SVG coûterait un
-// décodage complet, et la teinte d'origine ne ressortirait pas sur le corail.
+// décodage complet, et la teinte d'origine ne ressortirait pas sur le bleu.
 const MAP_LOGO_WIDTH = 44
 const mapLogo = document.createElement('canvas')
 let mapLogoReady = false
@@ -4327,7 +5389,7 @@ mapLogoImage.onload = () => {
   ctx.fillRect(0, 0, mapLogo.width, mapLogo.height)
   mapLogoReady = true
 }
-mapLogoImage.src = asset('logo-lmwr.svg')
+mapLogoImage.src = asset('logo-absolu.svg')
 
 // Repère local : la voiture au centre, son cap vers le haut du disque.
 // Le terme horizontal est négatif : dans le repère du jeu, la droite de la
@@ -4366,6 +5428,10 @@ function drawMinimap(delta) {
   const visible = !whiteSpace && !portal && !falling && !gameOver
   minimapCanvas.classList.toggle('is-hidden', !visible)
   if (!visible) return
+
+  mapDraw -= delta
+  if (mapDraw > 0) return
+  mapDraw = MAP_DRAW_EVERY
 
   mapRefresh -= delta
   if (mapRefresh <= 0) {
@@ -4413,10 +5479,10 @@ function drawMinimap(delta) {
   }
   ctx.stroke()
 
-  // Panneaux franchissables : les objectifs du joueur, marqués au logo lmwr
+  // Panneaux franchissables : les objectifs du joueur, marqués au logo Absolu
   mapBillboards.forEach((p) => {
     toMap(p.x, p.z, _mapPoint)
-    ctx.fillStyle = '#2970f4'
+    ctx.fillStyle = '#3e78ff'
     ctx.beginPath()
     ctx.arc(_mapPoint.x, _mapPoint.y, 19, 0, Math.PI * 2)
     ctx.fill()
@@ -4431,7 +5497,7 @@ function drawMinimap(delta) {
   })
 
   // Poursuivants : point clignotant et cône de vue orienté sur leur cap
-  const blink = Math.sin(clock.elapsedTime * 9) > 0
+  const blink = Math.sin(timer.getElapsed() * 9) > 0
   policeCars.forEach((car) => {
     toMap(car.body.x, car.body.z, _mapPoint)
     const x = _mapPoint.x
@@ -4442,14 +5508,14 @@ function drawMinimap(delta) {
     const start = -Math.PI / 2 + heading - MAP_CONE_ANGLE
     const end = -Math.PI / 2 + heading + MAP_CONE_ANGLE
 
-    ctx.fillStyle = blink ? 'rgba(41, 112, 244, 0.38)' : 'rgba(242, 103, 73, 0.38)'
+    ctx.fillStyle = blink ? 'rgba(62, 120, 255, 0.38)' : 'rgba(242, 255, 40, 0.38)'
     ctx.beginPath()
     ctx.moveTo(x, y)
     ctx.arc(x, y, MAP_CONE_LENGTH * MAP_SCALE, start, end)
     ctx.closePath()
     ctx.fill()
 
-    ctx.fillStyle = blink ? '#2970f4' : '#f26749'
+    ctx.fillStyle = blink ? '#3e78ff' : '#f2ff28'
     ctx.beginPath()
     ctx.arc(x, y, 6, 0, Math.PI * 2)
     ctx.fill()
@@ -4482,7 +5548,7 @@ function drawMinimap(delta) {
   ctx.arc(nx, ny, 14, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = '#fff'
-  ctx.font = '700 17px Poppins, ui-sans-serif, system-ui, sans-serif'
+  ctx.font = '500 17px Poppins, ui-sans-serif, system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('N', nx, ny + 1)
@@ -4495,18 +5561,22 @@ function drawMinimap(delta) {
 // Niveau de recherche : autant d'étoiles que de niveaux atteints
 const wantedElement = document.querySelector('#wanted')
 function updateWantedHud() {
-  // Étoile de la charte lmwr (la même que le réticule), reprise via <use>
+  // Étoile du niveau de recherche, reprise via <use> du symbole global
   let markup = ''
   for (let i = 0; i < MAX_WANTED; i += 1) {
     const state = i < wanted ? ' is-on' : ''
-    markup += `<svg class="wanted-star${state}" viewBox="0 0 462 500" aria-hidden="true"><use href="#star-shape" /></svg>`
+    markup += `<svg class="wanted-star${state}" viewBox="0 0 24 24" aria-hidden="true"><use href="#star-shape" /></svg>`
   }
   wantedElement.innerHTML = markup
 }
 
 const gameOverElement = document.querySelector('#gameover')
 const fadeElement = document.querySelector('#fade')
-document.querySelector('#gameover button').addEventListener('click', () => restart())
+document.querySelector('#gameover-restart').addEventListener('click', () => restart())
+// Contact direct : l'écran de capture est déjà un point d'arrêt. Ni demande
+// de confirmation, ni retour au menu de pause — la partie est finie, il n'y
+// a rien à reprendre derrière.
+document.querySelector('#gameover-contact').addEventListener('click', openMailTo)
 
 // Le niveau de dégâts remplace la jauge : il se lit directement sur la voiture
 function updateDamageStage() {
@@ -4516,14 +5586,40 @@ function updateDamageStage() {
 const fpsElement = document.querySelector('#fps')
 let fpsFrames = 0
 let fpsElapsed = 0
+// Temps réellement passé dans la boucle, cumulé sur la même fenêtre que le
+// compteur. Comparé à l'intervalle entre deux images, il dit tout : si la
+// boucle coûte 5 ms et que les images tombent toutes les 33 ms, ce ne sont
+// pas nos calculs qui tiennent le compteur, c'est une limite imposée en
+// amont — mode économie d'énergie, écran à 30 Hz, onglet en arrière-plan.
+let fpsCost = 0
+// Le temps de boucle est ventilé en deux : ce que coûte la soumission du
+// rendu, et tout le reste. C'est la seule mesure qui sépare « trop d'objets
+// à dessiner » de « trop de calcul avant de dessiner », sans profileur.
+let fpsDraw = 0
 
 function updateFps(delta) {
   fpsFrames++
   fpsElapsed += delta
   if (fpsElapsed < 0.5) return
-  fpsElement.textContent = `${Math.round(fpsFrames / fpsElapsed)} fps`
+  // Le compteur seul ne dit pas d'où vient la charge. Les appels de dessin
+  // et les triangles réellement soumis, eux, tranchent entre « trop d'objets »
+  // et « trop de pixels » sans avoir à ouvrir un profileur.
+  const info = renderer.info.render
+  const pixels = renderer.domElement.width * renderer.domElement.height
+  const interval = (fpsElapsed / fpsFrames) * 1000 // ms entre deux images
+  const cost = fpsCost / fpsFrames                 // ms de boucle par image
+  const draw = fpsDraw / fpsFrames                 // dont la soumission du rendu
+  fpsElement.textContent =
+    `${Math.round(fpsFrames / fpsElapsed)} fps · Q${settings.quality} · ` +
+    `boucle ${cost.toFixed(1)}ms (rendu ${draw.toFixed(1)} · jeu ${(cost - draw).toFixed(1)}) ` +
+    `/ image ${interval.toFixed(1)}ms · ` +
+    `${info.calls} appels · ${(info.triangles / 1e6).toFixed(2)}M tris · ` +
+    `${(pixels / 1e6).toFixed(1)}M px`
+  governQuality(fpsFrames / fpsElapsed, fpsElapsed)
   fpsFrames = 0
   fpsElapsed = 0
+  fpsCost = 0
+  fpsDraw = 0
 }
 
 
@@ -4611,6 +5707,95 @@ function restorePolice() {
 
 window.addEventListener('beforeunload', saveGame)
 
+
+/* ---------- Écran de chargement et animation d'ouverture ---------- */
+// Le gestionnaire de three ne connaît que ce qu'on lui demande : on précharge
+// donc explicitement tout ce qui serait sinon chargé à la volée en cours de
+// partie (planches de dégâts, logos), pour que la barre décrive vraiment
+// l'attente et qu'aucune texture ne manque au premier affichage.
+// Durée du fondu du panneau de chargement, puis de l'entrée des mots. Les
+// décalages entre « Brand », « Theft » et « Auto » sont portés par la feuille
+// de style (délais de transition) : le script ne pose qu'une classe.
+const VEIL_FADE = 600 // millisecondes de fondu du panneau noir
+
+const bootElement = document.querySelector('#boot')
+const bootBar = document.querySelector('#boot-bar i')
+const bootPercent = document.querySelector('#boot-percent')
+
+let bootDone = false
+
+function setBootProgress(ratio) {
+  const clamped = Math.max(0, Math.min(1, ratio))
+  bootBar.style.transform = `scaleX(${clamped})`
+  bootPercent.textContent = `${Math.round(clamped * 100)}%`
+}
+
+function preloadAssets() {
+  // Planches de sprites : elles n'apparaissent qu'au premier choc, mais les
+  // charger après coup provoquerait un à-coup au pire moment.
+  DAMAGE_STAGES.forEach((stage) => textureLoader.load(asset(stage.file)))
+  // Logos des panneaux, et logo de l'agence pour le titre des projets
+  textureLoader.load(asset('logo-absolu.svg'))
+}
+
+// Ouverture de l'accueil : le panneau de chargement s'efface, puis les trois
+// mots du titre entrent l'un après l'autre, et le reste de la carte suit.
+// L'accueil porte déjà le noir de charte, le fondu du panneau est donc
+// invisible — c'est l'entrée des mots qui fait l'ouverture.
+let revealing = false
+
+function playSplashReveal() {
+  if (revealing) return
+  revealing = true
+
+  bootElement.classList.add('is-revealing')
+  setTimeout(() => {
+    bootElement.style.display = 'none'
+    // Les deux classes basculent ensemble : la carte redevient visible et la
+    // séquence de fondus démarre au même instant.
+    document.body.classList.remove('is-booting')
+    document.body.classList.add('is-revealed')
+    focusMenu() // le joueur peut lancer la partie sans toucher la souris
+  }, VEIL_FADE)
+}
+
+function finishBoot() {
+  if (bootDone) return
+  bootDone = true
+  setBootProgress(1)
+  // La barre doit avoir le temps d'atteindre sa butée avant qu'on efface tout
+  setTimeout(playSplashReveal, 320)
+}
+
+loadingManager.onProgress = (url, loaded, total) => {
+  if (!bootDone) setBootProgress(total ? loaded / total : 0)
+}
+loadingManager.onLoad = finishBoot
+// Un asset manquant ne doit pas laisser le joueur sur un écran noir
+loadingManager.onError = () => finishBoot()
+
+preloadAssets()
+
+// Le chargeur ne se montre qu'une fois Poppins disponible : il porte la
+// typo de la charte, et l'afficher avant provoquerait un recalage visible.
+//
+// `fonts.ready` ne suffit pas : tant que la feuille Google Fonts n'est pas
+// analysée, aucun chargement n'est en attente et la promesse se résout
+// immédiatement, avec les métriques de la police de repli.
+const BOOT_FACES = ['400 16px Poppins', "400 86px 'Instrument Serif'"]
+const fontsReady = document.fonts
+  ? Promise.all(BOOT_FACES.map((face) => document.fonts.load(face))).then(
+      () => document.fonts.ready
+    )
+  : Promise.resolve()
+
+fontsReady.then(() => document.body.classList.add('is-ready'))
+// Si la police tarde, l'écran ne doit pas rester vide pour autant
+setTimeout(() => document.body.classList.add('is-ready'), 2000)
+
+// Filet de sécurité : si un chargement s'éternise, on entre quand même
+setTimeout(finishBoot, 12000)
+
 /* ---------- Splashscreen ---------- */
 // Écran d'accueil, rappelé à tout moment par Échap. Le bouton de lancement
 // sert aussi de geste utilisateur : c'est lui qui autorise la lecture des
@@ -4640,7 +5825,10 @@ function openSplash({ push = true } = {}) {
   clearTimeout(splashTimer)
   splashElement.style.display = ''
   // Le navigateur doit voir l'élément affiché avant la transition d'opacité
-  requestAnimationFrame(() => splashElement.classList.remove('is-hidden'))
+  requestAnimationFrame(() => {
+    splashElement.classList.remove('is-hidden')
+    focusMenu()
+  })
   splashButton.textContent = 'Retour au jeu'
 }
 
@@ -4681,10 +5869,52 @@ if (bootProject >= 0) {
   history.replaceState({}, '', BASE)
 }
 
+// Navigation clavier de l'accueil : le bouton prend le focus à l'ouverture,
+// les flèches circulent entre les éléments activables. Sans ce focus initial,
+// une première frappe partirait dans le vide.
+function focusableIn(container) {
+  return [...container.querySelectorAll('button, a[href]')]
+}
+
+// Déplace le focus à l'intérieur d'un écran, en circulaire. Sans activable
+// déjà ciblé, l'index vaut -1 et le calcul retombe naturellement sur le
+// premier élément dans le sens avant.
+function moveFocus(container, direction) {
+  const items = focusableIn(container)
+  if (!items.length) return
+  const index = items.indexOf(document.activeElement)
+  const next = (index + direction + items.length) % items.length
+  items[next].focus({ preventScroll: true })
+}
+
+function focusMenu() {
+  const items = focusableIn(splashElement)
+  if (items.length) items[0].focus({ preventScroll: true })
+}
+
+function moveMenuFocus(direction) {
+  if (focusableIn(splashElement).length < 2) return
+  moveFocus(splashElement, direction)
+}
+
+window.addEventListener('keydown', (event) => {
+  if (!paused || confirmOpen) return
+  if (event.code === 'ArrowRight' || event.code === 'ArrowDown') moveMenuFocus(1)
+  else if (event.code === 'ArrowLeft' || event.code === 'ArrowUp') moveMenuFocus(-1)
+})
+
 splashButton.addEventListener('click', closeSplash)
 
-// Échap au clavier, Menu / Options à la manette
-function toggleMenu() {
+// Reprise à zéro depuis le menu : la sauvegarde est effacée, la ville
+// resemée, et la partie reprend aussitôt — inutile de repasser par le menu
+// qu'on vient de quitter.
+document.querySelector('#splash-restart').addEventListener('click', () => {
+  restart()
+  closeSplash()
+})
+
+window.addEventListener('keydown', (event) => {
+  if (event.code !== 'Escape') return
   // La confirmation passe avant : Échap l'annule au lieu de basculer l'accueil
   if (confirmOpen) closeContact()
   else if (paused) closeSplash()
@@ -4783,25 +6013,36 @@ function updatePadCursor(delta) {
 }
 
 /* ---------- Boucle ---------- */
-const clock = new THREE.Clock()
+// Timer remplace Clock, déprécié. La différence tient à l'appel : Clock
+// calculait le delta à la lecture, Timer veut un update() par image, après
+// quoi getDelta() et getElapsed() renvoient les valeurs de l'image en cours.
+// On le branche sur le document : quand l'onglet passe en arrière-plan, le
+// delta tombe à zéro et le temps se remet d'aplomb au retour, au lieu de
+// sauter d'un bond de toute la durée de l'absence.
+const timer = new THREE.Timer()
+timer.connect(document)
 body.copy(carPosition)
 prevBody.copy(body)
 updateWantedHud()
 updateDamageStage() // une partie reprise garde ses dégâts
 applyCameraOrientation()
+// Palier de départ : plus bas sur tactile, voir QUALITY_START
+applyQuality(QUALITY_START)
 updateSun()
 follow()
 updateChunks()
 
 function tick() {
   requestAnimationFrame(tick)
-  const delta = Math.min(clock.getDelta(), 0.1)
-  gamepad.poll()
-  updatePadCursor(delta)
+  const frameStart = performance.now()
+  timer.update()
+  const delta = Math.min(timer.getDelta(), 0.1)
   updateFps(delta)
   drawMinimap(delta)
   updatePhone(delta)
-  updatePoliceVisuals(clock.elapsedTime, renderAlpha)
+  updateMenuButton()
+  updatePanelVideos(delta)
+  updatePoliceVisuals(timer.getElapsed(), renderAlpha)
   updateLook(delta)
   updateMagnet(delta)
   updateFollowCamera(delta)
@@ -4818,6 +6059,13 @@ function tick() {
   follow()
   updateChunks()
   renderCityWindow()
+  const drawStart = performance.now()
   renderer.render(scene, camera)
+  const now = performance.now()
+  // `render` ne fait en principe que soumettre des commandes. Quand sa part
+  // enfle, c'est soit le nombre d'objets soumis, soit un téléversement de
+  // texture qui bloque — typiquement une trame vidéo décodée.
+  fpsDraw += now - drawStart
+  fpsCost += now - frameStart
 }
 tick()

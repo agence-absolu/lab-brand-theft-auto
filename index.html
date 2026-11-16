@@ -2,33 +2,141 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Installable sur l'écran d'accueil. C'est la seule façon d'obtenir un
+         vrai plein écran sur iPhone : Safari n'accorde l'API Fullscreen qu'aux
+         vidéos, mais une page lancée depuis l'écran d'accueil s'ouvre sans
+         aucun habillage de navigateur. Les chemins du manifeste sont relatifs,
+         pour rester justes quand le jeu est servi sous un sous-dossier. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#1E1E1E" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Équivalent historique du précédent, toujours seul reconnu par Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Brand Theft Auto" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Poppins : la typo des titres de lmwr.fr -->
+    <!-- Les deux familles de la charte absolu : Poppins pour les libellés et
+         les grands titres capitales, Instrument Serif pour les titres longs. -->
     <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap"
     />
     <title>Brand Theft Auto — Scène 3D</title>
+
+    <!-- Styles critiques, en ligne : la feuille principale est importée par le
+         module JavaScript et arrive donc tard. Sans ces règles, un réseau lent
+         laisse voir la page brute (logo géant, listes, titres) avant d'être
+         mise en forme. -->
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #1e1e1e;
+        overflow: hidden;
+      }
+
+      /* Tout est masqué tant que le jeu n'a pas pris la main */
+      body.is-booting #scene,
+      body.is-booting #fps,
+      body.is-booting #wanted,
+      body.is-booting #minimap,
+      body.is-booting #sticks,
+      body.is-booting #reticle,
+      body.is-booting #reticle-label,
+      body.is-booting #phone-hint,
+      body.is-booting #notice,
+      body.is-booting .splash-card > *,
+      body.is-booting #confirm,
+      body.is-booting #gameover {
+        opacity: 0;
+      }
+
+      /* Aucune transition pendant le chargement : sans cette coupure, les
+         règles de fondu de la feuille principale se déclenchent dès son
+         arrivée et l'on voit les éléments sursauter avant d'être masqués. */
+      body.is-booting:not(.is-ready) * {
+        transition: none !important;
+      }
+
+      /* Le panneau de chargement : noir de charte, plein écran, il s'efface
+         en fondu une fois les ressources prêtes. L'accueil porte déjà le
+         même noir, la bascule ne se voit donc pas. */
+      #boot-veil {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh; /* repli : voir la note sur dvh dans style.css */
+        height: 100dvh;
+        background: #1e1e1e;
+      }
+
+      body.is-booting #splash {
+        background: #1e1e1e;
+      }
+
+      /* Le chargeur n'entre qu'une fois la page prête : au premier rendu,
+         l'écran est noir, un point c'est tout. */
+      body.is-booting #boot {
+        opacity: 0;
+      }
+
+      /* `:not(.is-revealing)` est indispensable : sans lui, cette règle plus
+         spécifique que celle de la feuille principale maintiendrait le
+         panneau opaque et il ne s'effacerait jamais. */
+      body.is-ready #boot:not(.is-revealing) {
+        transition: opacity 0.45s ease;
+        opacity: 1;
+      }
+    </style>
   </head>
-  <body>
+  <!-- La classe est posée dans le balisage, pas par le script : sur réseau
+       lent, le module arrive trop tard et la page s'afficherait brute. -->
+  <body class="is-booting">
+    <div id="boot">
+      <div id="boot-veil"></div>
+      <div id="boot-loader">
+        <div id="boot-bar"><i></i></div>
+        <span id="boot-percent">0%</span>
+      </div>
+    </div>
+
     <canvas id="scene"></canvas>
     <div id="splash">
       <div class="splash-card">
-        <img class="splash-logo" src="/logo-lmwr.svg" alt="LMWR" />
-        <h1>Brand Theft Auto</h1>
+        <img class="splash-logo" src="/logo-absolu.svg" alt="Absolu" />
+        <!-- Un mot par balise : ils entrent en fondu l'un après l'autre -->
+        <h1 id="splash-title">
+          <span class="splash-word">Brand</span>
+          <span class="splash-word">Theft</span>
+          <span class="splash-word">Auto</span>
+        </h1>
 
         <div class="splash-tuto">
           <div class="splash-block">
             <h2>Contrôles</h2>
-            <ul id="controls-keyboard">
+            <!-- Deux jeux d'instructions, un seul affiché : les raccourcis
+                 clavier n'ont aucun sens au doigt, et inversement. -->
+            <ul id="controls-keyboard" class="controls controls--keys">
               <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> conduire</li>
               <li><kbd>Espace</kbd> frein à main</li>
               <li><kbd>C</kbd> regarder derrière</li>
               <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> orienter la caméra</li>
               <li><kbd>Entrée</kbd> activer la cible visée</li>
+            </ul>
+            <ul class="controls controls--touch">
+              <li><span class="hint-pad" aria-hidden="true"></span> la manette, en bas à gauche, pour conduire</li>
+              <li>Touchez l'écran pour activer une cible</li>
+              <li>La caméra suit la voiture toute seule</li>
             </ul>
             <ul id="controls-pad" hidden>
               <li><kbd>Stick gauche</kbd> braquer</li>
@@ -49,18 +157,47 @@
             <h2>But du jeu</h2>
             <ul>
               <li>Roulez dans la ville et repérez les panneaux publicitaires.</li>
-              <li>Foncez dedans pour plonger dans un projet LMWR.</li>
+              <li>Foncez dedans pour plonger dans un projet Absolu.</li>
             </ul>
           </div>
         </div>
 
-        <button id="splash-start" type="button">Let's Make Ride Remarkable</button>
+        <div class="splash-actions">
+          <button id="splash-start" class="btn btn--accent btn--large" type="button">
+            Prendre le volant
+          </button>
+          <!-- Filet de secours : une partie coincée se repart d'ici, sans
+               avoir à recharger la page. -->
+          <button id="splash-restart" class="btn btn--secondary btn--large" type="button">
+            Recommencer
+          </button>
+        </div>
       </div>
     </div>
     <div id="fps">-- fps</div>
+
+    <!-- Rappel du menu, toujours à portée : Échap ne mène nulle part au doigt. -->
+    <button id="menu-open" type="button" aria-label="Ouvrir le menu principal">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+      <span>Menu</span>
+    </button>
     <canvas id="minimap" width="360" height="360"></canvas>
-    <div id="phone-hint"><kbd>Tab</kbd><span>masquer le téléphone</span></div>
+    <div id="phone-hint">
+      <span class="hint"><kbd>Tab</kbd><span class="hint-label">masquer le téléphone</span></span>
+      <span class="hint hint--contact">
+        <svg class="hint-enter" viewBox="0 0 24 24" aria-hidden="true"><use href="#enter-shape" /></svg>
+        Contacter Absolu
+      </span>
+    </div>
     <div id="pause-hint" hidden><kbd></kbd><span>pause</span></div>
+    <!-- Signature de l'agence, au-dessus du niveau de recherche. Vrai lien :
+         lancé depuis l'écran d'accueil, le jeu n'a pas de barre d'adresse et
+         un window.open y resterait prisonnier. -->
+    <a id="brand" href="https://agence-absolu.com/" target="_blank" rel="noopener noreferrer">
+      <img src="/logo-absolu.svg" alt="Absolu" />
+    </a>
     <div id="wanted"></div>
     <div id="confirm">
       <div class="confirm-card">
@@ -70,30 +207,124 @@
           Êtes-vous sûr de vouloir nous quitter&nbsp;?
         </p>
         <div class="confirm-actions">
-          <button id="confirm-cancel" type="button">Rester en ville</button>
-          <button id="confirm-ok" type="button">Contacter l'agence</button>
+          <button id="confirm-cancel" class="btn btn--secondary" type="button">Rester en ville</button>
+          <button id="confirm-ok" class="btn btn--accent" type="button">Contacter l'agence</button>
         </div>
       </div>
     </div>
+    <!-- Appels à l'action de la vue projet. Sortis du flux 3D : empilés en
+         bas à droite, ils restent lisibles et cliquables sur tout écran. -->
+    <div id="project-actions">
+      <button id="project-open" class="btn btn--accent btn--large" type="button">
+        Voir le projet
+      </button>
+      <button id="project-back" class="btn btn--blue btn--large" type="button">
+        Retour en ville
+      </button>
+    </div>
+
+    <!-- Affiché quand le barème de qualité descend sous Q2 : à ce stade
+         l'appareil ne tient plus la simulation, mieux vaut le dire. -->
+    <div id="weak">
+      <p>
+        Nous détectons que votre appareil n'est malheureusement pas assez puissant
+        pour jouer à Brand Theft Auto. Pour profiter pleinement de cette expérience,
+        nous vous recommandons d'y jouer sur un ordinateur.
+      </p>
+      <button id="weak-close" class="btn btn--secondary" type="button">Continuer quand même</button>
+    </div>
+
     <div id="fade"></div>
+    <!-- Coupure blanche du retour en ville depuis le bouton de la vue projet -->
+    <div id="wipe"></div>
     <div id="gameover">
-      <img id="busted" src="/busted.png" alt="Busted" />
-      <button type="button">Rejouer</button>
+      <p id="busted">Branded</p>
+      <p id="busted-text">Contactez nos meilleurs experts pour vous sortir de l'ornière</p>
+      <div class="gameover-actions">
+        <button id="gameover-contact" class="btn btn--accent btn--large" type="button">
+          Contacter l'agence
+        </button>
+        <button id="gameover-restart" class="btn btn--blue btn--large" type="button">
+          Rejouer
+        </button>
+      </div>
     </div>
     <div id="notice"></div>
 
-    <!-- Commandes tactiles : conduite à gauche, caméra à droite -->
+    <!-- Commande tactile : une seule manette, pour conduire. La caméra se
+         recadre seule derrière la voiture, elle n'a pas besoin de la sienne. -->
     <div id="sticks">
       <div class="stick" id="stick-drive"><i></i></div>
-      <div class="stick" id="stick-look"><i></i></div>
     </div>
 
     <div id="rotate">
-      <p>Tourne ton écran</p>
+      <p>Tournez votre écran</p>
       <span>Brand Theft Auto se joue en paysage</span>
+
+      <div id="install">
+        <p class="install-text">
+          Afin de profiter de l'expérience du tout nouveau Brand Theft Auto,
+          nous vous recommandons d'installer le jeu sur votre écran d'accueil :
+          il s'ouvrira en plein écran, sans la barre du navigateur.
+        </p>
+
+        <!-- Deux parcours, un seul affiché selon l'appareil. Les bandeaux
+             sont schématiques, mais les pictogrammes sont les vrais : ce sont
+             eux que l'œil cherche à l'écran. -->
+        <ol class="install-steps" data-for="ios">
+          <li>
+            <svg class="install-shot" viewBox="0 0 220 64" aria-hidden="true">
+              <rect x="2" y="2" width="216" height="60" rx="12" class="shot-bg" />
+              <rect x="22" y="26" width="14" height="12" rx="2" class="shot-dim" />
+              <rect x="58" y="24" width="90" height="16" rx="8" class="shot-dim" />
+              <circle cx="186" cy="32" r="17" class="shot-ring" />
+              <g class="shot-mark-fill"><g transform="translate(173 19) scale(0.2600)"><path d="M55.083,38.606l8.684,0c5.075,0 9.196,4.121 9.196,9.196l0,21.81c0,5.075 -4.121,9.196 -9.196,9.196l-27.533,0c-5.075,0 -9.196,-4.121 -9.196,-9.196l0,-21.81c0,-5.075 4.121,-9.196 9.196,-9.196l8.672,0l0,4.667l-8.672,0c-2.5,0 -4.529,2.03 -4.529,4.529l0,21.81c0,2.5 2.03,4.529 4.529,4.529l27.533,0c2.5,0 4.529,-2.03 4.529,-4.529l0,-21.81c0,-2.5 -2.03,-4.529 -4.529,-4.529l-8.684,0l0,-4.667Z" /><path d="M47.667,29.346l-5.05,5.05c-0.911,0.911 -2.389,0.911 -3.3,0c-0.911,-0.911 -0.911,-2.389 -0,-3.3l9.22,-9.22c0.911,-0.911 2.389,-0.911 3.3,0l8.847,8.847c0.911,0.911 0.911,2.389 0,3.3c-0.911,0.911 -2.389,0.911 -3.3,0l-5.05,-5.05l0,29.193c-0,1.288 -1.046,2.333 -2.333,2.333c-1.288,-0 -2.333,-1.046 -2.333,-2.333l0,-28.82Z" /></g></g>
+            </svg>
+            <span>Touchez l'icône <strong>Partager</strong> dans la barre du navigateur.</span>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 220 64" aria-hidden="true">
+              <rect x="2" y="2" width="216" height="60" rx="12" class="shot-bg" />
+              <rect x="18" y="14" width="120" height="9" rx="4" class="shot-dim" />
+              <rect x="10" y="33" width="200" height="24" rx="8" class="shot-ring" />
+              <g class="shot-stroke"><g transform="translate(20 36) scale(0.1800)"><path d="M67.972,15.698c9.783,0 17.726,7.943 17.726,17.726l0,34.549c0,9.783 -7.943,17.726 -17.726,17.726l-34.549,0c-9.783,0 -17.726,-7.943 -17.726,-17.726l0,-34.549c0,-9.783 7.943,-17.726 17.726,-17.726l34.549,0Z" /><path d="M49.758,33.991l0,32.019" /><path d="M33.509,50l32.983,0" /></g></g>
+              <rect x="46" y="42" width="96" height="7" rx="3" class="shot-text" />
+            </svg>
+            <span>Faites défiler, puis choisissez <strong>Sur l'écran d'accueil</strong>.</span>
+          </li>
+        </ol>
+
+        <ol class="install-steps" data-for="android">
+          <li>
+            <svg class="install-shot" viewBox="0 0 220 64" aria-hidden="true">
+              <rect x="2" y="2" width="216" height="60" rx="12" class="shot-bg" />
+              <rect x="22" y="24" width="140" height="16" rx="8" class="shot-dim" />
+              <circle cx="192" cy="32" r="17" class="shot-ring" />
+              <g class="shot-mark-fill">
+                <circle cx="192" cy="25" r="2.4" />
+                <circle cx="192" cy="32" r="2.4" />
+                <circle cx="192" cy="39" r="2.4" />
+              </g>
+            </svg>
+            <span>Ouvrez le menu <strong>⋮</strong> du navigateur.</span>
+          </li>
+          <li>
+            <svg class="install-shot" viewBox="0 0 220 64" aria-hidden="true">
+              <rect x="2" y="2" width="216" height="60" rx="12" class="shot-bg" />
+              <rect x="18" y="14" width="100" height="9" rx="4" class="shot-dim" />
+              <rect x="10" y="33" width="200" height="24" rx="8" class="shot-ring" />
+              <g class="shot-mark">
+                <path d="M28 40v9M28 49l-4-4M28 49l4-4" />
+              </g>
+              <rect x="46" y="42" width="110" height="7" rx="3" class="shot-text" />
+            </svg>
+            <span>Choisissez <strong>Installer l'application</strong>.</span>
+          </li>
+        </ol>
+      </div>
     </div>
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="star-shape" viewBox="0 0 462 500"><path d="M889.719 58.711a609.266 609.266 0 0 0-3.222-1.116c-2.862-.979-5.734-1.943-8.596-2.921-3.338-1.141-6.681-2.277-10.01-3.453-1.375-.487-2.769-.89-4.144-1.362-3.068-1.058-6.122-2.159-9.185-3.226a133.358 133.358 0 0 0-4.298-1.422c-.559-.177-.569-.551-.429-1.003.615-2.011 1.245-4.018 1.865-6.029.13-.428.261-.861.373-1.294.121-.477.35-.619.825-.452 2.574.91 5.152 1.805 7.73 2.685 1.841.629 3.706 1.175 5.538 1.839 3.585 1.299 7.175 2.582 10.798 3.762 3.669 1.196 7.3 2.519 10.946 3.787 1.305.453 2.62.876 3.935 1.309.14.044.312.142.415-.005.126-.172-.024-.33-.121-.467-2.509-3.61-5.031-7.205-7.525-10.825-2.681-3.885-5.319-7.8-8.014-11.68-1.893-2.725-3.711-5.499-5.66-8.179-.984-1.353-1.874-2.784-2.834-4.156-.322-.457-.252-.742.168-1.062 1.934-1.466 3.85-2.956 5.776-4.431.555-.423.727-.389 1.133.216 1.799 2.671 3.669 5.287 5.468 7.963 1.94 2.877 3.949 5.704 5.898 8.576 1.697 2.509 3.468 4.963 5.184 7.451 1.445 2.095 2.853 4.215 4.289 6.315 1.044 1.529 2.107 3.039 3.166 4.559.083.123.172.315.335.271.215-.06.145-.296.135-.458a50.644 50.644 0 0 1-.088-2.646c.005-12.988 0-25.982.009-38.97 0-.605.061-1.215.089-1.82.014-.319.177-.452.466-.452C902.67 0 905.206 0 907.738 0c.405 0 .569.211.559.625-.009.432 0 .865 0 1.298v41.685c0 .241-.121.615.112.698.257.094.331-.295.466-.487 1.674-2.404 3.343-4.809 5.003-7.224 1.715-2.493 3.417-4.997 5.133-7.49 1.31-1.908 2.634-3.802 3.944-5.71 1.874-2.734 3.734-5.479 5.613-8.213 1.417-2.066 2.848-4.121 4.275-6.182.219-.315.433-.428.788-.152 1.935 1.495 3.888 2.965 5.827 4.455.714.546.718.595.205 1.348-1.258 1.849-2.536 3.683-3.804 5.528-1.384 2.016-2.75 4.047-4.14 6.063-1.464 2.13-2.951 4.24-4.419 6.369-1.511 2.189-3.017 4.382-4.522 6.571-1.628 2.365-3.25 4.736-4.882 7.101-.676.984-1.375 1.958-2.046 2.941-.126.182-.303.35-.327.65.602.059 1.124-.241 1.646-.418a361.384 361.384 0 0 0 7.576-2.641c3.408-1.23 6.867-2.273 10.28-3.487 2.377-.846 4.774-1.628 7.128-2.538 1.189-.462 2.434-.767 3.646-1.175 3.002-1.018 6.004-2.056 9.002-3.099.713-.246.807-.226 1.044.546.765 2.484 1.511 4.967 2.285 7.446.135.428.046.566-.378.684-2.55.708-5.03 1.672-7.538 2.527-1.772.61-3.534 1.25-5.306 1.85-2.876.973-5.771 1.883-8.625 2.936-1.715.634-3.463 1.185-5.193 1.78-1.758.605-3.497 1.264-5.268 1.815-1.711.531-3.385 1.19-5.096 1.731-.839.265-1.65.639-2.508.861 0 .059.009.118.014.172.699.241 1.394.492 2.093.723 1.399.467 2.798.909 4.191 1.387 1.688.575 3.362 1.19 5.049 1.76 2.728.92 5.422 1.943 8.173 2.779 1.497.457 2.984.998 4.462 1.534 3.109 1.131 6.251 2.179 9.384 3.241 1.39.472 2.807.851 4.182 1.363.695.26 1.394.516 2.093.782.676.255.266.836.164 1.14-.77 2.273-1.46 4.569-2.168 6.861-.252.812-.294.812-1.073.571-2.601-.807-5.151-1.766-7.729-2.641-1.944-.659-3.884-1.353-5.828-2.017-.811-.275-1.645-.477-2.457-.757-2.559-.89-5.109-1.8-7.664-2.695a227.691 227.691 0 0 0-5.893-1.982c-2.284-.733-4.536-1.564-6.802-2.361-.862-.305-1.725-.624-2.587-.939-.103-.039-.219-.113-.299.015-.074.118.024.226.084.319.532.782 1.068 1.559 1.604 2.341 1.212 1.766 2.42 3.531 3.641 5.292 1.758 2.533 3.534 5.056 5.282 7.594 1.804 2.616 3.581 5.257 5.38 7.878 1.93 2.813 3.879 5.617 5.818 8.425.812 1.17 1.623 2.341 2.429 3.516.373.546.355.713-.153 1.107a713.053 713.053 0 0 1-5.642 4.318c-.806.61-.82.595-1.403-.261-2.023-2.961-4.042-5.926-6.07-8.887-1.963-2.862-3.935-5.715-5.897-8.572-2.578-3.747-5.157-7.495-7.739-11.242-1.343-1.953-2.69-3.905-4.038-5.853-.102-.147-.172-.423-.391-.344-.215.074-.126.344-.126.526v42.743c0 1.022-.014 1.037-1.012 1.037h-6.928c-.713 0-.778-.064-.778-.797v-42.27c0-.354.06-.703.079-1.057.005-.113.028-.256-.098-.31-.135-.059-.191.069-.256.162-2.014 2.941-4.028 5.887-6.052 8.823-2.289 3.32-4.596 6.625-6.881 9.944-2.284 3.32-4.545 6.654-6.825 9.979-1.483 2.164-2.979 4.318-4.466 6.477-.299.438-.616.344-.961.084-.904-.689-1.809-1.377-2.708-2.071-1.021-.787-2.038-1.588-3.063-2.37-.588-.448-.625-.571-.21-1.171 1.455-2.115 2.918-4.215 4.368-6.329 1.702-2.479 3.362-4.997 5.105-7.446 1.646-2.307 3.198-4.682 4.825-6.998 1.558-2.223 3.059-4.491 4.611-6.719 1.693-2.439 3.343-4.908 5.073-7.318.097-.137.289-.285.191-.452-.136-.231-.341-.029-.494.025-2.136.742-4.266 1.504-6.406 2.232-.979.335-1.949.714-2.933 1.004-1.771.521-3.501 1.165-5.244 1.755-1.861.63-3.702 1.318-5.567 1.923-1.221.399-2.405.886-3.632 1.269-2.135.664-4.242 1.426-6.359 2.154-1.557.536-3.119 1.048-4.662 1.628-1.128.423-2.298.703-3.408 1.2-.275.123-.601.133-.895.276-.289.142-.447-.064-.536-.34-.252-.777-.517-1.554-.76-2.336-.503-1.652-.993-3.315-1.496-4.967-.229-.753-.173-.998.536-1.239 1.333-.453 2.662-.935 4-1.377 2.191-.728 4.387-1.451 6.559-2.253 1.613-.595 3.254-1.111 4.877-1.692 1.38-.492 2.741-1.042 4.14-1.451 2.186-.634 4.331-1.416 6.485-2.168 1.92-.674 3.846-1.338 5.762-2.022 1.235-.442 2.48-.875 3.748-1.229 1.25-.349 2.462-.826 3.693-1.249v-.153l-.005-.005Z" transform="matrix(4.25297 0 0 4.25297 -3614 0)" stroke-width="2.5" stroke-linejoin="round" /></symbol></svg>
-    <svg id="reticle" viewBox="0 0 462 500" aria-hidden="true"><use href="#star-shape" /></svg>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="star-shape" viewBox="0 0 24 24"><path d="M12 1.9l3.09 6.26 6.91 1.01-5 4.87 1.18 6.88L12 17.67l-6.18 3.25L7 14.04l-5-4.87 6.91-1.01z" stroke-width="1.4" stroke-linejoin="round" /></symbol><symbol id="enter-shape" viewBox="0 0 24 24"><path d="M20 5v7a3 3 0 0 1-3 3H5m0 0 4.5-4.5M5 15l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></symbol></svg>
+    <div id="reticle" aria-hidden="true"></div>
         <div id="reticle-label"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

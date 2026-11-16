@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host",
+    "tunnel": "node tools/tunnel.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -12,7 +14,6 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
-    "hls.js": "^1.7.3",
     "lil-gui": "^0.21.0",
     "three": "^0.186.0"
   }

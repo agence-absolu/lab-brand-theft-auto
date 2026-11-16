@@ -58,5 +58,14 @@ function staticRoutes(base) {
 
 export default defineConfig(({ command }) => {
   const base = process.env.BASE_PATH || (command === 'build' ? `/${name}/` : '/')
-  return { base, plugins: [staticRoutes(base)] }
+  return {
+    base,
+    plugins: [staticRoutes(base)],
+    server: {
+      // Vite refuse les requêtes dont l'en-tête Host lui est inconnu, ce qui
+      // vaut un « Blocked request » derrière un tunnel. On autorise donc les
+      // domaines des deux services, le temps du test sur mobile.
+      allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
+    },
+  }
 })

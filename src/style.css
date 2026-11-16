@@ -1,6 +1,156 @@
+/* ---------- Charte Absolu ---------- */
+/* Une seule source pour les couleurs : elles viennent des variables SCSS du
+   thème absolu (helpers/_colors.scss). Le bleu profond n'y figure pas — c'est
+   le bleu de charte assombri dans les mêmes proportions que l'ancien bleu
+   foncé du jeu, pour les fonds de ciel, de route et de façades. */
+:root {
+  --abs-blue: #3e78ff;
+  --abs-blue-deep: #364b9e;
+  --abs-yellow: #f2ff28;
+  --abs-white: #f6f6f6;
+  --abs-grey-xlight: #e6e6e6;
+  --abs-grey-light: #cfd0d2;
+  --abs-grey-medium: #929292;
+  --abs-grey-dark: #5e5e5e;
+  --abs-grey-xdark: #272727;
+  --abs-black: #1e1e1e;
+
+  /* Les deux familles de la charte. Poppins porte tout ce qui est libellé,
+     Instrument Serif les titres longs (title--xlarge / --large du thème). */
+  --abs-font: Poppins, ui-sans-serif, system-ui, sans-serif;
+  --abs-font-serif: 'Instrument Serif', Georgia, serif;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; overflow: hidden; background: #244697; }
+/* `dvh` suit la hauteur réellement visible, barre d'outils du navigateur
+   comprise : sur mobile, `vh` mesure le viewport le PLUS GRAND, celui qu'on
+   n'a qu'une fois la barre escamotée. La page débordait donc sous elle quand
+   le plein écran était refusé — ce que fait toujours Safari sur iPhone.
+   La première déclaration reste le repli des navigateurs sans `dvh`. */
+html, body { height: 100%; overflow: hidden; background: var(--abs-blue-deep); }
+html, body { height: 100dvh; }
+
+/* Socle typographique du thème : Poppins regular, interlignage 1.2. */
+body {
+  font: 400 16px/1.2 var(--abs-font);
+}
+
+/* Les liens héritent de la couleur courante (themes/_link.scss) */
+a {
+  color: inherit;
+}
 #scene { display: block; width: 100vw; height: 100vh; }
+
+/* ---------- Boutons : le système du thème absolu ---------- */
+/* Reprise fidèle de %_btn_styles : pastille sombre cernée d'un filet, libellé
+   à gauche, carré d'icône à droite qui porte la flèche. Les déclinaisons ne
+   changent que les variables. */
+.btn {
+  --btn-bg: var(--abs-black);
+  --btn-fg: var(--abs-white);
+  --btn-icon-bg: var(--abs-black);
+  --btn-size: 48px;
+  --btn-radius: 8px;
+  --btn-text: 16px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: var(--btn-size);
+  padding: 4px 4px 4px 20px;
+  border: 0;
+  border-radius: var(--btn-radius);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font: 400 var(--btn-text) / 1 var(--abs-font);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Le carré d'icône : la flèche nord-est du thème. Elle existe en deux
+   teintes figées — le fond du carré et la flèche sont deux calques du même
+   pseudo-élément, un masque effacerait l'un en dessinant l'autre. */
+.btn {
+  --btn-arrow-light: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20500%20500%27%3E%3Cpath%20fill%3D%27%23F6F6F6%27%20d%3D%27M497.765%2047.273v405.342c0%2024.77-20.268%2045.038-45.038%2045.038s-45.038-20.268-45.038-45.038V156.264L79.363%20484.593c-17.565%2017.563-46.39%2017.563-63.956%200-17.563-17.565-17.563-46.39%200-63.956L343.736%2092.311H47.385c-24.77%200-45.038-20.268-45.038-45.038S22.615%202.235%2047.385%202.235h405.342c24.77%200%2045.038%2020.268%2045.038%2045.038%27%2F%3E%3C%2Fsvg%3E");
+  --btn-arrow-dark: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20500%20500%27%3E%3Cpath%20fill%3D%27%231E1E1E%27%20d%3D%27M497.765%2047.273v405.342c0%2024.77-20.268%2045.038-45.038%2045.038s-45.038-20.268-45.038-45.038V156.264L79.363%20484.593c-17.565%2017.563-46.39%2017.563-63.956%200-17.563-17.565-17.563-46.39%200-63.956L343.736%2092.311H47.385c-24.77%200-45.038-20.268-45.038-45.038S22.615%202.235%2047.385%202.235h405.342c24.77%200%2045.038%2020.268%2045.038%2045.038%27%2F%3E%3C%2Fsvg%3E");
+  --btn-arrow: var(--btn-arrow-light);
+}
+
+.btn::after {
+  content: '';
+  flex: none;
+  width: calc(var(--btn-size) - 8px);
+  height: calc(var(--btn-size) - 8px);
+  border-radius: var(--btn-radius);
+  background: var(--btn-icon-bg) var(--btn-arrow) no-repeat center / 42%;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.btn--primary:hover,
+.btn--primary:focus-visible {
+  --btn-bg: var(--abs-blue);
+  --btn-icon-bg: var(--abs-white);
+  --btn-arrow: var(--btn-arrow-dark);
+}
+
+/* Déclinaison jaune : l'action principale. Le jaune ne supporte pas le texte
+   blanc, le libellé passe donc au noir, comme dans le thème. */
+.btn--accent {
+  --btn-bg: var(--abs-yellow);
+  --btn-fg: var(--abs-black);
+  --btn-icon-bg: var(--abs-yellow);
+  --btn-arrow: var(--btn-arrow-dark);
+}
+
+.btn--accent:hover,
+.btn--accent:focus-visible {
+  --btn-bg: var(--abs-blue);
+  --btn-fg: var(--abs-white);
+  --btn-icon-bg: var(--abs-black);
+  --btn-arrow: var(--btn-arrow-light);
+}
+
+/* Déclinaison bleue : l'inverse exact de l'état survolé du jaune, pastille
+   bleue et carré d'icône sombre. */
+.btn--blue {
+  --btn-bg: var(--abs-blue);
+  --btn-fg: var(--abs-white);
+  --btn-icon-bg: var(--abs-black);
+  --btn-arrow: var(--btn-arrow-light);
+}
+
+.btn--blue:hover,
+.btn--blue:focus-visible {
+  --btn-bg: var(--abs-black);
+  --btn-icon-bg: var(--abs-blue);
+}
+
+/* Déclinaison sourde. Son fond doit se détacher de la carte sombre sur
+   laquelle elle est posée : désormais sans filet, elle n'a plus que lui pour
+   exister — en gris xdark elle portait le fond exact de la carte et y
+   disparaissait. */
+.btn--secondary {
+  --btn-bg: var(--abs-grey-dark);
+  --btn-fg: var(--abs-white);
+  --btn-icon-bg: var(--abs-grey-dark);
+}
+
+.btn--secondary:hover,
+.btn--secondary:focus-visible {
+  --btn-bg: var(--abs-grey-medium);
+  --btn-icon-bg: var(--abs-grey-medium);
+}
+
+/* Version généreuse pour les CTA plein écran (accueil, écran de capture) */
+.btn--large {
+  --btn-size: 62px;
+  --btn-radius: 10px;
+  --btn-text: clamp(16px, 2.2vw, 20px);
+  padding-left: 28px;
+  gap: 20px;
+}
 
 #fps {
   position: fixed;
@@ -9,8 +159,8 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   z-index: 10;
   padding: 4px 8px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
+  background: rgba(30, 30, 30, 0.55);
+  color: var(--abs-white);
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: none; /* ne doit jamais voler le clic du pointer lock */
   user-select: none;
@@ -22,9 +172,9 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   left: 8px;
   z-index: 10;
   padding: 6px 12px;
-  border-radius: 4px;
-  background: rgba(242, 103, 73, 0.9);
-  color: #fff;
+  border-radius: 6px;
+  background: var(--abs-yellow);
+  color: var(--abs-black);
   font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: none;
   user-select: none;
@@ -38,29 +188,30 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   transform: none;
 }
 
-/* Réticule de visée : l'étoile de la charte lmwr, au centre de l'écran */
+/* Mire de visée : un simple point au centre de l'écran, cerné de sombre pour
+   rester lisible sur un ciel clair comme sur une façade. */
 #reticle {
   position: fixed;
   top: 50%;
   left: 50%;
   z-index: 15;
-  width: 22px;
-  height: 24px;
-  margin: -12px 0 0 -11px;
-  fill: #f26749;
-  stroke: #f26749;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--abs-white);
+  box-shadow: 0 0 0 2px rgba(30, 30, 30, 0.55);
   pointer-events: none;
-  opacity: 0.6;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  opacity: 0.7;
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
 }
 
-/* Au survol d'une cible, l'étoile passe au bleu de la charte : le corail est
-   déjà la couleur du CTA, garder la même teinte brouillerait la lecture. */
+/* Au survol d'une cible, le point passe au jaune de charte et enfle : c'est
+   la couleur de l'action, celle des CTA. */
 #reticle.is-active {
   opacity: 1;
-  fill: #2970f4;
-  stroke: #2970f4;
-  transform: scale(2.1) rotate(15deg);
+  background: var(--abs-yellow);
+  transform: scale(1.8);
 }
 
 #reticle-label {
@@ -71,12 +222,13 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   top: 50%;
   left: 50%;
   z-index: 15;
-  margin-top: 52px; /* entre l'étoile et la flèche de cap, sans les chevaucher */
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: #2970f4;
-  color: #fff;
-  font: 600 13px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  margin-top: 52px; /* entre le point et la flèche de cap, sans les chevaucher */
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: var(--abs-black);
+  box-shadow: 0 0 0 1px var(--abs-white) inset;
+  color: var(--abs-white);
+  font: 400 13px/1 var(--abs-font);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
@@ -84,12 +236,19 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
+/* La touche s'accorde à la cible visée : c'est la couleur du bouton qu'elle
+   actionne, pas une teinte fixe. Le jaune est le cas par défaut. */
 #reticle-label kbd {
-  padding: 3px 7px;
+  padding: 4px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #2970f4;
-  font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  background: var(--abs-yellow);
+  color: var(--abs-black);
+  font: 500 11px/1 var(--abs-font);
+}
+
+#reticle-label[data-tone='blue'] kbd {
+  background: var(--abs-blue);
+  color: var(--abs-white);
 }
 
 #reticle-label.is-active {
@@ -97,31 +256,58 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   transform: translate(-50%, 0);
 }
 
-/* Niveau de recherche, sous le compteur de FPS */
-#wanted {
+/* Signature de l'agence, au-dessus du niveau de recherche. */
+/* Fond sombre comme le reste de l'habillage : le logo est fourni en blanc et
+   le ciel de la ville est gris clair — posé à nu, il y disparaissait. */
+#brand {
   position: fixed;
   top: 32px;
+  left: 8px;
+  z-index: 11;
+  display: block;
+  width: 94px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(30, 30, 30, 0.55);
+  transition: background-color 0.2s ease;
+}
+
+#brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#brand:hover,
+#brand:focus-visible {
+  background: var(--abs-blue);
+  outline: none;
+}
+
+/* Niveau de recherche, sous la signature */
+#wanted {
+  position: fixed;
+  top: 88px;
   left: 8px; /* sous le compteur de FPS, loin du bouton de fermeture */
   z-index: 10;
   display: flex;
   gap: 5px;
-  color: #f26749;
   pointer-events: none;
   user-select: none;
 }
 
-/* Niveau non atteint : silhouette vide, cernée de bleu */
+/* Niveau non atteint : étoile creuse, cernée de blanc */
 #wanted .wanted-star {
   width: 26px;
-  height: 29px;
+  height: 26px;
   fill: none;
-  stroke: #2970f4;
+  stroke: var(--abs-white);
 }
 
-/* Niveau atteint : étoile corail pleine */
+/* Niveau atteint : étoile jaune pleine */
 #wanted .wanted-star.is-on {
-  fill: #f26749;
-  stroke: #f26749;
+  fill: var(--abs-yellow);
+  stroke: var(--abs-yellow);
 }
 
 /* Passage en noir et blanc contrasté au moment de la capture */
@@ -138,14 +324,34 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   position: fixed;
   inset: 0;
   z-index: 35;
-  background: #000;
+  background: var(--abs-black);
   opacity: 0;
   pointer-events: none;
   transition: opacity 1.1s ease;
 }
 
-#fade.is-visible {
+/* Voile, pas occultation : à pleine opacité il effaçait la scène. On garde
+   la ville visible derrière l'écran de capture — passée en noir et blanc,
+   elle assure déjà l'essentiel de la bascule d'ambiance. */
+/* Coupure blanche : le décor change pendant qu'elle couvre l'écran. Posée
+   au-dessus de tout l'habillage de jeu, sous le menu — qui ne peut pas être
+   ouvert pendant la bascule. */
+#wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  background: var(--abs-white);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#wipe.is-visible {
   opacity: 1;
+}
+
+#fade.is-visible {
+  opacity: 0.74;
 }
 
 /* Affiché dès la capture, par-dessus le cinématique : le fondu au noir
@@ -160,40 +366,61 @@ html, body { height: 100%; overflow: hidden; background: #244697; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 40px;
+  gap: 22px;
+  padding: 32px;
+  text-align: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.6s ease;
+  /* `visibility` sort les boutons de l'ordre de tabulation, ce que l'opacité
+     seule ne fait pas : sans elle, Tab allait se poser sur des boutons
+     invisibles. Elle bascule à la fin du fondu, pas pendant. */
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
 }
 
 #gameover.is-visible {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.6s ease, visibility 0s;
+}
+
+/* Le propos de l'écran : il suit le titre, donc il reste au corps du texte
+   courant pour ne pas lui disputer la place. */
+#busted-text {
+  max-width: 34ch;
+  color: var(--abs-white);
+  font: 400 clamp(16px, 2.2vw, 20px) / 1.45 var(--abs-font);
+}
+
+.gameover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 10px;
 }
 
 #busted {
-  width: min(70vw, 760px);
-  height: auto;
-  /* Contour blanc épais : huit ombres portées sans flou, dans huit
-     directions. C'est la seule façon de cerner la silhouette d'un PNG
-     détouré — un box-shadow ne suivrait que le rectangle de l'image.
-     La dernière ombre, noire et franche, se pose sur le contour déjà formé. */
-  filter:
-    drop-shadow(7px 0 0 #fff) drop-shadow(-7px 0 0 #fff) drop-shadow(0 7px 0 #fff)
-    drop-shadow(0 -7px 0 #fff) drop-shadow(5px 5px 0 #fff) drop-shadow(-5px 5px 0 #fff)
-    drop-shadow(5px -5px 0 #fff) drop-shadow(-5px -5px 0 #fff)
-    drop-shadow(16px 16px 0 rgba(0, 0, 0, 0.75));
+  /* Même niveau de titre que le reste du jeu, poussé au corps d'affiche :
+     Instrument Serif, graisse regular, interlignage 1. Posé à plat, sans
+     contour ni ombre portée. */
+  font: 400 clamp(64px, 16vw, 200px) / 1 var(--abs-font-serif);
+  color: var(--abs-white);
+  text-align: center;
 }
 
 /* Pendant la capture, l'interface de jeu s'efface : seul le cinématique reste */
 body.is-busted #reticle,
 body.is-busted #reticle-label,
 body.is-busted #fps,
+body.is-busted #brand,
 body.is-busted #wanted {
   display: none;
 }
 
-/* Splashscreen : recouvre la scène jusqu'au lancement */
+/* ---------- Splashscreen ---------- */
+/* Écran principal : le noir de charte, typo blanche. */
 #splash {
   position: fixed;
   inset: 0;
@@ -202,9 +429,20 @@ body.is-busted #wanted {
   align-items: center;
   justify-content: center;
   padding: 32px;
-  background: #d3d3d3;
+  background: var(--abs-black);
+  /* La carte défile quand elle dépasse. `overflow: hidden` datait du dézoom
+     du titre, supprimé depuis : il ne faisait plus que rogner le haut et le
+     bas de la carte, emportant le bouton de lancement avec eux sur un écran
+     de téléphone en paysage. */
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   transition: opacity 0.45s ease;
+}
+
+/* Centrée tant qu'elle tient, collée en haut dès qu'elle déborde : avec
+   `align-items: center`, un conteneur qui défile rend le haut inaccessible. */
+.splash-card {
+  margin: auto;
 }
 
 #splash.is-hidden {
@@ -215,21 +453,58 @@ body.is-busted #wanted {
 .splash-card {
   width: min(880px, 100%);
   text-align: center;
-  color: #101010;
-  font: 400 15px/1.55 Poppins, ui-sans-serif, system-ui, sans-serif;
+  color: var(--abs-white);
+  font: 400 16px/1.5 var(--abs-font);
 }
 
-/* Le logo est fourni en bleu de charte : on le laisse tel quel, c'est la
-   seule touche de couleur avec le CTA. */
+/* Le logo est fourni en blanc : il se détache seul sur le noir de charte. */
 .splash-logo {
-  width: min(260px, 60%);
+  width: min(220px, 52%);
   height: auto;
 }
 
 .splash-card h1 {
-  margin: 22px 0 34px;
-  font: 700 clamp(28px, 5vw, 46px) / 1.1 Poppins, ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 0.28em;
+  margin: 26px 0 36px;
+  /* title--xlarge : Instrument Serif, graisse regular, interlignage 1. La
+     charte ne graisse ni ne resserre ses grands titres, et ses titres en
+     serif ne passent pas en capitales. */
+  font: 400 clamp(44px, 8vw, 86px) / 1 var(--abs-font-serif);
+  color: var(--abs-white);
+}
+
+/* Les trois mots entrent l'un après l'autre, puis le reste de la carte suit.
+   Le décalage est porté par les délais : une seule classe sur le corps de
+   page suffit à déclencher toute la séquence. */
+.splash-word {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+
+body.is-revealed .splash-word {
+  opacity: 1;
+  transform: none;
+}
+
+body.is-revealed .splash-word:nth-child(1) { transition-delay: 0.05s; }
+body.is-revealed .splash-word:nth-child(2) { transition-delay: 0.38s; }
+body.is-revealed .splash-word:nth-child(3) { transition-delay: 0.71s; }
+
+/* Tout le reste de la carte : un seul fondu, une fois les trois mots posés */
+body.is-revealed .splash-card > *:not(#splash-title) {
+  transition-delay: 1.15s;
+}
+
+.splash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
 }
 
 .splash-tuto {
@@ -242,10 +517,9 @@ body.is-busted #wanted {
 
 .splash-block h2 {
   margin-bottom: 12px;
-  font: 700 13px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
-  color: #2970f4;
+  /* title--small : Poppins bold, au corps hérité */
+  font: 700 16px/1.2 var(--abs-font);
+  color: var(--abs-blue);
 }
 
 .splash-block ul {
@@ -253,6 +527,37 @@ body.is-busted #wanted {
   display: flex;
   flex-direction: column;
   gap: 9px;
+}
+
+/* Un seul jeu d'instructions à la fois : le pointeur décide. Les raccourcis
+   clavier n'ont aucun sens au doigt, et les consignes tactiles n'en ont pas
+   à la souris.
+
+   Le sélecteur reprend `.splash-block` à dessein : la règle ci-dessus vise
+   `.splash-block ul`, soit une classe ET un type, et l'emporterait sur une
+   simple classe quelle que soit la place qu'on lui donne dans le fichier.
+   C'est une question de spécificité, pas d'ordre. */
+.splash-block .controls--touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .splash-block .controls--keys {
+    display: none;
+  }
+
+  .splash-block .controls--touch {
+    display: flex;
+  }
+}
+
+/* Pastille figurant la manette tactile */
+.hint-pad {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  vertical-align: -3px;
+  background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23F2FF28%27%20stroke-width%3D%272%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%273.4%27%20fill%3D%27%23F2FF28%27%20stroke%3D%27none%27%2F%3E%3C%2Fsvg%3E") no-repeat center / contain;
 }
 
 /* Clavier ou manette : une seule des deux listes de contrôles est affichée */
@@ -284,40 +589,18 @@ body.is-busted #wanted {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+  color: var(--abs-grey-light);
 }
 
 .splash-block kbd {
   min-width: 26px;
-  padding: 4px 7px;
+  padding: 5px 8px;
   border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
-  color: #101010;
-  font: 700 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  background: var(--abs-grey-xdark);
+  box-shadow: 0 0 0 1px var(--abs-grey-dark) inset;
+  color: var(--abs-white);
+  font: 500 12px/1 var(--abs-font);
   text-align: center;
-}
-
-/* Même pastille que le CTA "Voir le projet" et que le bouton Rejouer */
-/* Un seul traitement pour tous les CTA plein écran : accueil et écran de
-   capture. Il reprend celui du CTA "Voir le projet" affiché dans la scène. */
-#splash-start,
-#gameover button {
-  padding: 20px 48px;
-  border: 0;
-  border-radius: 18px;
-  background: #f26749;
-  color: #fff;
-  font: 700 clamp(16px, 2.4vw, 22px) / 1 Poppins, ui-sans-serif, system-ui, sans-serif;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-#splash-start:hover,
-#splash-start.is-hover,
-#gameover button:hover,
-#gameover button.is-hover {
-  transform: scale(1.04);
-  box-shadow: 0 8px 28px rgba(242, 103, 73, 0.45);
 }
 
 /* Minimap : disque en bas à droite, masqué hors de la ville */
@@ -329,8 +612,8 @@ body.is-busted #wanted {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  border: 4px solid #fff;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  border: 4px solid var(--abs-white);
+  box-shadow: 0 6px 20px rgba(30, 30, 30, 0.4);
   pointer-events: none;
   transition: opacity 0.25s ease;
 }
@@ -340,9 +623,8 @@ body.is-busted #minimap {
   opacity: 0;
 }
 
-
 /* Confirmation avant de quitter le jeu pour le client mail. Même vocabulaire
-   visuel que l'écran d'accueil : carte claire, Poppins, CTA corail. */
+   visuel que l'écran d'accueil : carte sombre, Poppins, boutons de charte. */
 #confirm {
   position: fixed;
   inset: 0;
@@ -351,36 +633,42 @@ body.is-busted #minimap {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(36, 70, 151, 0.75);
+  background: rgba(30, 30, 30, 0.82);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  /* Même raison que pour l'écran de capture : masquée, la popin ne doit plus
+     offrir ses deux boutons à la tabulation. */
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
 }
 
 #confirm.is-visible {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0s;
 }
 
 .confirm-card {
   width: min(520px, 100%);
   padding: 40px 36px 32px;
-  border-radius: 22px;
-  background: #d3d3d3;
-  color: #101010;
+  border-radius: 14px;
+  background: var(--abs-grey-xdark);
+  box-shadow: 0 0 0 1px var(--abs-grey-dark) inset, 0 22px 60px rgba(0, 0, 0, 0.5);
+  color: var(--abs-white);
   text-align: center;
-  font: 400 15px/1.55 Poppins, ui-sans-serif, system-ui, sans-serif;
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4);
+  font: 400 16px/1.5 var(--abs-font);
 }
 
 .confirm-title {
   margin-bottom: 14px;
-  font: 700 26px/1.15 Poppins, ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.3px;
+  /* title--large : Instrument Serif, graisse regular, interlignage 1 */
+  font: 400 34px/1 var(--abs-font-serif);
 }
 
 .confirm-text {
   margin-bottom: 28px;
+  color: var(--abs-grey-light);
 }
 
 .confirm-actions {
@@ -390,39 +678,8 @@ body.is-busted #minimap {
   justify-content: center;
 }
 
-.confirm-actions button {
-  padding: 15px 28px;
-  border: 0;
-  border-radius: 14px;
-  font: 700 15px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.confirm-actions button:hover,
-.confirm-actions button.is-hover {
-  transform: scale(1.04);
-}
-
-/* Action principale : le corail des CTA. Le refus reste en bleu de charte,
-   cerné, pour ne pas se disputer l'attention avec elle. */
-#confirm-ok {
-  background: #f26749;
-  color: #fff;
-}
-
-#confirm-ok:hover,
-#confirm-ok.is-hover {
-  box-shadow: 0 8px 24px rgba(242, 103, 73, 0.45);
-}
-
-#confirm-cancel {
-  background: transparent;
-  color: #2970f4;
-  box-shadow: inset 0 0 0 2px #2970f4;
-}
-
-/* Rappel de raccourci, sous le téléphone */
+/* Rappels de raccourci, sous le téléphone : le conteneur ne fait que les
+   aligner, chaque pastille porte son propre fond. */
 #phone-hint {
   position: fixed;
   left: 20px;
@@ -431,11 +688,6 @@ body.is-busted #minimap {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 13px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font: 600 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
   user-select: none;
   opacity: 0;
@@ -446,6 +698,21 @@ body.is-busted #minimap {
   opacity: 1;
 }
 
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.6);
+  box-shadow: 0 0 0 1px rgba(246, 246, 246, 0.35) inset;
+  color: var(--abs-white);
+  font: 400 12px/1 var(--abs-font);
+  white-space: nowrap;
+}
+
+.hint kbd {
+  padding: 4px 8px;
 /* Rappel de la pause à la manette, en bas au centre : les coins sont pris
    par le téléphone et la minimap */
 #pause-hint {
@@ -475,8 +742,343 @@ body.is-busted #pause-hint {
 #pause-hint kbd {
   padding: 3px 7px;
   border-radius: 5px;
-  background: #f26749;
-  font: 700 11px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  background: var(--abs-yellow);
+  color: var(--abs-black);
+  font: 500 11px/1 var(--abs-font);
+}
+
+/* L'appel à l'action se distingue du simple rappel de touche : fond bleu de
+   charte, plein, sans filet. Il n'apparaît que lorsque le téléphone est mis
+   en avant, c'est-à-dire quand Entrée a vraiment un effet. Il s'efface en
+   fondu sans quitter le flux : la pastille voisine ne bouge donc pas. */
+.hint--contact {
+  background: var(--abs-blue);
+  box-shadow: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.hint--contact.is-visible {
+  opacity: 1;
+}
+
+/* L'icône prend la couleur du texte : blanche sur le bleu */
+.hint-enter {
+  width: 15px;
+  height: 15px;
+  color: var(--abs-white);
+}
+
+/* Au doigt, le téléphone de contact n'apparaît QUE dans le menu : un aplat
+   opaque le laisserait derrière lui, invisible. Le fond devient donc un voile,
+   et la carte reprend le noir plein à son compte pour que le texte garde son
+   contraste. Le téléphone occupe le coin bas gauche, hors de la carte. */
+@media (pointer: coarse) {
+  #splash {
+    background: rgba(30, 30, 30, 0.72);
+  }
+
+  .splash-card {
+    padding: 22px;
+    border-radius: 14px;
+    background: var(--abs-black);
+  }
+}
+
+/* Un téléphone en paysage n'offre que quelques centaines de pixels de haut :
+   la carte est resserrée pour tenir d'un seul tenant, bouton compris. */
+@media (max-height: 560px) {
+  #splash {
+    padding: 20px;
+  }
+
+  .splash-card h1 {
+    margin: 12px 0 18px;
+    font-size: clamp(30px, 6vw, 44px);
+  }
+
+  .splash-logo {
+    width: min(140px, 36%);
+  }
+
+  .splash-tuto {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .splash-block ul {
+    gap: 5px;
+  }
+
+  .btn--large {
+    --btn-size: 50px;
+    --btn-text: 15px;
+  }
+}
+
+/* ---------- Appareil insuffisant ---------- */
+/* Bandeau bas, pas une popin : le jeu continue derrière, on informe sans
+   interrompre. Il ne s'affiche qu'une fois — le redire à chaque palier
+   franchi ne ferait qu'agacer. */
+#weak {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(460px, calc(100vw - 32px));
+  padding: 20px 22px;
+  border-radius: 14px;
+  background: var(--abs-grey-xdark);
+  box-shadow: 0 0 0 1px var(--abs-grey-dark) inset, 0 18px 50px rgba(0, 0, 0, 0.5);
+  color: var(--abs-white);
+  text-align: center;
+  font: 400 15px/1.5 var(--abs-font);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+}
+
+#weak.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
+}
+
+/* ---------- Rappel du menu ---------- */
+/* En haut à droite : le seul angle libre en jeu — les FPS et le niveau de
+   recherche tiennent la gauche, la minimap et les boutons de projet le bas. */
+#menu-open {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 11px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.6);
+  box-shadow: 0 0 0 1px rgba(246, 246, 246, 0.35) inset;
+  color: var(--abs-white);
+  font: 400 13px/1 var(--abs-font);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  /* `visibility` le sort aussi de l'ordre de tabulation : masqué, il ne doit
+     pas pouvoir recevoir le focus. */
+  visibility: hidden;
+  transition: background-color 0.2s ease, opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+#menu-open.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition: background-color 0.2s ease, opacity 0.25s ease, visibility 0s;
+}
+
+#menu-open:hover,
+#menu-open:focus-visible {
+  background: var(--abs-blue);
+  outline: none;
+}
+
+#menu-open svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* Au doigt, l'icône se suffit : le libellé prend une place qu'on n'a pas. */
+@media (pointer: coarse) {
+  #menu-open span {
+    display: none;
+  }
+
+  #menu-open {
+    padding: 10px;
+  }
+}
+
+/* ---------- Appels à l'action de la vue projet ---------- */
+/* Empilés en bas à droite, hors du flux 3D. Le coin bas gauche est pris par
+   la manette tactile, le haut par le titre : c'est le seul angle libre. */
+#project-actions {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+}
+
+#project-actions.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.35s ease, visibility 0s;
+}
+
+/* Les deux boutons partagent leur largeur : empilés, des largeurs inégales
+   donneraient un escalier. */
+#project-actions .btn {
+  justify-content: space-between;
+  width: 100%;
+}
+
+@media (max-width: 640px), (max-height: 560px) {
+  #project-actions {
+    right: 14px;
+    bottom: 14px;
+    gap: 9px;
+  }
+
+  #project-actions .btn {
+    --btn-size: 46px;
+    --btn-text: 14px;
+    padding-left: 16px;
+    gap: 12px;
+  }
+}
+
+/* ---------- Installation sur l'écran d'accueil ---------- */
+#install {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 34ch;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--abs-grey-dark);
+}
+
+/* Texte courant. Le sélecteur porte l'identifiant volontairement : `#rotate p`
+   impose le grand serif des titres à tous les paragraphes de l'écran, et une
+   simple classe ne pesait pas assez lourd pour le reprendre. */
+#install .install-text {
+  font: inherit;
+  color: inherit;
+  /* Lignes réparties à longueurs voisines plutôt que remplies jusqu'au bord :
+     une dernière ligne de deux mots sous quatre lignes pleines se voit. */
+  text-wrap: balance;
+}
+
+/* Un seul parcours affiché, celui de l'appareil en main. Tant que l'OS n'est
+   pas identifié, rien ne s'affiche : mieux vaut un blanc qu'un mode d'emploi
+   qui ne correspond à rien. */
+.install-steps {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  text-align: left;
+}
+
+#install[data-os='ios'] .install-steps[data-for='ios'],
+#install[data-os='android'] .install-steps[data-for='android'] {
+  display: flex;
+}
+
+.install-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--abs-grey-light);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.install-steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--abs-yellow);
+  color: var(--abs-black);
+  font: 500 12px/1 var(--abs-font);
+}
+
+.install-steps strong {
+  color: var(--abs-white);
+  font-weight: 500;
+}
+
+/* Schéma d'une étape : un bandeau de navigateur stylisé, où seul l'élément à
+   toucher est mis en avant. Le reste est volontairement illisible — il n'y a
+   rien à y lire, et le détail détournerait du geste. */
+/* Pleine largeur du bloc : bridés à 230 px, les schémas étaient plus étroits
+   que le texte qu'ils illustrent et la colonne paraissait décousue. Leur
+   `viewBox` les met à l'échelle sans rien déformer. */
+.install-shot {
+  width: 100%;
+  height: auto;
+}
+
+.install-shot .shot-bg {
+  fill: var(--abs-grey-xdark);
+  stroke: var(--abs-grey-dark);
+}
+
+.install-shot .shot-dim {
+  fill: var(--abs-grey-dark);
+}
+
+.install-shot .shot-text {
+  fill: var(--abs-grey-light);
+}
+
+.install-shot .shot-ring {
+  fill: none;
+  stroke: var(--abs-yellow);
+  stroke-width: 2;
+}
+
+.install-shot .shot-mark {
+  fill: none;
+  stroke: var(--abs-yellow);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.install-shot .shot-mark-fill {
+  fill: var(--abs-yellow);
+}
+
+/* Pictogramme au trait. L'épaisseur est celle du fichier d'origine : elle est
+   mise à l'échelle par la transformation du groupe, comme le tracé lui-même. */
+.install-shot .shot-stroke {
+  fill: none;
+  stroke: var(--abs-yellow);
+  stroke-width: 6.67;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Pictogramme de bouton de manette, à la hauteur du texte de la touche */
@@ -504,8 +1106,8 @@ body.is-busted #pause-hint {
   width: 132px;
   height: 132px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  background: rgba(16, 16, 16, 0.28);
+  border: 2px solid rgba(246, 246, 246, 0.55);
+  background: rgba(30, 30, 30, 0.28);
   touch-action: none; /* sans quoi le navigateur interprète le glissé */
   user-select: none;
 }
@@ -518,21 +1120,19 @@ body.is-busted #pause-hint {
   height: 56px;
   margin: -28px 0 0 -28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(246, 246, 246, 0.8);
   transition: background 0.15s ease;
 }
 
 .stick.is-active i {
-  background: #f26749;
+  background: var(--abs-yellow);
 }
 
+/* Seule manette à l'écran : la caméra n'en a plus. */
 #stick-drive {
   left: 26px;
 }
 
-#stick-look {
-  right: 26px;
-}
 
 /* Invitation à pivoter : le jeu suppose un écran large, la ville et les
    commandes n'ont pas la place en portrait. */
@@ -546,14 +1146,14 @@ body.is-busted #pause-hint {
   justify-content: center;
   gap: 10px;
   padding: 32px;
-  background: #244697;
-  color: #fff;
+  background: var(--abs-black);
+  color: var(--abs-white);
   text-align: center;
-  font: 400 15px/1.5 Poppins, ui-sans-serif, system-ui, sans-serif;
+  font: 400 16px/1.5 var(--abs-font);
 }
 
 #rotate p {
-  font: 700 26px/1.2 Poppins, ui-sans-serif, system-ui, sans-serif;
+  font: 400 34px/1 var(--abs-font-serif);
 }
 
 @media (pointer: coarse) {
@@ -632,4 +1232,115 @@ html.is-pad-input * {
 
 .pad-cursor.is-pressed i {
   transform: scale(0.8);
+}
+
+/* ---------- Écran de chargement ---------- */
+/* Le panneau noir couvre l'écran pendant tout le chargement, puis s'efface
+   en fondu : l'accueil porte déjà le même noir, la bascule est invisible et
+   c'est l'entrée des mots qui fait l'ouverture. */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 42px;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+#boot.is-revealing {
+  opacity: 0;
+}
+
+#boot-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--abs-white);
+  transition: opacity 0.4s ease;
+}
+
+#boot-bar {
+  width: min(280px, 60vw);
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(246, 246, 246, 0.2);
+  overflow: hidden;
+}
+
+#boot-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--abs-yellow);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.25s ease;
+}
+
+#boot-percent {
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 2px;
+}
+
+/* Tout ce qui compose le jeu entre en fondu une fois le titre posé. */
+.splash-card > *,
+#fps,
+#wanted,
+#minimap,
+#sticks,
+#reticle,
+#phone-hint {
+  transition: opacity 0.6s ease;
+}
+
+/* Pendant le chargement, l'accueil n'est pas cliquable */
+body.is-booting #splash {
+  pointer-events: none;
+}
+
+body.is-booting .splash-card > *,
+body.is-booting #fps,
+body.is-booting #wanted,
+body.is-booting #minimap,
+body.is-booting #sticks,
+body.is-booting #reticle,
+body.is-booting #phone-hint {
+  opacity: 0;
+}
+
+/* Le focus ne dessine rien de particulier : au clavier, un bouton ciblé
+   prend exactement l'apparence qu'il aurait au survol. */
+#splash-start:focus,
+#confirm-cancel:focus,
+#confirm-ok:focus,
+#gameover-restart:focus {
+  outline: none;
+}
+
+/* L'appel à l'action de l'écran de capture prend le focus dès son ouverture.
+   S'il virait au bleu comme les autres, il s'afficherait d'emblée dans son
+   état survolé : la couleur doit dire l'action, pas l'état. Il garde donc son
+   jaune, et c'est un liseré blanc qui signale le focus. */
+#gameover-contact:focus,
+#gameover-contact:focus-visible {
+  --btn-bg: var(--abs-yellow);
+  --btn-fg: var(--abs-black);
+  --btn-icon-bg: var(--abs-yellow);
+  --btn-arrow: var(--btn-arrow-dark);
+  outline: 2px solid var(--abs-white);
+  outline-offset: 3px;
+}
+
+/* Le survol reprend la main sur le focus : sans cette reprise, la règle
+   ci-dessus l'emporterait par sa spécificité et le bouton resterait inerte
+   sous la souris une fois focalisé. */
+#gameover-contact:hover {
+  --btn-bg: var(--abs-blue);
+  --btn-fg: var(--abs-white);
+  --btn-icon-bg: var(--abs-black);
+  --btn-arrow: var(--btn-arrow-light);
 }
