@@ -168,7 +168,7 @@
           </button>
           <!-- Filet de secours : une partie coincée se repart d'ici, sans
                avoir à recharger la page. -->
-          <button id="splash-restart" class="btn btn--secondary btn--large" type="button">
+          <button id="splash-restart" class="btn btn--blue btn--large" type="button">
             Recommencer
           </button>
         </div>
@@ -195,8 +195,8 @@
     <!-- Signature de l'agence, au-dessus du niveau de recherche. Vrai lien :
          lancé depuis l'écran d'accueil, le jeu n'a pas de barre d'adresse et
          un window.open y resterait prisonnier. -->
-    <a id="brand" href="https://agence-absolu.com/" target="_blank" rel="noopener noreferrer">
-      <img src="/logo-absolu.svg" alt="Absolu" />
+    <a id="brand" href="https://agence-absolu.com/" target="_blank" rel="noopener noreferrer" aria-label="Absolu">
+      <span class="brand-mark" aria-hidden="true"></span>
     </a>
     <div id="wanted"></div>
     <div id="confirm">
@@ -207,7 +207,7 @@
           Êtes-vous sûr de vouloir nous quitter&nbsp;?
         </p>
         <div class="confirm-actions">
-          <button id="confirm-cancel" class="btn btn--secondary" type="button">Rester en ville</button>
+          <button id="confirm-cancel" class="btn btn--blue" type="button">Rester en ville</button>
           <button id="confirm-ok" class="btn btn--accent" type="button">Contacter l'agence</button>
         </div>
       </div>
@@ -231,7 +231,7 @@
         pour jouer à Brand Theft Auto. Pour profiter pleinement de cette expérience,
         nous vous recommandons d'y jouer sur un ordinateur.
       </p>
-      <button id="weak-close" class="btn btn--secondary" type="button">Continuer quand même</button>
+      <button id="weak-close" class="btn btn--blue" type="button">Continuer quand même</button>
     </div>
 
     <div id="fade"></div>

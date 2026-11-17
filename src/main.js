@@ -218,7 +218,7 @@ function governQuality(fps, elapsed) {
     if (fps < probe.fps * QUALITY_PAYOFF) {
       applyQuality(probe.level)
       qualityStuck = true
-      showNotice('Qualité rétablie')
+      showDebug('Qualité rétablie')
       qualityHold = -QUALITY_GRACE
       return
     }
@@ -239,7 +239,7 @@ function governQuality(fps, elapsed) {
 
     qualityProbe = { level: settings.quality, fps }
     applyQuality(settings.quality + (dire ? 2 : 1))
-    showNotice(`Qualité réduite (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
+    showDebug(`Qualité réduite (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
     qualityHold = -QUALITY_GRACE
     return
   }
@@ -261,13 +261,19 @@ function governQuality(fps, elapsed) {
   if (qualityComfort < QUALITY_CLIMB_PATIENCE) return
   qualityComfort = 0
   applyQuality(settings.quality - 1)
-  showNotice(`Qualité rétablie (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
+  showDebug(`Qualité rétablie (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
   qualityHold = -QUALITY_GRACE
 }
 
 
 const canvas = document.querySelector('#scene')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+// three remet ses compteurs à zéro au début de CHAQUE `render`. L'espace blanc
+// en enchaîne deux par image — la ville vue d'en haut, puis la scène — et le
+// relevé ne montrait donc que la seconde : seize appels et zéro triangle, pour
+// une image qui en dessinait en réalité des centaines de fois plus. On prend
+// la remise à zéro en main pour que le compteur couvre toutes les passes.
+renderer.info.autoReset = false
 // Plafond de densité de pixels. Sur un écran retina, 2 contre 1,5 c'est
 // presque deux fois plus de pixels à remplir à chaque image — c'est le poste
 // le plus lourd d'un rendu plein écran, et l'antialiasing masque l'essentiel
@@ -901,10 +907,18 @@ function createPanelVideo(entry) {
     // mais il faut bien en téléverser UNE, sinon le panneau reste vide entre
     // le chargement et l'entrée dans la zone de lecture, et l'on n'y voit ni
     // la vidéo ni le poster qu'elle vient de remplacer.
+    // Là où `requestVideoFrameCallback` existe — tous les navigateurs mobiles
+    // actuels — three s'en sert déjà pour ne téléverser QUE les trames
+    // réellement décodées. Forcer en plus un téléversement à chaque image,
+    // comme on le faisait ici, triplait le transfert d'une vidéo à 24 i/s
+    // rendue à 60 : la même trame, repoussée vers le GPU deux fois sur trois.
+    // Il reste à en peindre une seule à la main, pour que le panneau ne soit
+    // pas vide entre le chargement et l'entrée dans la zone de lecture.
+    const throttled = 'requestVideoFrameCallback' in video
     let painted = false
     map.update = function () {
       if (video.readyState < video.HAVE_CURRENT_DATA) return
-      if (video.paused && painted) return
+      if (painted && (throttled || video.paused)) return
       painted = true
       this.needsUpdate = true
     }
@@ -2871,7 +2885,7 @@ function rescueToRoad() {
   fallSpeed = 0
   stuckTime = 0
   stuckHops = 0
-  showNotice('Remise sur la route')
+  showDebug('Remise sur la route')
 }
 
 function checkStuck() {
@@ -2901,7 +2915,7 @@ function checkStuck() {
   velocity.set(Math.sin(carHeading) * HOP_PUSH * way, 0, Math.cos(carHeading) * HOP_PUSH * way)
   speed = HOP_PUSH * way
   _lateral.set(0, 0, 0)
-  showNotice('Dégagement')
+  showDebug('Dégagement')
 }
 
 // Respawn : la voiture est lâchée d'une certaine hauteur et retombe.
@@ -2957,7 +2971,7 @@ function respawn() {
   clearPolice()
   refreshPoliceFleet()
   applyCameraOrientation()
-  showNotice('Respawn')
+  showDebug('Respawn')
 }
 
 function step() {
@@ -3229,7 +3243,7 @@ function enterWhiteSpace({ push = true } = {}) {
   accumulator = 0
 
   applyCameraOrientation()
-  showNotice('White space')
+  showDebug('White space')
 }
 
 function exitWhiteSpace() {
@@ -3521,11 +3535,14 @@ function refreshBuildingColors() {
 const gui = new GUI({ title: 'Brand Theft Auto' })
 gui.hide()
 
+// Même bascule pour le panneau et pour les notices de diagnostic.
+let debugVisible = false
+
 window.debugBTA = () => {
-  const hidden = gui.domElement.style.display === 'none'
-  if (hidden) gui.show()
+  debugVisible = !debugVisible
+  if (debugVisible) gui.show()
   else gui.hide()
-  return hidden ? 'réglages affichés' : 'réglages masqués'
+  return debugVisible ? 'débogage affiché' : 'débogage masqué'
 }
 
 gui.add(settings, 'cameraHeight', 0.5, 40, 0.1).name('Hauteur caméra').onChange(applyCameraOrientation)
@@ -4368,9 +4385,13 @@ const HOLE_DEPTH = 30
 const HOLE_DISTANCE = 15 // derrière la voiture : il faut faire demi-tour
 
 // Résolution volontairement basse : l'image est vue au fond d'un puits, la
-// différence ne se voit pas et la passe coûte deux fois moins.
-const CITY_VIEW_SIZE = 512
-const CITY_VIEW_EVERY = 2 // une frame sur deux suffit pour une vue quasi fixe
+// différence ne se voit pas et la passe coûte deux fois moins. Sur tactile on
+// descend encore : à cette taille d'écran, le disque fait moins de cent pixels
+// de large, et 512² lui en préparait vingt-six fois trop.
+const CITY_VIEW_SIZE = COARSE ? 192 : 512
+// Une vue quasi fixe : la rafraîchir une image sur deux ne se voit pas, une
+// sur trois sur tactile pas davantage.
+const CITY_VIEW_EVERY = COARSE ? 3 : 2
 
 const cityTarget = new THREE.WebGLRenderTarget(CITY_VIEW_SIZE, CITY_VIEW_SIZE)
 const windowCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200)
@@ -4416,8 +4437,26 @@ scene.add(holeMesh)
 // Rend la ville dans la texture du fond. Tout le décor de l'espace blanc est
 // masqué le temps de la passe, puis rétabli : une seule scène sert aux deux
 // mondes, il n'y en a pas de seconde à maintenir.
+// Le puits est à quinze mètres DERRIÈRE la voiture : la majorité du temps il
+// n'est pas à l'écran du tout. On payait quand même la ville entière, chaque
+// image, pour une texture que personne ne regardait.
+const _cityFrustum = new THREE.Frustum()
+const _cityMatrix = new THREE.Matrix4()
+const _holeSphere = new THREE.Sphere(new THREE.Vector3(), HOLE_RADIUS * 1.2)
+
+function holeOnScreen() {
+  _holeSphere.center.copy(holeMesh.position)
+  // La passe a lieu avant le rendu : c'est `render` qui rafraîchit d'ordinaire
+  // ces matrices, elles porteraient encore l'image précédente.
+  camera.updateMatrixWorld()
+  _cityMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+  _cityFrustum.setFromProjectionMatrix(_cityMatrix)
+  return _cityFrustum.intersectsSphere(_holeSphere)
+}
+
 function renderCityWindow() {
   if (!holeMesh.visible) return
+  if (!holeOnScreen()) return
   if (cityViewFrame++ % CITY_VIEW_EVERY !== 0) return
 
   const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, holeMesh, carGroup]
@@ -4436,9 +4475,15 @@ function renderCityWindow() {
   )
   sky.position.copy(windowCamera.position)
 
+  // Chaque `render` relance la passe d'ombre : celle-ci en ajoutait une
+  // seconde par image, à pleine définition, pour une vignette vue de si loin
+  // qu'aucune ombre n'y est lisible. On garde celle de l'image précédente.
+  const shadowAuto = renderer.shadowMap.autoUpdate
+  renderer.shadowMap.autoUpdate = false
   renderer.setRenderTarget(cityTarget)
   renderer.render(scene, windowCamera)
   renderer.setRenderTarget(null)
+  renderer.shadowMap.autoUpdate = shadowAuto
 
   hidden.forEach((o) => (o.visible = true))
   world.visible = false
@@ -4745,6 +4790,15 @@ let currentPortal = null
 let portal = null // { billboard, progress } quand un portail est en cours
 let noticeTimer
 
+// Les messages de diagnostic (portail franchi, respawn, palier de qualité)
+// n'intéressent que le développement : ils passent par `showDebug`, muet tant
+// que `debugBTA()` n'a pas été appelé dans la console. Les messages de jeu
+// (« Tamponné ! », « Retour en ville ») restent sur `showNotice`.
+function showDebug(text) {
+  if (!debugVisible) return
+  showNotice(text)
+}
+
 function showNotice(text) {
   noticeElement.textContent = text
   noticeElement.classList.add('is-visible')
@@ -4773,7 +4827,7 @@ function checkPortals(x, z) {
   }
 
   if (inside && inside !== currentPortal) {
-    showNotice('Portal triggered !')
+    showDebug('Portal triggered !')
     // La voiture reste pilotable mais ne se déplace plus : c'est le panneau
     // qui s'ouvre, proportionnellement à ce qu'on roule.
     // Deux étapes enchaînées : le panneau grandit (progress), puis le masque
@@ -6042,6 +6096,9 @@ function tick() {
   timer.update()
   const delta = Math.min(timer.getDelta(), 0.1)
   updateFps(delta)
+  // Remise à zéro APRÈS la lecture : le compteur rapporte le total de l'image
+  // précédente, toutes passes confondues.
+  renderer.info.reset()
   drawMinimap(delta)
   updatePhone(delta)
   updateMenuButton()

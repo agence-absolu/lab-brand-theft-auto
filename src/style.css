@@ -88,6 +88,15 @@ a {
   transition: background-color 0.2s ease-in-out;
 }
 
+/* Focus clavier : un liseré blanc, doublé d'un halo sombre. Les CTA se posent
+   aussi bien sur la carte noire du menu que sur le ciel gris clair de la
+   ville — le seul liseré blanc s'y perdait. */
+.btn:focus-visible {
+  outline: 2px solid var(--abs-white);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(30, 30, 30, 0.55);
+}
+
 .btn--primary:hover,
 .btn--primary:focus-visible {
   --btn-bg: var(--abs-blue);
@@ -127,22 +136,6 @@ a {
   --btn-icon-bg: var(--abs-blue);
 }
 
-/* Déclinaison sourde. Son fond doit se détacher de la carte sombre sur
-   laquelle elle est posée : désormais sans filet, elle n'a plus que lui pour
-   exister — en gris xdark elle portait le fond exact de la carte et y
-   disparaissait. */
-.btn--secondary {
-  --btn-bg: var(--abs-grey-dark);
-  --btn-fg: var(--abs-white);
-  --btn-icon-bg: var(--abs-grey-dark);
-}
-
-.btn--secondary:hover,
-.btn--secondary:focus-visible {
-  --btn-bg: var(--abs-grey-medium);
-  --btn-icon-bg: var(--abs-grey-medium);
-}
-
 /* Version généreuse pour les CTA plein écran (accueil, écran de capture) */
 .btn--large {
   --btn-size: 62px;
@@ -170,7 +163,7 @@ a {
    de gauche — la notice leur passait dessus. */
 #notice {
   position: fixed;
-  top: 122px;
+  top: 96px;
   left: 8px;
   z-index: 10;
   padding: 6px 12px;
@@ -258,38 +251,44 @@ a {
   transform: translate(-50%, 0);
 }
 
-/* Signature de l'agence, au-dessus du niveau de recherche. */
-/* Fond sombre comme le reste de l'habillage : le logo est fourni en blanc et
-   le ciel de la ville est gris clair — posé à nu, il y disparaissait. */
+/* Signature de l'agence, tout en haut de la page. Le logo est fourni en blanc :
+   on le repeint en bleu de charte par masquage, pour qu'il porte la couleur
+   sans dépendre d'un second fichier. */
 #brand {
   position: fixed;
-  top: 32px;
-  left: 8px;
+  top: 10px;
+  left: 10px;
   z-index: 11;
   display: block;
   width: 94px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  background: rgba(30, 30, 30, 0.55);
   transition: background-color 0.2s ease;
 }
 
-#brand img {
+#brand .brand-mark {
   display: block;
   width: 100%;
-  height: auto;
+  aspect-ratio: 1487.515 / 666.486;
+  background: var(--abs-blue);
+  -webkit-mask: url('/logo-absolu.svg') no-repeat center / contain;
+  mask: url('/logo-absolu.svg') no-repeat center / contain;
 }
 
-#brand:hover,
+#brand:hover .brand-mark,
+#brand:focus-visible .brand-mark {
+  background: var(--abs-black);
+}
+
 #brand:focus-visible {
-  background: var(--abs-blue);
-  outline: none;
+  outline: 2px solid var(--abs-white);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(30, 30, 30, 0.55);
+  border-radius: 2px;
 }
 
 /* Niveau de recherche, sous la signature */
 #wanted {
   position: fixed;
-  top: 88px;
+  top: 62px;
   left: 8px; /* sous le compteur de FPS, loin du bouton de fermeture */
   z-index: 10;
   display: flex;
@@ -1320,15 +1319,6 @@ body.is-booting #sticks,
 body.is-booting #reticle,
 body.is-booting #phone-hint {
   opacity: 0;
-}
-
-/* Le focus ne dessine rien de particulier : au clavier, un bouton ciblé
-   prend exactement l'apparence qu'il aurait au survol. */
-#splash-start:focus,
-#confirm-cancel:focus,
-#confirm-ok:focus,
-#gameover-restart:focus {
-  outline: none;
 }
 
 /* L'appel à l'action de l'écran de capture prend le focus dès son ouverture.
