@@ -155,7 +155,10 @@ a {
   gap: 20px;
 }
 
+/* Le compteur relève du réglage de la scène, pas du jeu : masqué par défaut,
+   révélé par `debugBTA()` au même titre que le panneau lil-gui. */
 #fps {
+  display: none;
   position: fixed;
   top: 8px;
   left: 8px;
@@ -167,6 +170,10 @@ a {
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: none; /* ne doit jamais voler le clic du pointer lock */
   user-select: none;
+}
+
+body.is-debug #fps {
+  display: block;
 }
 
 /* Sous la signature et le niveau de recherche, qui occupent déjà la colonne

@@ -3735,6 +3735,8 @@ window.debugBTA = () => {
   debugVisible = !debugVisible
   if (debugVisible) gui.show()
   else gui.hide()
+  // Le compteur d'images suit la même bascule que le panneau.
+  document.body.classList.toggle('is-debug', debugVisible)
   return debugVisible ? 'débogage affiché' : 'débogage masqué'
 }
 
