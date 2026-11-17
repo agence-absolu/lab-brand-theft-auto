@@ -1,4 +1,9 @@
-# Publication de la démo sur le lab, à chaque push sur main.
+# Publication sur les deux environnements, à chaque push sur main :
+#   - la démo du lab, servie dans un sous-dossier (base /<slug>/) ;
+#   - la production bta.agence-absolu.com, servie à la racine d'un domaine
+#     dédié (base /), dont le NDD pointe sur le dossier dist/ du site.
+# D'où deux builds : la base est figée à la compilation dans tous les chemins
+# absolus, un même dist/ ne peut donc pas servir les deux.
 #
 # Transport rsync sur SSH, par mot de passe. Les deux autres voies sont fermées
 # chez Infomaniak : l'authentification par clé n'est pas disponible sur un site
@@ -14,7 +19,7 @@
 #   LAB_SSH_KNOWN_HOSTS  facultatif — sortie de `ssh-keyscan <hôte>`, pour
 #                        épingler l'empreinte du serveur (voir plus bas)
 
-name: Déploiement lab
+name: Déploiement lab + prod
 
 on:
   push:
@@ -22,7 +27,7 @@ on:
   workflow_dispatch: # publication manuelle depuis l'onglet Actions
 
 concurrency:
-  group: deploy-lab
+  group: deploy-lab-prod
   cancel-in-progress: true # un push plus récent rend le précédent caduc
 
 jobs:
@@ -88,4 +93,23 @@ jobs:
           sshpass -e ssh "$USER_SSH@$HOST" "mkdir -p '$TARGET'"
           # --delete purge les bundles de la version précédente ; les noms étant
           # empreintés, les nouveaux fichiers sont en place avant leur retrait.
+          sshpass -e rsync -az --delete dist/ "$USER_SSH@$HOST:$TARGET/"
+
+      # ---------- Production : bta.agence-absolu.com ----------
+      # Domaine dédié servi à la racine : base "/" et non "/<slug>/". Le build
+      # précédent est donc inutilisable tel quel, on recompile.
+      - name: Build production
+        run: BASE_PATH="/" npm run build
+
+      - name: Envoi vers la production
+        env:
+          SSHPASS: ${{ secrets.LAB_SSH_PASSWORD }}
+          HOST: ${{ secrets.LAB_SSH_HOST }}
+          USER_SSH: ${{ secrets.LAB_SSH_USER }}
+          # Le NDD de bta pointe sur le dist/ du site : c'est ce dossier, et
+          # lui seul, qui est publié. Le reste du site (sources, node_modules)
+          # n'a plus besoin d'exister sur le serveur.
+          TARGET: bta.agence-absolu.com/dist
+        run: |
+          sshpass -e ssh "$USER_SSH@$HOST" "mkdir -p '$TARGET'"
           sshpass -e rsync -az --delete dist/ "$USER_SSH@$HOST:$TARGET/"

@@ -8,7 +8,11 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# Les deux environnements reçoivent un build produit par le CI (une base
+# différente chacun) : le dist/ local n'a plus à être versionné.
+dist
 dist-ssr
+tools/__pycache__
 *.local
 
 # Editor directories and files
