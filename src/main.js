@@ -2412,7 +2412,7 @@ function registerHit() {
   gamepad.rumble(1, 0.8, 300)
   updateDamageStage()
   if (hits >= MAX_HITS) triggerGameOver()
-  else showNotice(`Tamponné ! ${hits}/${MAX_HITS}`)
+  else showDebug(`Tamponné ! ${hits}/${MAX_HITS}`)
 }
 
 // Séquence de capture : la simulation vire au gris, la caméra s'envole en
@@ -5011,10 +5011,10 @@ let currentPortal = null
 let portal = null // { billboard, progress } quand un portail est en cours
 let noticeTimer
 
-// Les messages de diagnostic (portail franchi, respawn, palier de qualité)
-// n'intéressent que le développement : ils passent par `showDebug`, muet tant
-// que `debugBTA()` n'a pas été appelé dans la console. Les messages de jeu
-// (« Tamponné ! », « Retour en ville ») restent sur `showNotice`.
+// Les messages de diagnostic (portail franchi, respawn, palier de qualité,
+// compteur d'impacts) n'intéressent que le développement : ils passent par
+// `showDebug`, muet tant que `debugBTA()` n'a pas été appelé dans la console.
+// Les messages de jeu (« Retour en ville ») restent sur `showNotice`.
 function showDebug(text) {
   if (!debugVisible) return
   showNotice(text)
