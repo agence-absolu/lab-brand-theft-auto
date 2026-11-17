@@ -254,10 +254,20 @@
     </div>
     <div id="notice"></div>
 
-    <!-- Commande tactile : une seule manette, pour conduire. La caméra se
-         recadre seule derrière la voiture, elle n'a pas besoin de la sienne. -->
+    <!-- Commande tactile : deux paires de flèches. Direction à gauche sous le
+         pouce gauche, vitesse à droite sous le pouce droit. La caméra se
+         recadre seule derrière la voiture, elle n'a pas besoin de commande.
+         Des div et non des button : au doigt le focus ne sert à rien, et un
+         bouton focusé intercepterait Entrée en même temps que le jeu. -->
     <div id="sticks">
-      <div class="stick" id="stick-drive"><i></i></div>
+      <div class="pad pad--steer" id="pad-steer">
+        <div class="pad-key" data-key="left" aria-hidden="true"><i></i></div>
+        <div class="pad-key" data-key="right" aria-hidden="true"><i></i></div>
+      </div>
+      <div class="pad pad--drive" id="pad-drive">
+        <div class="pad-key" data-key="up" aria-hidden="true"><i></i></div>
+        <div class="pad-key" data-key="down" aria-hidden="true"><i></i></div>
+      </div>
     </div>
 
     <div id="rotate">

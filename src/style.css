@@ -1130,40 +1130,71 @@ body.is-busted #pause-hint {
   display: none;
 }
 
-.stick {
+/* Deux paires de flèches, larges et épaisses : au doigt, un cercle de
+   joystick demande de viser puis de doser, là où une flèche n'attend qu'un
+   appui. Direction à gauche, vitesse à droite, comme sur une borne. */
+.pad {
   position: fixed;
-  bottom: 26px;
+  bottom: 22px;
   z-index: 14;
-  width: 132px;
-  height: 132px;
-  border-radius: 50%;
-  border: 2px solid rgba(246, 246, 246, 0.55);
-  background: rgba(30, 30, 30, 0.28);
+  display: flex;
+  gap: 12px;
   touch-action: none; /* sans quoi le navigateur interprète le glissé */
   user-select: none;
 }
 
-.stick i {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 56px;
-  height: 56px;
-  margin: -28px 0 0 -28px;
-  border-radius: 50%;
-  background: rgba(246, 246, 246, 0.8);
-  transition: background 0.15s ease;
+.pad--steer {
+  left: 22px;
+  flex-direction: row;
 }
 
-.stick.is-active i {
+.pad--drive {
+  right: 22px;
+  flex-direction: column;
+}
+
+.pad-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 17px;
+  border: 2px solid rgba(246, 246, 246, 0.55);
+  background: rgba(30, 30, 30, 0.3);
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+/* La flèche est un triangle unique, tourné par touche : une seule forme à
+   maintenir, et elle reste nette à toutes les densités d'écran. */
+.pad-key i {
+  width: 25px;
+  height: 21px;
+  background: rgba(246, 246, 246, 0.85);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transition: background 0.12s ease;
+}
+
+.pad-key[data-key='left'] i {
+  transform: rotate(-90deg);
+}
+
+.pad-key[data-key='right'] i {
+  transform: rotate(90deg);
+}
+
+.pad-key[data-key='down'] i {
+  transform: rotate(180deg);
+}
+
+.pad-key.is-active {
+  background: rgba(30, 30, 30, 0.55);
+  transform: scale(0.94);
+}
+
+.pad-key.is-active i {
   background: var(--abs-yellow);
 }
-
-/* Seule manette à l'écran : la caméra n'en a plus. */
-#stick-drive {
-  left: 26px;
-}
-
 
 /* Invitation à pivoter : le jeu suppose un écran large, la ville et les
    commandes n'ont pas la place en portrait. */
@@ -1204,16 +1235,26 @@ body.is-busted #pause-hint {
     display: block;
   }
 
-  /* La minimap et le téléphone laissent la place aux manettes */
+  /* La minimap et le téléphone laissent la place aux flèches */
   #minimap {
     width: 116px;
     height: 116px;
-    right: 172px;
-    bottom: 30px;
+    right: 182px;
+    bottom: 26px;
   }
 
   #phone-hint {
-    left: 172px;
+    left: 182px;
+  }
+
+  /* Vue projet : les flèches de vitesse occupent désormais le coin bas
+     droit. Laisser les CTAs dessous revenait à les faire déclencher en
+     accélérant ; ils remontent en haut à droite, où la minimap est masquée
+     pendant toute la vue projet. */
+  #project-actions {
+    top: 14px;
+    right: 14px;
+    bottom: auto;
   }
 }
 
@@ -1355,12 +1396,17 @@ body.is-booting #phone-hint {
   opacity: 0;
 }
 
-/* L'appel à l'action de l'écran de capture prend le focus dès son ouverture.
-   S'il virait au bleu comme les autres, il s'afficherait d'emblée dans son
-   état survolé : la couleur doit dire l'action, pas l'état. Il garde donc son
-   jaune, et c'est un liseré blanc qui signale le focus. */
+/* Deux appels à l'action prennent le focus dès l'ouverture de leur écran :
+   celui de l'écran de capture, et celui de la confirmation de contact. S'ils
+   viraient au bleu comme les autres, ils s'afficheraient d'emblée dans leur
+   état survolé — et, posés à côté d'un bouton bleu, ils cesseraient de se
+   distinguer comme l'action principale. La couleur doit dire l'action, pas
+   l'état : ils gardent leur jaune, et c'est le liseré blanc qui porte le
+   focus. */
 #gameover-contact:focus,
-#gameover-contact:focus-visible {
+#gameover-contact:focus-visible,
+#confirm-ok:focus,
+#confirm-ok:focus-visible {
   --btn-bg: var(--abs-yellow);
   --btn-fg: var(--abs-black);
   --btn-icon-bg: var(--abs-yellow);
@@ -1372,7 +1418,8 @@ body.is-booting #phone-hint {
 /* Le survol reprend la main sur le focus : sans cette reprise, la règle
    ci-dessus l'emporterait par sa spécificité et le bouton resterait inerte
    sous la souris une fois focalisé. */
-#gameover-contact:hover {
+#gameover-contact:hover,
+#confirm-ok:hover {
   --btn-bg: var(--abs-blue);
   --btn-fg: var(--abs-white);
   --btn-icon-bg: var(--abs-black);

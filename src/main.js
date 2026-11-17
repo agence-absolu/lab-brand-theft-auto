@@ -30,6 +30,12 @@ const SIDEWALK_COLOR = new THREE.Color('#bfc6d4')
 // Couleur d'horizon : le ciel éclairci. Partagée par le dégradé et le
 // brouillard, pour que la ville se fonde exactement dans le fond.
 const HORIZON = new THREE.Color()
+// Couleur vers laquelle la ville s'éteint au passage d'un panneau. Le blanc
+// est aussi celui de l'espace du projet, de l'autre côté : la transition y
+// arrive sans rupture, au lieu de traverser une couleur qui n'appartient à
+// aucun des deux mondes. Partagée par le brouillard et par le dôme du ciel,
+// qui a son propre shader et ne connaît pas le brouillard.
+const PORTAL_FADE_COLOR = new THREE.Color('#FFFFFF')
 
 // Valeurs pilotées par l'interface
 const settings = {
@@ -38,7 +44,7 @@ const settings = {
   // Recul de la caméra. Sur un écran de téléphone elle est ramenée plus près
   // encore, voir TOUCH_CAMERA_DISTANCE.
   cameraDistance: 7.5,
-  carScale: 0.75,         // échelle du véhicule
+  carScale: 0.88,         // échelle du véhicule
   cameraPitch: -11,       // inclinaison en degrés : négatif = regard vers le bas
   sunColor: '#85a9ff',
   buildingColor: '#cfd0d2',
@@ -209,7 +215,10 @@ const world = new THREE.Group()
 scene.add(world)
 // Le brouillard fond la ville dans le ciel : la limite de chargement des
 // chunks n'est jamais visible, contrairement à une coupure nette.
-const cityFog = new THREE.Fog(HORIZON, 45, 300)
+// Début du brouillard. Nommé parce que l'entrée dans un panneau le fait
+// avancer jusqu'à la caméra, puis le repose ici.
+const CITY_FOG_NEAR = 45
+const cityFog = new THREE.Fog(HORIZON, CITY_FOG_NEAR, 300)
 scene.fog = cityFog
 
 /* ---------- Caméra immersive ---------- */
@@ -446,6 +455,12 @@ const skyMaterial = new THREE.ShaderMaterial({
     uSunColor: { value: SUN },
     uSunDirection: { value: new THREE.Vector3() },
     uSunGlow: { value: settings.showSun ? 1 : 0 },
+    // Extinction vers le noir au passage d'un panneau. Le ciel n'est pas
+    // touché par le brouillard — c'est un shader à lui — il lui faut donc
+    // son propre fondu, sans quoi la ville s'éteindrait sous un ciel resté
+    // clair.
+    uFade: { value: 0 },
+    uFadeColor: { value: PORTAL_FADE_COLOR },
   },
   vertexShader: /* glsl */ `
     varying vec3 vWorldDirection;
@@ -460,6 +475,8 @@ const skyMaterial = new THREE.ShaderMaterial({
     uniform vec3 uSunColor;
     uniform vec3 uSunDirection;
     uniform float uSunGlow;
+    uniform float uFade;
+    uniform vec3 uFadeColor;
     varying vec3 vWorldDirection;
 
     void main() {
@@ -477,7 +494,7 @@ const skyMaterial = new THREE.ShaderMaterial({
       color = mix(color, uSunColor, halo * 0.75 * uSunGlow);
       color = mix(color, uSunColor, disc * uSunGlow);
 
-      gl_FragColor = vec4(color, 1.0);
+      gl_FragColor = vec4(mix(color, uFadeColor, uFade), 1.0);
       #include <colorspace_fragment>
     }
   `,
@@ -1665,8 +1682,201 @@ function normalizeCarModel(model) {
   return model
 }
 
+/* ---------- Marquages de la voiture ---------- */
+// Le modèle n'a qu'un seul matériau pour toute la carrosserie : impossible de
+// repeindre une plaque ou un logo qui n'existent pas en géométrie. On les pose
+// donc, en plans collés à la tôle.
+const PLATE_WIDTH = 0.55  // unités monde, avant carScale
+const PLATE_ASPECT = 3.2  // plaque large, un peu moins qu'une européenne
+const PLATE_FILL = 0.82   // part de la plaque occupée par le logo
+const PLATE_BG = '#F6F6F6'
+const PLATE_INK = '#364B9E'
+const PLATE_RADIUS = 0.17 // rayon des coins, en part de la hauteur
+// Hauteur de la plaque sur le pare-chocs, en part de la hauteur du véhicule.
+// Sous la lunette et au-dessus du bas de caisse, là où elle tombe sur une
+// surface à peu près verticale.
+const PLATE_LEVEL = 0.5
+
+// Le monogramme sur le capot : la variante compacte du logo, en blanc, posée
+// à plat. Pas de fond — c'est la peinture de la voiture qui fait le fond.
+const HOOD_WIDTH = 0.52
+const HOOD_INK = '#F6F6F6'
+// Position sur la longueur, en part de la demi-longueur depuis le centre :
+// au milieu du capot, entre le pare-brise et la calandre.
+const HOOD_REACH = 0.62
+
+// Canvas commun aux deux marquages : un fond optionnel à coins arrondis, et
+// le logo recoloré par-dessus. La texture revient tout de suite, le logo s'y
+// peint à l'arrivée du SVG.
+function markTexture({ url, ink, bg, aspect, fill, radius = 0 }) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = Math.round(512 / aspect)
+  const ctx = canvas.getContext('2d')
+
+  if (bg) {
+    const r = canvas.height * radius
+    ctx.fillStyle = bg
+    ctx.beginPath()
+    // roundRect manque aux Safari d'avant 16.4 : sans ce garde-fou, la plaque
+    // emporterait le chargement du jeu avec elle.
+    if (r && ctx.roundRect) ctx.roundRect(0, 0, canvas.width, canvas.height, r)
+    else ctx.rect(0, 0, canvas.width, canvas.height)
+    ctx.fill()
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+
+  // Le logo est un SVG monochrome : on le recolore en repeignant ses seuls
+  // pixels opaques. Le détour par un calque intermédiaire est nécessaire —
+  // appliqué directement sur la plaque, 'source-in' effacerait le fond blanc
+  // hors du logo et ne laisserait qu'un rectangle d'encre pleine.
+  const image = new Image()
+  image.onload = () => {
+    // Le logo est moins allongé que la plaque : c'est la hauteur qui borne,
+    // pas la largeur. On prend la plus petite des deux échelles, sans quoi il
+    // déborderait en haut et en bas.
+    const ratio = image.width / image.height
+    const h = Math.round(Math.min(canvas.width / ratio, canvas.height) * fill)
+    const w = Math.round(h * ratio)
+
+    const layer = document.createElement('canvas')
+    layer.width = w
+    layer.height = h
+    const layerCtx = layer.getContext('2d')
+    layerCtx.drawImage(image, 0, 0, w, h)
+    layerCtx.globalCompositeOperation = 'source-in'
+    layerCtx.fillStyle = ink
+    layerCtx.fillRect(0, 0, w, h)
+
+    ctx.drawImage(layer, (canvas.width - w) / 2, (canvas.height - h) / 2)
+    texture.needsUpdate = true
+  }
+  image.src = asset(url)
+  return texture
+}
+
+// Les deux marquages regardent souvent à l'opposé du soleil : éclairés
+// seulement, ils viraient au noir. Un peu d'émission les rend lisibles sous
+// tous les caps, sans les faire briller comme un panneau. alphaTest plutôt
+// que transparent : les coins arrondis et le fond ajouré se découpent sans
+// que le plan ait à être trié avec les surfaces translucides.
+function markMaterial(map, emissiveIntensity) {
+  return new THREE.MeshStandardMaterial({
+    map,
+    emissive: 0xffffff,
+    emissiveMap: map,
+    emissiveIntensity,
+    // alphaTest découpe le fond ajouré en gardant le plan dans la passe
+    // opaque ; transparent adoucit en plus le bord des lettres et des coins
+    // arrondis, que la seule coupure franche laissait en escalier.
+    alphaTest: 0.5,
+    transparent: true,
+    roughness: 0.55,
+    metalness: 0,
+    fog: false,
+  })
+}
+
+// Ni le pare-chocs ni le capot ne sont au plan extrême de la boîte
+// englobante : la malle déborde, le capot plonge vers la calandre. On cherche
+// donc la vraie surface au rayon — les marquages se posent ainsi sur la tôle
+// quel que soit le profil du modèle.
+const _markRay = new THREE.Raycaster()
+
+// Les marquages rejoignent carGroup, pas le modèle : le modèle porte sa propre
+// normalisation (échelle, recentrage, quart de tour si l'export était de
+// travers), et y accrocher un enfant obligerait à convertir chaque coordonnée.
+// Dans carGroup, le repère est celui du jeu : +Z devant, y = 0 au sol.
+const PLATE_MAP = markTexture({
+  url: 'logo-absolu.svg',
+  ink: PLATE_INK,
+  bg: PLATE_BG,
+  aspect: PLATE_ASPECT,
+  fill: PLATE_FILL,
+  radius: PLATE_RADIUS,
+})
+const HOOD_MAP = markTexture({
+  url: 'logo-absolu-compact.svg',
+  ink: HOOD_INK,
+  aspect: 1,
+  fill: 0.92,
+})
+
+function addCarMarks(model) {
+  model.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(model)
+  addPlate(model, box)
+  addHoodMark(model, box)
+}
+
+function addPlate(model, box) {
+  const y = box.min.y + (box.max.y - box.min.y) * PLATE_LEVEL
+  _markRay.set(new THREE.Vector3(0, y, box.min.z - 1), new THREE.Vector3(0, 0, 1))
+  const hit = _markRay.intersectObject(model, true)[0]
+  if (!hit) return
+
+  const height = PLATE_WIDTH / PLATE_ASPECT
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(PLATE_WIDTH, height),
+    markMaterial(PLATE_MAP, 0.55)
+  )
+  // Face tournée vers l'arrière, et décollée d'un cheveu : à fleur de tôle,
+  // les deux surfaces se disputeraient le même pixel de profondeur.
+  plate.rotation.y = Math.PI
+  plate.position.set(0, y, hit.point.z - 0.012)
+  plate.castShadow = false
+  plate.receiveShadow = false
+  carGroup.add(plate)
+}
+
+// Le monogramme est posé à plat : on tombe dessus par au-dessus, et le plan
+// suit la pente du capot — un capot plongeant n'est pas horizontal, et une
+// pastille restée à l'horizontale s'enfoncerait dans la tôle d'un côté.
+function addHoodMark(model, box) {
+  const z = box.max.z * HOOD_REACH
+  _markRay.set(new THREE.Vector3(0, box.max.y + 1, z), new THREE.Vector3(0, -1, 0))
+  const hit = _markRay.intersectObject(model, true)[0]
+  if (!hit) return
+
+  const mark = new THREE.Mesh(
+    new THREE.PlaneGeometry(HOOD_WIDTH, HOOD_WIDTH),
+    markMaterial(HOOD_MAP, 0.25)
+  )
+  mark.position.set(0, hit.point.y + 0.012, z)
+  mark.rotation.x = -Math.PI / 2
+  // Pente de la tôle, lue sur la normale du triangle touché : le monogramme
+  // épouse le capot au lieu de flotter au-dessus de son bord bas. La normale
+  // est donnée dans le repère de la géométrie — il faut la repasser dans
+  // celui de carGroup, le modèle portant son propre quart de tour.
+  if (hit.face) {
+    const normal = hit.face.normal
+      .clone()
+      .applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld))
+    mark.rotateX(Math.atan2(normal.z, normal.y))
+  }
+  mark.castShadow = false
+  mark.receiveShadow = false
+  carGroup.add(mark)
+}
+
 new GLTFLoader(loadingManager).load(asset('models/car_1.glb'), (gltf) => {
-  carGroup.add(normalizeCarModel(gltf.scene))
+  const model = normalizeCarModel(gltf.scene)
+  // La ville s'éteint au passage d'un panneau, la voiture non : c'est elle
+  // qu'on suit, elle doit rester lisible jusqu'au bout. Les poursuivants, eux,
+  // appartiennent au décor et s'éteignent avec lui — d'où ce réglage ici
+  // plutôt que dans normalizeCarModel, que les deux modèles partagent.
+  // Posé avant le premier rendu : le programme n'est pas encore compilé, il
+  // n'y a donc rien à invalider.
+  model.traverse((o) => {
+    if (!o.isMesh) return
+    const materials = Array.isArray(o.material) ? o.material : [o.material]
+    materials.forEach((m) => (m.fog = false))
+  })
+  addCarMarks(model)
+  carGroup.add(model)
   applyCarScale()
 })
 
@@ -2288,63 +2498,59 @@ function updatePoliceVisuals(time, alpha) {
 
 /* ---------- Commandes tactiles ---------- */
 // Deux manettes virtuelles : la gauche conduit, la droite oriente la caméra.
-// Elles renvoient un vecteur normalisé dans [-1, 1], ce qui donne des
-// commandes analogiques là où le clavier est en tout ou rien.
-const STICK_RADIUS = 52   // course maximale du bouton, en pixels
+// Au doigt, elles sont en tout ou rien : quatre flèches, deux axes. Le
+// lissage du volant et la courbe de couple font le reste — doser du pouce sur
+// un cercle de joystick demandait une précision que personne n'a en roulant.
 const STICK_DEADZONE = 0.14 // sous ce seuil, on considère la manette au repos
 
-function createStick(id) {
-  const element = document.querySelector(id)
-  const knob = element.querySelector('i')
+// Une paire de flèches = un axe. L'état garde la forme d'un stick ({x, y})
+// pour que la conduite n'ait qu'une seule source de commande analogique à
+// lire, qu'elle vienne du tactile ou d'une manette physique.
+function createArrowPad(selector, axes) {
   const state = { x: 0, y: 0, active: false }
-  let pointerId = null
+  const held = new Map() // pointerId -> touche, pour suivre plusieurs doigts
 
-  function move(event) {
-    const rect = element.getBoundingClientRect()
-    const dx = event.clientX - (rect.left + rect.width / 2)
-    const dy = event.clientY - (rect.top + rect.height / 2)
+  document.querySelectorAll(`${selector} .pad-key`).forEach((element) => {
+    const key = element.dataset.key
+    const [prop, sign] = axes[key]
 
-    // Le vecteur est borné au rayon de la manette : pousser plus loin ne
-    // donne pas plus de commande, mais le doigt peut sortir du cercle.
-    const distance = Math.hypot(dx, dy)
-    const clamp = distance > STICK_RADIUS ? STICK_RADIUS / distance : 1
-    const px = dx * clamp
-    const py = dy * clamp
+    function press(event) {
+      if (held.has(event.pointerId)) return
+      held.set(event.pointerId, element)
+      element.setPointerCapture(event.pointerId)
+      element.classList.add('is-active')
+      state[prop] = sign
+      state.active = true
+    }
 
-    knob.style.transform = `translate(${px}px, ${py}px)`
-    state.x = px / STICK_RADIUS
-    state.y = -py / STICK_RADIUS // vers le haut = valeurs positives
-  }
+    function release(event) {
+      if (held.get(event.pointerId) !== element) return
+      held.delete(event.pointerId)
+      element.classList.remove('is-active')
+      // Deux flèches opposées pressées à la fois : relâcher l'une ne doit pas
+      // effacer l'autre, qui reste maîtresse de l'axe.
+      if (state[prop] === sign) state[prop] = 0
+      state.active = held.size > 0
+    }
 
-  function release() {
-    pointerId = null
-    state.active = false
-    state.x = 0
-    state.y = 0
-    knob.style.transform = ''
-    element.classList.remove('is-active')
-  }
-
-  element.addEventListener('pointerdown', (event) => {
-    pointerId = event.pointerId
-    state.active = true
-    element.classList.add('is-active')
-    element.setPointerCapture(event.pointerId)
-    move(event)
+    element.addEventListener('pointerdown', press)
+    element.addEventListener('pointerup', release)
+    element.addEventListener('pointercancel', release)
   })
-
-  element.addEventListener('pointermove', (event) => {
-    if (event.pointerId !== pointerId) return
-    move(event)
-  })
-
-  element.addEventListener('pointerup', release)
-  element.addEventListener('pointercancel', release)
 
   return state
 }
 
-const driveStick = createStick('#stick-drive')
+const steerPad = createArrowPad('#pad-steer', {
+  left: ['x', -1],
+  right: ['x', 1],
+})
+const drivePad = createArrowPad('#pad-drive', {
+  up: ['y', 1],
+  down: ['y', -1],
+})
+// Les deux pavés ne forment qu'une commande : la conduite lit un seul objet.
+const driveStick = { get x() { return steerPad.x }, get y() { return drivePad.y } }
 
 // Écran tactile : la voiture doit occuper assez de place pour qu'on la suive
 // du coin de l'œil tout en gardant le pouce sur la manette.
@@ -2885,7 +3091,13 @@ function respawn() {
     portal = null
   }
   currentPortal = null
-  world.position.y = 0
+  // Le brouillard est reposé par updatePortalVisual dès l'image suivante,
+  // mais le respawn doit le rendre tout de suite : la ville se redessine
+  // avant, et elle apparaîtrait noyée.
+  cityFog.near = CITY_FOG_NEAR
+  cityFog.far = settings.fogFar
+  cityFog.color.copy(HORIZON)
+  skyMaterial.uniforms.uFade.value = 0
   portalMesh.visible = false
   portalLight.visible = false
 
@@ -2960,12 +3172,12 @@ function step() {
      Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
      la position demandée, et revient au centre quand on relâche. */
   // La manette donne une consigne continue ; le clavier reste en tout ou rien
-  // La course de la manette tactile est adoucie par une courbe : le centre
-  // devient plus fin, les grands angles restent atteignables. Sans elle, le
-  // moindre frémissement du pouce braquait déjà franchement. Le stick d'une
-  // manette physique y échappe — il a la précision qu'un pouce n'a pas.
+  // Les flèches tactiles sont en tout ou rien : c'est le lissage du volant
+  // ci-dessous (STEER_SMOOTH, deux fois plus lent au doigt) qui fait monter
+  // le braquage progressivement tant que la flèche est tenue. Le stick d'une
+  // manette physique garde sa course analogique.
   const touchSteer = axis(driveStick.x)
-  const stickSteer = touchSteer ? touchSteer * Math.abs(touchSteer) : pad.steer
+  const stickSteer = touchSteer || pad.steer
   const steerTarget = stickSteer
     ? -stickSteer
     : (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
@@ -3360,7 +3572,9 @@ function updateMaskShape(t) {
 }
 
 // Les tranches du caisson s'effacent elles aussi : blanc pur non éclairé.
-const portalEdgeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
+// `fog: false` : le panneau est la seule chose qui doit rester nette pendant
+// que la ville se dissout — c'est lui qui porte la transition.
+const portalEdgeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false })
 const portalMaterials = [portalEdgeMaterial, portalFrontMaterial, portalEdgeMaterial]
 
 // Panneau "actif" : une copie autonome du panneau en cours de franchissement,
@@ -3397,7 +3611,33 @@ const MASK_DURATION = 1.1    // secondes d'ouverture du masque
 const MASK_TRIGGER = 0.5     // mi-parcours du tunnel : le masque blanc s'ouvre alors
 const PORTAL_STRAIGHTEN = 7  // vitesse de redressement de la voiture face au panneau
 const PORTAL_COVER = 1.25    // marge de recouvrement du viewport
-const PORTAL_DROP_DEPTH = 2.5 // la ville descend largement sous le champ de vision
+// Distance à laquelle le brouillard se referme quand le panneau est grand
+// ouvert : trois unités, c'est plus près que le capot, donc plus rien ne
+// subsiste de la ville.
+const PORTAL_FOG_FAR = 3
+// Part de la course au terme de laquelle la ville a fini de s'effacer. Au-delà
+// c'est l'agrandissement du panneau qui occupe l'écran, et plus rien derrière
+// lui ne mérite qu'on le dessine.
+const PORTAL_FADE_END = 0.5
+// Relèvement du caisson pendant son agrandissement. Il grandit autour de son
+// centre et il n'y a que quinze centimètres sous lui : dès 1,13× — soit 3 %
+// de sa croissance — son bord bas entre dans la route, et il y reste tout le
+// reste de l'animation. On le relève donc pour poser ce bord au sol.
+//
+// La correction doit être rendue avant la fin, sinon le cadrage final est
+// faussé : à pleine échelle le panneau doit déborder SOUS l'horizon pour
+// couvrir le bas de l'écran, ce qu'un bord posé au sol interdit. Elle est
+// relâchée entre ces deux valeurs de la courbe d'agrandissement — une fenêtre
+// où la ville a déjà fini de blanchir, si bien que la descente n'a plus rien
+// à traverser et ne se voit pas.
+// Part de la course au terme de laquelle le nom du projet a fini de s'effacer.
+// Très tôt : il est lisible sur le panneau tant qu'on roule vers lui, mais dès
+// que le caisson se met à grandir il n'accompagne plus rien — il s'étire avec
+// la face et se retrouve à flotter en travers de l'écran. On le retire donc
+// pendant que le panneau est encore à sa taille, pas pendant qu'il s'ouvre.
+const PORTAL_LABEL_FADE_END = 0.2
+const PORTAL_LIFT_HOLD = 0.35 // en deçà, relèvement plein
+const PORTAL_LIFT_FREE = 0.9  // au-delà, plus aucun relèvement
 const PORTAL_CAM_BLEND = 6   // vitesse de recadrage de la caméra face au panneau
 
 // Une fois amorcée, la séquence se joue seule : ni les touches ni la souris
@@ -4299,10 +4539,17 @@ let ctaUrl = null
 function placeCta(project) {
   ctaUrl = project.url
   projectActions.classList.add('is-visible')
+  // L'action principale de l'écran prend le focus à l'arrivée : c'est pour
+  // elle qu'on a franchi le panneau. Le réticule vise déjà le média central,
+  // le liseré dit ce que validerait une frappe.
+  projectOpen.focus({ preventScroll: true })
 }
 
 function hideCta() {
   projectActions.classList.remove('is-visible')
+  // Les boutons deviennent invisibles : garder le focus dessus laisserait
+  // Entrée ouvrir le projet qu'on vient de quitter.
+  if (projectActions.contains(document.activeElement)) document.activeElement.blur()
 }
 
 projectOpen.addEventListener('click', () => openExternal(ctaUrl))
@@ -4601,8 +4848,19 @@ function updateReticle() {
   if (aimed) reticleLabel.innerHTML = `<kbd>${validateKey}</kbd>${labelFor(aimed)}`
 }
 
+// Un bouton de l'interface a le focus : c'est le navigateur qui l'actionne à
+// la touche Entrée. Sans ce garde-fou, la même frappe déclenchait DEUX
+// actions — le bouton focalisé et la cible du réticule : « voir le projet »
+// ouvrait l'onglet du client pendant que le trou ramenait en ville.
+// La manette ne passe pas par là : elle clique son propre curseur.
+function uiHasFocus() {
+  const el = document.activeElement
+  return Boolean(el) && el !== document.body && el.matches('button, a[href]')
+}
+
 // Entrée au clavier, A / ✕ à la manette
 function validate() {
+  if (uiHasFocus()) return
   if (confirmOpen) return contactAgency() // Entrée valide la confirmation
   if (paused) return // menu ouvert : Entrée revient au bouton focalisé
   // Le téléphone prime : quand il a le focus, c'est lui qu'on valide
@@ -4713,7 +4971,15 @@ function updatePortalVisual() {
   if (!portal) {
     portalMesh.visible = false
     portalLight.visible = false
-    world.position.y = 0
+    // Le brouillard reprend sa portée et sa couleur : au retour en ville comme
+    // au respawn, c'est ici qu'il est reposé, à chaque image où aucun panneau
+    // ne s'ouvre. Le recopier depuis HORIZON le raccroche au passage aux
+    // réglages de couleur : `new THREE.Fog(HORIZON, …)` en avait pris une
+    // copie, et le brouillard ne suivait donc pas le ciel.
+    cityFog.near = CITY_FOG_NEAR
+    cityFog.far = settings.fogFar
+    cityFog.color.copy(HORIZON)
+    skyMaterial.uniforms.uFade.value = 0
     return
   }
 
@@ -4744,11 +5010,30 @@ function updatePortalVisual() {
     targetZ = camera.position.z + _viewDir.z * hit
   }
 
-  // La ville s'efface par le bas, exactement au rythme de l'ouverture :
-  // la hauteur de chute est celle du viewport à la distance du panneau.
-  // Même courbe et même horloge que l'agrandissement : les deux mouvements
-  // démarrent ensemble, sans à-coup.
-  world.position.y = -coverH * PORTAL_DROP_DEPTH * t
+  // La ville ne tombe plus sous le champ de vision : elle s'efface sur place.
+  // Le brouillard se referme sur la caméra et le décor se dissout dans la
+  // couleur de l'horizon pendant que le panneau s'ouvre. Rien à rendre
+  // transparent, donc rien à recompiler : ce ne sont que deux distances.
+  //
+  // Sur la progression BRUTE, et non sur la courbe du panneau : celle-ci est
+  // une exponentielle en S, si retenue au départ qu'à 40 % de la course elle
+  // vaut encore un huitième. La ville serait restée nette, puis aurait
+  // disparu d'un coup — un à-coup, pas un fondu.
+  //
+  // Mais la course brute étalée sur la totalité du trajet finissait trop
+  // tard : le panneau a fini de grandir à 60 % du chemin, quand il restait
+  // encore les deux cinquièmes du brouillard à parcourir. La ville achevait
+  // de s'effacer derrière un panneau déjà grand ouvert — donc invisible.
+  // Le fondu est resserré sur la PREMIÈRE moitié : il est aux quatre
+  // cinquièmes quand l'agrandissement s'emballe, et terminé quand celui-ci
+  // est à mi-course. La ville s'efface d'abord, le panneau s'ouvre ensuite.
+  const fade = Math.min(portal.progress / PORTAL_FADE_END, 1)
+  cityFog.near = THREE.MathUtils.lerp(CITY_FOG_NEAR, 0, fade)
+  cityFog.far = THREE.MathUtils.lerp(settings.fogFar, PORTAL_FOG_FAR, fade)
+  // Le brouillard se referme ET change de teinte : sans la seconde moitié, la
+  // ville disparaissait dans le gris de l'horizon, pas dans le blanc.
+  cityFog.color.copy(HORIZON).lerp(PORTAL_FADE_COLOR, fade)
+  skyMaterial.uniforms.uFade.value = fade
 
   portalMesh.visible = true
 
@@ -4770,9 +5055,17 @@ function updatePortalVisual() {
   // dont les deux axes sont mis à l'échelle différemment.
   const label = projectLabel(b.project)
   portalLogo.material.map = label.material.map
-  // Il s'efface au rythme du masque : le nom disparaît avec le média qu'il
-  // accompagne, au lieu de flotter seul sur le blanc.
-  portalLogo.material.opacity = 1 - ease.outExpo(portal.mask)
+  // Deux effacements, et c'est le plus avancé des deux qui l'emporte : celui
+  // de l'entrée, qui retire le nom dès les premiers mètres, et celui du
+  // masque, qui restait le seul auparavant et ne le faisait disparaître qu'à
+  // l'ouverture — bien trop tard, le nom traversait tout l'agrandissement.
+  // Garder les deux plutôt que remplacer l'un par l'autre : le masque reste
+  // le filet, y compris si l'on recule et que la course régresse.
+  const labelFade = Math.max(
+    Math.min(portal.progress / PORTAL_LABEL_FADE_END, 1),
+    ease.outExpo(portal.mask)
+  )
+  portalLogo.material.opacity = 1 - labelFade
   portalLogo.visible = Boolean(label.material.map) && portalLogo.material.opacity > 0.01
   const localW = LOGO_WIDTH
   const localH = (localW * b.w) / (label.aspect * b.h)
@@ -4780,9 +5073,17 @@ function updatePortalVisual() {
   portalLogo.position.y = -0.5 + localH / 2 + LOGO_MARGIN
 
   updateMaskShape(ease.outExpo(portal.mask))
+
+  // Relèvement : ce qu'il manque pour que le bord bas affleure le trottoir,
+  // pondéré par la fenêtre de relâchement (voir PORTAL_LIFT_HOLD).
+  const centerY = THREE.MathUtils.lerp(y, targetY, t)
+  const floorY = city.sidewalkHeight + (b.h * scale) / 2
+  const hold = 1 - THREE.MathUtils.smoothstep(t, PORTAL_LIFT_HOLD, PORTAL_LIFT_FREE)
+  const lift = Math.max(0, floorY - centerY) * hold
+
   portalMesh.position.set(
     THREE.MathUtils.lerp(b.x, targetX, t) + b.nx * 0.03, // léger décollement
-    THREE.MathUtils.lerp(y, targetY, t),
+    centerY + lift,
     THREE.MathUtils.lerp(b.z, targetZ, t) + b.nz * 0.03
   )
   portalMesh.rotation.y = b.angle
@@ -5129,6 +5430,18 @@ canvas.addEventListener('pointermove', (event) => {
   phoneHovered = phoneUnderPointer(event)
 })
 
+// Cliquer le téléphone fait ce que fait Entrée quand il a le focus. Il se
+// soulève au survol et affiche son appel à l'action : il se présente comme
+// cliquable, il devait l'être. La cible est recalculée au moment du clic
+// plutôt que lue sur `phoneHovered` — au doigt, il n'y a pas de survol qui
+// l'aurait mis à jour avant.
+canvas.addEventListener('click', (event) => {
+  if (paused || confirmOpen || !phoneGroup.visible) return
+  if (!phoneUnderPointer(event)) return
+  phoneHovered = true
+  askContact()
+})
+
 const phoneHint = document.querySelector('#phone-hint')
 const phoneHintLabel = phoneHint.querySelector('.hint-label')
 const phoneContactHint = phoneHint.querySelector('.hint--contact')
@@ -5153,6 +5466,15 @@ window.addEventListener('keydown', (event) => {
     moveFocus(gameOverElement, event.shiftKey ? -1 : 1)
     return
   }
+
+  // Vue projet : le téléphone n'y est pas affiché (voir updatePhone), la
+  // bascule y était donc invisible et la touche confisquée pour rien. Elle
+  // sert à ce qu'on en attend — passer d'un appel à l'action à l'autre.
+  if (whiteSpace) {
+    moveFocus(projectActions, event.shiftKey ? -1 : 1)
+    return
+  }
+
   togglePhone()
 })
 
@@ -5163,6 +5485,7 @@ const CONTACT = 'bmV3Yml6QGFnZW5jZS1hYnNvbHUuY29t'
 // Quitter la page pour le client mail est brutal : on demande confirmation
 // avant, et le jeu est mis en pause le temps de la décision.
 const confirmElement = document.querySelector('#confirm')
+const confirmOkButton = document.querySelector('#confirm-ok')
 let confirmOpen = false
 
 function askContact() {
@@ -5170,12 +5493,19 @@ function askContact() {
   paused = true
   keys.clear()
   confirmElement.classList.add('is-visible')
+  // L'action attendue prend le focus : on a ouvert le téléphone puis demandé
+  // le contact, « contacter l'agence » est la suite logique. Entrée la valide
+  // sans avoir à tabuler, et le liseré dit où l'on est.
+  confirmOkButton.focus({ preventScroll: true })
 }
 
 function closeContact() {
   confirmOpen = false
   confirmElement.classList.remove('is-visible')
   paused = false
+  // Sans ça, le focus reste sur un bouton devenu invisible : la frappe
+  // suivante l'actionnerait à l'aveugle.
+  if (confirmElement.contains(document.activeElement)) document.activeElement.blur()
 }
 
 // Navigation directe plutôt qu'un clic sur un lien détaché du document :
@@ -5207,7 +5537,7 @@ function contactAgency() {
   openMailTo()
 }
 
-document.querySelector('#confirm-ok').addEventListener('click', contactAgency)
+confirmOkButton.addEventListener('click', contactAgency)
 document.querySelector('#confirm-cancel').addEventListener('click', closeContact)
 
 // Le téléphone n'a de sens qu'en ville : dans l'espace blanc, on est déjà
@@ -5917,11 +6247,13 @@ function updateControlHints() {
 // Le curseur n'existe que dans les écrans à boutons, et n'apparaît que
 // quand la manette est la dernière source utilisée. Il se pose d'abord sur
 // l'action par défaut de l'écran.
-const confirmCancelButton = document.querySelector('#confirm-cancel')
 const gameOverButton = document.querySelector('#gameover button')
 
 function menuHome() {
-  if (confirmOpen) return confirmCancelButton
+  // La même action que celle qui prend le focus au clavier : curseur et
+  // liseré doivent désigner le même bouton, sinon chaque support raconte une
+  // histoire différente de ce que « valider » va faire.
+  if (confirmOpen) return confirmOkButton
   if (gameOver) return gameOverButton
   if (paused) return splashButton
   return null
