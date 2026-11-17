@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
     />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/brand-theft-auto/favicon.svg" type="image/svg+xml" />
 
     <!-- Installable sur l'écran d'accueil. C'est la seule façon d'obtenir un
          vrai plein écran sur iPhone : Safari n'accorde l'API Fullscreen qu'aux
          vidéos, mais une page lancée depuis l'écran d'accueil s'ouvre sans
          aucun habillage de navigateur. Les chemins du manifeste sont relatifs,
          pour rester justes quand le jeu est servi sous un sous-dossier. -->
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/brand-theft-auto/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/brand-theft-auto/apple-touch-icon.png" />
     <meta name="theme-color" content="#1E1E1E" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- Équivalent historique du précédent, toujours seul reconnu par Safari -->
@@ -36,8 +36,8 @@
          laisse voir la page brute (logo géant, listes, titres) avant d'être
          mise en forme. -->
     <style>html,body{background:#1e1e1e;height:100%;margin:0;overflow:hidden}body.is-booting #scene,body.is-booting #fps,body.is-booting #wanted,body.is-booting #minimap,body.is-booting #sticks,body.is-booting #reticle,body.is-booting #reticle-label,body.is-booting #phone-hint,body.is-booting #notice,body.is-booting .splash-card>*,body.is-booting #confirm,body.is-booting #gameover{opacity:0}body.is-booting:not(.is-ready) *{transition:none!important}#boot-veil{background:#1e1e1e;width:100vw;height:100dvh;position:fixed;top:0;left:0}body.is-booting #splash{background:#1e1e1e}body.is-booting #boot{opacity:0}body.is-ready #boot:not(.is-revealing){opacity:1;transition:opacity .45s}</style>
-    <script type="module" crossorigin src="/assets/index-Cm6kAZes.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DWey6H07.css">
+    <script type="module" crossorigin src="/brand-theft-auto/assets/index-CGgzZzyz.js"></script>
+    <link rel="stylesheet" crossorigin href="/brand-theft-auto/assets/index-CLy8OMqu.css">
   </head>
   <!-- La classe est posée dans le balisage, pas par le script : sur réseau
        lent, le module arrive trop tard et la page s'afficherait brute. -->
@@ -53,7 +53,7 @@
     <canvas id="scene"></canvas>
     <div id="splash">
       <div class="splash-card">
-        <img class="splash-logo" src="/logo-absolu.svg" alt="Absolu" />
+        <img class="splash-logo" src="/brand-theft-auto/logo-absolu.svg" alt="Absolu" />
         <!-- Un mot par balise : ils entrent en fondu l'un après l'autre -->
         <h1 id="splash-title">
           <span class="splash-word">Brand</span>

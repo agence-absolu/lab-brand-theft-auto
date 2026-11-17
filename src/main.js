@@ -3674,19 +3674,35 @@ function stepPortal(delta) {
 }
 
 /* ---------- Resize ---------- */
+// La taille de référence est celle réellement occupée par le canvas, pas
+// window.innerWidth/innerHeight : à la rotation, iOS émet « resize » avec les
+// dimensions du portrait encore en place, ce qui figeait le canvas dans
+// l'ancien ratio. Le CSS dimensionne l'élément, on ne fait que suivre.
 function resize() {
-  const w = window.innerWidth
-  const h = window.innerHeight
+  const rect = renderer.domElement.getBoundingClientRect()
+  const w = Math.round(rect.width) || window.innerWidth
+  const h = Math.round(rect.height) || window.innerHeight
   camera.aspect = w / h
   camera.fov = settings.fov
   camera.updateProjectionMatrix()
-  renderer.setSize(w, h)
+  // updateStyle = false : la largeur/hauteur affichées restent gérées par le CSS.
+  renderer.setSize(w, h, false)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio))
   // Le titre est peint à la résolution de l'affichage : changer celle-ci
   // périme la texture, il faut la repeindre pour qu'elle reste nette.
   if (whiteSpace && titleProject) setProjectTitle(titleProject)
 }
+// ResizeObserver voit la taille réelle du canvas après la rotation, y compris
+// quand Safari ne réémet pas « resize » avec les bonnes valeurs.
+new ResizeObserver(resize).observe(renderer.domElement)
 window.addEventListener('resize', resize)
+window.addEventListener('orientationchange', () => {
+  // Safari met le viewport à jour après l'événement : on repasse une fois les
+  // dimensions stabilisées.
+  requestAnimationFrame(resize)
+  setTimeout(resize, 300)
+})
+window.visualViewport?.addEventListener('resize', resize)
 resize()
 
 /* ---------- Interface ---------- */

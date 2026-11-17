@@ -39,7 +39,17 @@ body {
 a {
   color: inherit;
 }
-#scene { display: block; width: 100vw; height: 100vh; }
+/* Le canvas occupe le viewport via le CSS seul : le moteur ne touche jamais à
+   sa taille affichée (setSize(..., false)), sinon iOS fige les dimensions du
+   portrait au moment de la rotation. */
+#scene {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
 
 /* ---------- Boutons : le système du thème absolu ---------- */
 /* Reprise fidèle de %_btn_styles : pastille sombre cernée d'un filet, libellé
