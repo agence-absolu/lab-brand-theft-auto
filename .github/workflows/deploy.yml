@@ -88,7 +88,10 @@ jobs:
           # le hub sert lab-projects/<slug>/ sur /<slug>/.
           TARGET: lab.agence-absolu.com/lab-projects/${{ steps.meta.outputs.slug }}
         run: |
-          sshpass -e ssh "$USER_SSH@$HOST" "mkdir -p '$TARGET' && cd '$TARGET' && pwd"
+          # Commande distante volontairement réduite à un mkdir : le shell de ce
+          # serveur refuse une chaîne « mkdir && cd && pwd » (ssh sort en 255,
+          # sans message). Le diagnostic de chemin reste sur le job prod.
+          sshpass -e ssh "$USER_SSH@$HOST" "mkdir -p '$TARGET'"
           # --delete purge les bundles de la version précédente ; les noms étant
           # empreintés, les nouveaux fichiers sont en place avant leur retrait.
           sshpass -e rsync -az --delete dist/ "$USER_SSH@$HOST:$TARGET/"
