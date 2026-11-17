@@ -223,15 +223,18 @@
       </button>
     </div>
 
-    <!-- Affiché quand le barème de qualité descend sous Q2 : à ce stade
-         l'appareil ne tient plus la simulation, mieux vaut le dire. -->
-    <div id="weak">
-      <p>
-        Nous détectons que votre appareil n'est malheureusement pas assez puissant
-        pour jouer à Brand Theft Auto. Pour profiter pleinement de cette expérience,
-        nous vous recommandons d'y jouer sur un ordinateur.
-      </p>
-      <button id="weak-close" class="btn btn--blue" type="button">Continuer quand même</button>
+    <!-- Verrou d'entrée : la jauge mesurée au chargement est sous le seuil.
+         Le jeu n'a pas démarré derrière, rien ne tourne. -->
+    <div id="weak" role="dialog" aria-modal="true" aria-labelledby="weak-title">
+      <div class="weak-card">
+        <h2 id="weak-title">Appareil trop juste</h2>
+        <p>
+          Nous détectons que votre appareil n'est malheureusement pas assez puissant
+          pour jouer à Brand Theft Auto. Pour profiter pleinement de cette expérience,
+          nous vous recommandons d'y jouer sur un ordinateur.
+        </p>
+        <button id="weak-close" class="btn btn--blue" type="button">Lancer quand même</button>
+      </div>
     </div>
 
     <div id="fade"></div>

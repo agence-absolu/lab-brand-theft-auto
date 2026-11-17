@@ -61,17 +61,15 @@ const settings = {
   titleOffset: 0.29,      // remontée du bloc, en part d'écran
   titleWidth: 0.62,       // plafond de largeur, en part d'écran
 
-  /* Leviers de qualité. Ils sont pilotés par le palier (voir applyQuality) et
-     non réglés à la main : chacun est lourd à sa manière, et les descendre
-     ensemble est le seul moyen de gagner vraiment sur un appareil modeste. */
+  /* Leviers de charge. Le jeu tourne désormais à un seul niveau de qualité,
+     le plus haut : ces valeurs sont les siennes. Elles restent réglables
+     depuis le panneau de debug, pour chiffrer ce que coûte chaque poste. */
   viewRadius: 4,          // chunks chargés autour de la caméra
   // La fin du brouillard doit rester EN DEÇÀ du bord de la zone chargée,
   // sinon on voit la ville s'arrêter net. Bord = viewRadius × 104 − 52.
   fogFar: 300,
   lampRadius: 2,          // chunks où les lampadaires restent allumés
   maxVideos: 5,           // vidéos de panneaux lues simultanément
-  quality: 0,             // palier courant, posé au démarrage par applyQuality
-  qualityAuto: true,      // descend d'un cran tant que le framerate ne suit pas
 }
 BUILDING.set(settings.buildingColor)
 SUN.set(settings.sunColor)
@@ -106,165 +104,77 @@ const city = {
 // plusieurs décisions d'interface en dépendent.
 const COARSE = matchMedia('(pointer: coarse)').matches
 
-/* ---------- Paliers de qualité ---------- */
-// Le jeu est dimensionné pour un GPU de bureau : 4096² d'ombre, 81 chunks de
-// ville, seize cents lampadaires. Un téléphone d'entrée de gamme n'a aucune
-// chance, et il n'existe pas de liste fiable d'appareils pour le deviner.
-// On mesure donc, et on descend d'un cran tant que ça ne suit pas.
+/* ---------- Jauge d'appareil ---------- */
+// Le barème adaptatif est mort : il dégradait l'image sans jamais atteindre un
+// framerate jouable, parce que le goulot n'était pas là où il dégradait. On ne
+// négocie plus — le jeu tourne à son seul niveau de qualité, et les appareils
+// qui ne peuvent pas le tenir sont prévenus avant d'entrer.
 //
-// Chaque palier baisse PLUSIEURS leviers à la fois : sur une image trop
-// lourde, diviser un seul poste par deux ne se voit pas — c'est le cumul qui
-// ramène dans le budget.
-// `maxVideos` plafonne le nombre de vidéos lues EN MÊME TEMPS. C'est un coût
-// de processeur, pas de GPU : un décodeur matériel d'entrée de gamme ne tient
-// qu'un ou deux flux, au-delà il bascule en logiciel et s'effondre. Baisser
-// la résolution n'y change rien — d'où sa présence au barème.
-const QUALITY_LEVELS = [
-  { pixelRatio: 1.5, shadows: true, shadowSize: 4096, viewRadius: 4, fogFar: 300, lampRadius: 2, maxVideos: 5 },
-  { pixelRatio: 1.25, shadows: true, shadowSize: 2048, viewRadius: 4, fogFar: 300, lampRadius: 2, maxVideos: 4 },
-  { pixelRatio: 1.0, shadows: true, shadowSize: 1024, viewRadius: 3, fogFar: 250, lampRadius: 1, maxVideos: 3 },
-  { pixelRatio: 0.85, shadows: false, shadowSize: 1024, viewRadius: 3, fogFar: 250, lampRadius: 1, maxVideos: 2 },
-  { pixelRatio: 0.7, shadows: false, shadowSize: 1024, viewRadius: 2, fogFar: 150, lampRadius: -1, maxVideos: 1 },
-]
+// La mesure est volontairement bête : une boucle de calcul entier pendant un
+// budget fixe, dont on compte les tours. L'indice qui en sort est un nombre
+// d'itérations par milliseconde — il vaut ce qu'il vaut, c'est une jauge de
+// processeur, pas de carte graphique, et un téléphone bridé par sa batterie
+// la verra chuter. C'est précisément ce qu'on veut attraper : les appareils
+// qui ne disposent pas, à cet instant, du budget nécessaire.
+// La mesure est en trois manches courtes plutôt qu'une longue, et c'est la
+// MEILLEURE qui compte. Une manche unique prend tout ce qui passe : une autre
+// page en train de compiler, une notification, un ramasse-miettes — et un
+// appareil parfaitement capable se retrouvait recalé sur un hoquet d'une
+// demi-seconde. Un bridage durable, lui, frappe les trois manches de la même
+// façon : il reste attrapé.
+const BENCH_RUNS = 3
+const BENCH_BUDGET = 40 // millisecondes par manche
 
-// Tout le monde démarre en haut. Rétrograder les tactiles en bloc punissait
-// les téléphones qui tenaient très bien le palier maximum — c'est précisément
-// ce que la mesure est là pour éviter : on ne présume pas, on constate.
-const QUALITY_START = 0
-const QUALITY_MIN_FPS = 26      // en deçà, on considère que ça ne suit pas
-const QUALITY_DIRE_FPS = 15     // en deçà, il y a urgence : on saute des crans
-const QUALITY_GOOD_FPS = 48     // au-dessus, il reste du budget à reprendre
-const QUALITY_PATIENCE = 2      // secondes sous le seuil avant de descendre
-const QUALITY_CLIMB_PATIENCE = 6 // secondes de confort avant de remonter
-const QUALITY_GRACE = 3         // secondes de répit après un changement
-// Gain minimum attendu d'une baisse. En deçà, c'est que le goulot n'était pas
-// la qualité : continuer à dégrader ne ferait qu'abîmer l'image pour rien.
-const QUALITY_PAYOFF = 1.15
-
-let qualityHold = 0      // temps passé sous le seuil, ou répit si négatif
-let qualityComfort = 0   // temps passé au-dessus du seuil de confort
-let qualityLimit = 0     // meilleur palier encore autorisé
-let qualityStuck = false // une baisse n'a rien rapporté : on cesse de descendre
-let qualityProbe = null  // { level, fps } de la dernière baisse, à valider
-
-// Seuil au-delà duquel on prévient le joueur : à ce stade, l'appareil a déjà
-// renoncé aux ombres et à la moitié de la ville. Ce n'est plus un réglage,
-// c'est un constat.
-const WEAK_QUALITY = 2
-// Le message n'est pas posé au moment où le palier tombe, mais seulement
-// s'il s'y maintient. Le gouverneur révoque une baisse qui n'a rien rapporté :
-// annoncer un appareil trop faible pour le démentir trois secondes plus tard
-// serait pire que de ne rien dire.
-const WEAK_SETTLE = 5 // secondes passées sous le seuil avant d'avertir
-const weakElement = document.querySelector('#weak')
-let weakTime = 0
-let weakDismissed = false
-
-function updateWeakNotice(elapsed) {
-  if (settings.quality <= WEAK_QUALITY) {
-    // Remonté au-dessus du seuil : le constat n'a plus lieu d'être.
-    weakTime = 0
-    weakElement.classList.remove('is-visible')
-    return
+function benchRun() {
+  const start = performance.now()
+  let iterations = 0
+  let acc = 0
+  // Un calcul que le moteur ne peut pas escamoter : `acc` est lu à la fin, et
+  // la racine carrée l'empêche de se replier sur une formule fermée.
+  while (performance.now() - start < BENCH_BUDGET) {
+    for (let i = 0; i < 2000; i++) acc += Math.sqrt(iterations + i) % 7
+    iterations += 2000
   }
-  if (weakDismissed) return
-  weakTime += elapsed
-  if (weakTime >= WEAK_SETTLE) weakElement.classList.add('is-visible')
+  const elapsed = performance.now() - start
+  // `acc` sert uniquement à rendre la boucle inéliminable.
+  return acc >= 0 ? iterations / elapsed : 0
 }
 
-document.querySelector('#weak-close').addEventListener('click', () => {
-  weakDismissed = true
-  weakElement.classList.remove('is-visible')
-})
+// Les manches sont conservées : leur écart dit à lui seul si l'appareil est
+// stable ou s'il est en train de se faire brider. C'est la première chose à
+// regarder quand un relevé surprend.
+const benchRuns = []
 
-function applyQuality(level) {
-  const clamped = THREE.MathUtils.clamp(Math.round(level), 0, QUALITY_LEVELS.length - 1)
-  settings.quality = clamped
-  Object.assign(settings, QUALITY_LEVELS[clamped])
-
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio))
-  renderer.shadowMap.enabled = settings.shadows
-  sunLight.shadow.mapSize.set(settings.shadowSize, settings.shadowSize)
-  // La carte est déjà allouée : il faut la jeter pour que three la recrée.
-  sunLight.shadow.map?.dispose()
-  sunLight.shadow.map = null
-  cityFog.far = settings.fogFar
-  // Couper les ombres change le programme compilé : sans invalidation, la
-  // scène garde l'ancien rendu jusqu'au prochain matériau touché.
-  scene.traverse((o) => {
-    if (o.material) o.material.needsUpdate = true
-  })
-  qualityController?.updateDisplay()
+function benchmarkDevice() {
+  for (let i = 0; i < BENCH_RUNS; i++) benchRuns.push(Math.round(benchRun()))
+  return Math.max(...benchRuns)
 }
 
-// Appelé une fois par fenêtre de mesure du compteur, avec sa moyenne.
-function governQuality(fps, elapsed) {
-  updateWeakNotice(elapsed)
-  if (!settings.qualityAuto) return
+// Seuil d'entrée, posé sur des relevés réels — l'indice n'a pas d'unité
+// absolue, il ne vaut que comparé entre appareils :
+//
+//   Mac Apple Silicon   ~85 900   confortable
+//   iPhone 14            80 340   confortable  (relevé en manche unique)
+//   Oppo Reno6           41 150   jouable, mais à la peine — c'est le plancher
+//
+// Le seuil est calé un quart sous l'Oppo, qui est le dernier appareil connu à
+// offrir une expérience acceptable. Cette marge n'est pas de la prudence de
+// principe : le même appareil perd facilement un quart de son indice quand il
+// chauffe ou passe en économie d'énergie, et le recaler un jour sur deux
+// serait pire que de le laisser entrer. En dessous, c'est le Redmi bridé à dix
+// images par seconde, et mieux vaut le dire que laisser découvrir.
+//
+// Attention en comparant d'anciens relevés : la mesure en trois manches lit
+// plus haut que la manche unique qu'elle remplace, et l'écart dépend de
+// l'appareil — +6 % sur un Mac au repos, +25 % sur l'Oppo.
+const DEVICE_MIN_SCORE = 30000
 
-  // Répit après un changement : la mesure n'a pas encore de sens.
-  if (qualityHold < 0) {
-    qualityHold += elapsed
-    return
-  }
-
-  // Rendement de la dernière baisse. C'est le garde-fou qui manquait : une
-  // image bridée par le système, un pilote lent ou un décodeur saturé ne
-  // s'améliorent pas d'un pixel en moins. Sans cette vérification, le jeu
-  // dégringolait jusqu'au palier le plus laid pour exactement zéro gain.
-  if (qualityProbe) {
-    const probe = qualityProbe
-    qualityProbe = null
-    if (fps < probe.fps * QUALITY_PAYOFF) {
-      applyQuality(probe.level)
-      qualityStuck = true
-      showDebug('Qualité rétablie')
-      qualityHold = -QUALITY_GRACE
-      return
-    }
-    // La baisse a payé : le palier qu'on vient de quitter est hors de portée
-    // de cet appareil, on ne cherchera plus à y revenir.
-    qualityLimit = probe.level + 1
-  }
-
-  if (fps < QUALITY_MIN_FPS) {
-    qualityComfort = 0
-    if (qualityStuck || settings.quality >= QUALITY_LEVELS.length - 1) return
-    qualityHold += elapsed
-    // À dix images par seconde, un cran toutes les deux secondes demanderait
-    // une demi-minute pour toucher le fond. On saute d'autant que le retard
-    // est grand, et sans attendre.
-    const dire = fps < QUALITY_DIRE_FPS
-    if (!dire && qualityHold < QUALITY_PATIENCE) return
-
-    qualityProbe = { level: settings.quality, fps }
-    applyQuality(settings.quality + (dire ? 2 : 1))
-    showDebug(`Qualité réduite (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
-    qualityHold = -QUALITY_GRACE
-    return
-  }
-
-  qualityHold = 0
-  // Le jeu respire de nouveau : si une baisse avait été jugée inutile, c'est
-  // que les conditions ont changé depuis — batterie rebranchée, appareil
-  // refroidi. On lui rend le droit de redescendre le jour où il faudra.
-  if (fps >= QUALITY_GOOD_FPS) qualityStuck = false
-
-  // Remontée. Elle n'est tentée que bien au-dessus du seuil de chute, et
-  // jamais au-delà d'un palier déjà jugé hors de portée : c'est ce qui
-  // empêche l'oscillation entre deux crans.
-  if (fps < QUALITY_GOOD_FPS || settings.quality <= qualityLimit) {
-    qualityComfort = 0
-    return
-  }
-  qualityComfort += elapsed
-  if (qualityComfort < QUALITY_CLIMB_PATIENCE) return
-  qualityComfort = 0
-  applyQuality(settings.quality - 1)
-  showDebug(`Qualité rétablie (${settings.quality}/${QUALITY_LEVELS.length - 1})`)
-  qualityHold = -QUALITY_GRACE
-}
-
+const deviceScore = benchmarkDevice()
+const deviceTooWeak = deviceScore < DEVICE_MIN_SCORE
+const benchReport = () =>
+  `[BTA] indice d'appareil : ${deviceScore} ` +
+  `(manches ${benchRuns.join(' · ')} | seuil ${DEVICE_MIN_SCORE})`
+console.info(benchReport())
 
 const canvas = document.querySelector('#scene')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -674,6 +584,20 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: SIDEWALK_COLOR,
 // Caisson lumineux : la face est émissive, donc lisible quelle que soit
 // l'heure ou l'orientation — elle ne dépend plus de l'éclairage de la scène.
 const billboardGeometry = new THREE.BoxGeometry(1, 1, 1) // pivot au centre
+// Un caisson a six faces, donc six groupes, donc SIX appels de dessin par
+// panneau — trois mille rien que pour les panneaux visibles. Or les quatre
+// tranches partagent le même matériau : regroupées en une seule plage, il
+// n'en reste que trois (tranches, face, dos). Les faces se suivent dans
+// l'index (+X, −X, +Y, −Y, +Z, −Z), six indices chacune : les vingt-quatre
+// premiers sont exactement les quatre tranches.
+billboardGeometry.clearGroups()
+billboardGeometry.addGroup(0, 24, 0)  // les quatre tranches
+billboardGeometry.addGroup(24, 6, 1)  // +Z : la face visible depuis la rue
+billboardGeometry.addGroup(30, 6, 2)  // −Z : le dos
+// Rang des matériaux dans les tableaux ci-dessous, après regroupement.
+const PANEL_EDGE = 0
+const PANEL_FACE = 1
+const PANEL_BACK = 2
 
 // Tranche du caisson : commune à tous les panneaux, projets comme marque.
 // Tranches des panneaux. Deux teintes, et non une seule : le noir de charte
@@ -766,14 +690,7 @@ const projectMaterials = PROJECTS.map((project, index) => {
   entry.material = material
   entry.poster = poster
 
-  return [
-    billboardEdgeMaterial,
-    billboardEdgeMaterial,
-    billboardEdgeMaterial,
-    billboardEdgeMaterial,
-    material, // +Z : la face visible depuis la rue
-    billboardEdgeMaterial,
-  ]
+  return [billboardEdgeMaterial, material, billboardEdgeMaterial]
 })
 
 /* ---------- Panneaux de marque ---------- */
@@ -833,14 +750,7 @@ function brandMaterial(variant) {
   // Un matériau par face, comme les panneaux de projet. Appliquer la texture
   // au volume entier — ce qu'on faisait — la comprimait sur les tranches, où
   // le logo se retrouvait écrasé, et la répétait à l'envers au dos.
-  const materials = [
-    brandEdgeMaterial,
-    brandEdgeMaterial,
-    brandEdgeMaterial,
-    brandEdgeMaterial,
-    face, // +Z : la face visible depuis la rue
-    back,
-  ]
+  const materials = [brandEdgeMaterial, face, back]
   brandMaterials[variant] = materials
 
   const image = new Image()
@@ -1106,16 +1016,14 @@ function logoMatrix(billboard, aspect, out) {
 }
 
 function refreshLabelInstances(projectIndex) {
-  for (const chunk of chunks.values()) {
-    chunk.userData.logos?.forEach((entry) => {
-      if (entry.project !== projectIndex) return
-      const aspect = projectLabels[projectIndex].aspect
-      entry.items.forEach((b, i) => {
-        entry.mesh.setMatrixAt(i, logoMatrix(b.billboard, aspect, _matrix))
-      })
-      entry.mesh.instanceMatrix.needsUpdate = true
+  panelLogos.forEach((entry) => {
+    if (entry.project !== projectIndex) return
+    const aspect = projectLabels[projectIndex].aspect
+    entry.items.forEach((b, i) => {
+      entry.mesh.setMatrixAt(i, logoMatrix(b.billboard, aspect, _matrix))
     })
-  }
+    entry.mesh.instanceMatrix.needsUpdate = true
+  })
 }
 
 // Trois raisons de devoir relancer la lecture : l'autoplay muet est refusé par
@@ -1328,79 +1236,18 @@ function buildChunk(cx, cz) {
   group.add(mesh)
 
   /* Panneaux : un plan plaqué sur une façade, orienté vers l'extérieur.
-     Un InstancedMesh ne portant qu'un matériau, on groupe les panneaux par
-     projet : autant de lots que de projets réellement présents dans le chunk. */
-  if (billboards.length) {
-    // Un lot par projet : le réticule doit pouvoir tous les viser
-    group.userData.panels = []
-    group.userData.logos = []
-    const byProject = new Map()
-    const byBrand = new Map()
-    billboards.forEach((b) => {
-      // Au sol, un projet à franchir ; en hauteur, la marque.
-      const map = b.billboard.ground ? byProject : byBrand
-      const k = b.billboard.ground ? b.billboard.project : b.billboard.brand
-      const list = map.get(k)
-      if (list) list.push(b)
-      else map.set(k, [b])
-    })
-
-    // Panneaux de marque : ni libellé ni inscription dans panelLookup, ils ne
-    // sont jamais visés ni franchis.
-    byBrand.forEach((group_, variant) => {
-      const panels = new THREE.InstancedMesh(
-        billboardGeometry,
-        brandMaterial(variant),
-        group_.length
-      )
-      panels.castShadow = true
-      panels.receiveShadow = true
-      group_.forEach((b, i) => {
-        const p = b.billboard
-        _matrix.compose(
-          _position.set(p.x, city.sidewalkHeight + p.y, p.z),
-          _quat.setFromEuler(_euler.set(0, p.angle, 0)),
-          _scale.set(p.w, p.h, p.thick)
-        )
-        panels.setMatrixAt(i, _matrix)
-      })
-      group.add(panels)
-    })
-
-    byProject.forEach((group_, projectIndex) => {
-      const panels = new THREE.InstancedMesh(
-        billboardGeometry,
-        projectMaterials[projectIndex],
-        group_.length
-      )
-      panels.castShadow = true
-      panels.receiveShadow = true
-      group_.forEach((b, i) => {
-        const p = b.billboard
-        _matrix.compose(
-          _position.set(p.x, city.sidewalkHeight + p.y, p.z),
-          _quat.setFromEuler(_euler.set(0, p.angle, 0)),
-          _scale.set(p.w, p.h, p.thick)
-        )
-        panels.setMatrixAt(i, _matrix)
-        panelLookup.set(panelKey(p), { mesh: panels, index: i, matrix: _matrix.clone() })
-      })
-      group.add(panels)
-      group.userData.panels.push(panels)
-
-      // Nom du projet, en blanc, plaqué sur la face du panneau
-      const label = projectLabel(projectIndex)
-      const labels = new THREE.InstancedMesh(logoGeometry, label.material, group_.length)
-      group_.forEach((b, i) => labels.setMatrixAt(i, logoMatrix(b.billboard, label.aspect, _matrix)))
-      group.add(labels)
-      group.userData.logos.push({ mesh: labels, project: projectIndex, items: group_ })
-    })
-    // Seuls les panneaux au sol ont été inscrits dans panelLookup : lister
-    // les autres ici ferait supprimer des clés qui ne sont pas les leurs.
-    group.userData.panelKeys = billboards
-      .filter((b) => b.billboard.ground)
-      .map((b) => panelKey(b.billboard))
-  }
+     Ils ne sont PLUS construits ici. Un InstancedMesh ne portant qu'un
+     matériau, les grouper par chunk donnait un lot par projet et par chunk :
+     trois cent vingt-huit lots pour trois cent quatre-vingt-dix-huit
+     panneaux, soit un appel de dessin par panneau ou presque. Ils sont
+     désormais rassemblés à travers tous les chunks chargés — voir
+     rebuildPanelPools. Le chunk ne retient que ses données. */
+  group.userData.billboards = billboards
+  // Seuls les panneaux au sol sont inscrits dans panelLookup : lister
+  // les autres ici ferait supprimer des clés qui ne sont pas les leurs.
+  group.userData.panelKeys = billboards
+    .filter((b) => b.billboard.ground)
+    .map((b) => panelKey(b.billboard))
 
   /* Trottoirs : une dalle par bloc, le bâti repose dessus */
   const sidewalks = new THREE.InstancedMesh(
@@ -1617,6 +1464,9 @@ function updateChunks() {
   cameraTarget(_target)
   const cx = Math.round(_target.x / CHUNK)
   const cz = Math.round(_target.z / CHUNK)
+  // Les lots de panneaux couvrent tous les chunks à la fois : ils ne sont
+  // refaits que si l'ensemble a bougé.
+  let changed = false
   lampCenter.x = cx
   lampCenter.z = cz
 
@@ -1628,6 +1478,7 @@ function updateChunks() {
       const chunk = buildChunk(x, z)
       chunks.set(k, chunk)
       world.add(chunk)
+      changed = true
     }
   }
 
@@ -1648,8 +1499,96 @@ function updateChunks() {
       chunk.traverse((o) => o.isInstancedMesh && o.dispose())
       chunk.userData.panelKeys?.forEach((pk) => panelLookup.delete(pk))
       chunks.delete(k)
+      changed = true
     }
   }
+
+  if (changed) rebuildPanelPools()
+}
+
+
+/* ---------- Lots de panneaux, à travers tous les chunks ---------- */
+// Les panneaux sont peu nombreux mais très dispersés : groupés par chunk, ils
+// produisaient des lots d'une seule instance, et donc presque un appel de
+// dessin chacun. Rassemblés ici par projet et par variante de marque, il n'en
+// reste qu'une quinzaine pour toute la ville visible.
+//
+// Le regroupement est refait quand l'ensemble des chunks chargés change,
+// c'est-à-dire au franchissement d'une frontière de chunk — pas à chaque
+// image. Quelques centaines de matrices à recomposer : de l'ordre de la
+// milliseconde, au moment où l'on construit déjà un chunk entier.
+const panelGroup = new THREE.Group()
+world.add(panelGroup)
+let panelLogos = [] // { mesh, project, items } pour refreshLabelInstances
+
+function disposePanelPools() {
+  panelGroup.children.forEach((mesh) => mesh.dispose())
+  panelGroup.clear()
+  panelLogos = []
+}
+
+function rebuildPanelPools() {
+  disposePanelPools()
+
+  const byProject = new Map()
+  const byBrand = new Map()
+  for (const chunk of chunks.values()) {
+    chunk.userData.billboards?.forEach((b) => {
+      // Au sol, un projet à franchir ; en hauteur, la marque.
+      const map = b.billboard.ground ? byProject : byBrand
+      const k = b.billboard.ground ? b.billboard.project : b.billboard.brand
+      const list = map.get(k)
+      if (list) list.push(b)
+      else map.set(k, [b])
+    })
+  }
+
+  const panelMatrix = (p) =>
+    _matrix.compose(
+      _position.set(p.x, city.sidewalkHeight + p.y, p.z),
+      _quat.setFromEuler(_euler.set(0, p.angle, 0)),
+      _scale.set(p.w, p.h, p.thick)
+    )
+
+  const add = (mesh) => {
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    panelGroup.add(mesh)
+  }
+
+  // Panneaux de marque : ni libellé ni inscription dans panelLookup, ils ne
+  // sont jamais visés ni franchis.
+  byBrand.forEach((items, variant) => {
+    const panels = new THREE.InstancedMesh(billboardGeometry, brandMaterial(variant), items.length)
+    items.forEach((b, i) => panels.setMatrixAt(i, panelMatrix(b.billboard)))
+    add(panels)
+  })
+
+  byProject.forEach((items, projectIndex) => {
+    const panels = new THREE.InstancedMesh(
+      billboardGeometry,
+      projectMaterials[projectIndex],
+      items.length
+    )
+    items.forEach((b, i) => {
+      panels.setMatrixAt(i, panelMatrix(b.billboard))
+      // La matrice est conservée telle quelle : c'est elle qu'on restaure
+      // quand le panneau ressort du portail.
+      panelLookup.set(panelKey(b.billboard), { mesh: panels, index: i, matrix: _matrix.clone() })
+    })
+    add(panels)
+
+    // Nom du projet, en blanc, plaqué sur la face du panneau
+    const label = projectLabel(projectIndex)
+    const labels = new THREE.InstancedMesh(logoGeometry, label.material, items.length)
+    items.forEach((b, i) => labels.setMatrixAt(i, logoMatrix(b.billboard, label.aspect, _matrix)))
+    panelGroup.add(labels)
+    panelLogos.push({ mesh: labels, project: projectIndex, items })
+  })
+
+  // Un panneau en cours de franchissement est repris par portalMesh : il doit
+  // rester masqué dans son lot, que celui-ci vienne d'être refait ou non.
+  if (portal) setPanelInstanceVisible(portal.key, false)
 }
 
 /* ---------- Lumières ---------- */
@@ -1839,7 +1778,9 @@ const POLICE_FORGET = 260    // au-delà, la voiture est retirée
 // Au doigt, la conduite est moins précise : une police calée à 81 % de la
 // pointe du joueur ne lui laisse aucune marge d'erreur et la poursuite tourne
 // à la corvée. On la ralentit, sans la rendre semable pour autant.
-const POLICE_SPEED = COARSE ? 20 : 26 // toujours sous la pointe du joueur (32)
+// Toujours six unités sous la pointe du joueur, sur les deux supports :
+// 20 contre 26 au doigt, 26 contre 32 au clavier.
+const POLICE_SPEED = COARSE ? 20 : 26
 const POLICE_ACCEL = 10
 const POLICE_TURN = 1.5      // vitesse de braquage, rad/s : elles ratent leurs virages
 // Seules les plus proches attaquent. Les autres suivent à distance, sans quoi
@@ -2545,15 +2486,22 @@ const keys = new Set()
 const ENGINE_ACCEL = 21    // accélération moteur, u/s²
 const BRAKE_DECEL = 30     // freinage, bien plus mordant que le moteur
 const REVERSE_ACCEL = 10   // marche arrière, plus molle que la marche avant
-const MAX_SPEED = 32       // vitesse de pointe en marche avant
+// Vitesse de pointe. Plus basse au doigt : la ville défile à la même échelle
+// sur un écran six fois plus petit, et le temps de lire un carrefour y est
+// d'autant plus court. L'écart avec les poursuivants est conservé tel quel
+// (six unités, comme au clavier) : c'est lui qui fait la difficulté, pas la
+// vitesse absolue.
+const MAX_SPEED = COARSE ? 26 : 32
 const MAX_REVERSE = 10     // vitesse de pointe en marche arrière
 const DRAG = 0.9           // traînée proportionnelle à la vitesse (aéro)
 const ROLL_RESIST = 2.5    // résistance constante (frein moteur, roulement)
-const STEER_RATE = 2.0     // braquage max, rad/s
+// Braquage max. Réduit au doigt, où le pouce passe du centre à la butée en
+// une fraction de seconde sans l'escalier de course d'un volant ou d'un stick.
+const STEER_RATE = COARSE ? 1.7 : 2.0 // rad/s
 // Montée et retour au centre du volant. Plus mou au doigt : un pouce n'a ni
 // la précision ni la course d'un clavier, et la même réactivité y donne une
 // voiture qui part au quart de tour.
-const STEER_SMOOTH = COARSE ? 3.6 : 5.5
+const STEER_SMOOTH = COARSE ? 2.5 : 5.5
 const HANDBRAKE_DECEL = 9  // ralentissement roues bloquées
 const HANDBRAKE_GRIP = 0.5 // adhérence latérale frein à main tiré : ça glisse
 const HANDBRAKE_STEER = 1.6// gain de braquage pendant la glissade
@@ -3164,11 +3112,6 @@ function projectFromRoute(route) {
 function enterWhiteSpace({ push = true } = {}) {
   whiteSpace = true
 
-  // Point de vue conservé pour la fenêtre de la porte de retour
-  cityView.x = body.x
-  cityView.z = body.z
-  cityView.heading = carHeading
-
   // Lumières neutralisées : le soleil orange et l'ambiance bleue de la ville
   // teintaient le sol en rose et la carrosserie en violet, alors que le
   // panneau qu'on vient de traverser était d'un blanc pur.
@@ -3418,14 +3361,7 @@ function updateMaskShape(t) {
 
 // Les tranches du caisson s'effacent elles aussi : blanc pur non éclairé.
 const portalEdgeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
-const portalMaterials = [
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalEdgeMaterial,
-  portalFrontMaterial,
-  portalEdgeMaterial,
-]
+const portalMaterials = [portalEdgeMaterial, portalFrontMaterial, portalEdgeMaterial]
 
 // Panneau "actif" : une copie autonome du panneau en cours de franchissement,
 // que l'on peut agrandir librement — les autres vivent dans un InstancedMesh
@@ -3539,6 +3475,7 @@ gui.hide()
 let debugVisible = false
 
 window.debugBTA = () => {
+  console.info(benchReport())
   debugVisible = !debugVisible
   if (debugVisible) gui.show()
   else gui.hide()
@@ -3568,12 +3505,6 @@ projectView.add(settings, 'titleHeight', 0.08, 0.4, 0.005).name('Taille du titre
 projectView.add(settings, 'titleOffset', 0, 0.45, 0.005).name('Remontée du titre')
 projectView.add(settings, 'titleWidth', 0.25, 1, 0.01).name('Largeur max du titre')
 
-let qualityController = null
-qualityController = perf
-  .add(settings, 'quality', 0, QUALITY_LEVELS.length - 1, 1)
-  .name('Palier de qualité')
-  .onChange(applyQuality)
-perf.add(settings, 'qualityAuto').name('Baisse automatique')
 perf.add(settings, 'viewRadius', 1, 5, 1).name('Rayon de ville')
 perf.add(settings, 'maxVideos', 0, 7, 1).name('Vidéos simultanées')
 
@@ -3664,6 +3595,7 @@ function regenerateCity() {
     chunk.userData.panelKeys?.forEach((pk) => panelLookup.delete(pk))
     chunks.delete(k)
   }
+  disposePanelPools()
   updateChunks()
 }
 
@@ -4384,21 +4316,6 @@ const HOLE_RADIUS = 3.4
 const HOLE_DEPTH = 30
 const HOLE_DISTANCE = 15 // derrière la voiture : il faut faire demi-tour
 
-// Résolution volontairement basse : l'image est vue au fond d'un puits, la
-// différence ne se voit pas et la passe coûte deux fois moins. Sur tactile on
-// descend encore : à cette taille d'écran, le disque fait moins de cent pixels
-// de large, et 512² lui en préparait vingt-six fois trop.
-const CITY_VIEW_SIZE = COARSE ? 192 : 512
-// Une vue quasi fixe : la rafraîchir une image sur deux ne se voit pas, une
-// sur trois sur tactile pas davantage.
-const CITY_VIEW_EVERY = COARSE ? 3 : 2
-
-const cityTarget = new THREE.WebGLRenderTarget(CITY_VIEW_SIZE, CITY_VIEW_SIZE)
-const windowCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1200)
-windowCamera.rotation.order = 'YXZ'
-const cityView = { x: 0, z: 0, heading: 0 }
-let cityViewFrame = 0
-
 // Le puits est un groupe : paroi cylindrique, fond qui porte la vue de la
 // ville, et anneau sombre qui détache la margelle du sol blanc.
 const holeMesh = new THREE.Group()
@@ -4416,9 +4333,12 @@ const holeWall = new THREE.Mesh(
 holeWall.position.y = -HOLE_DEPTH / 2
 holeMesh.add(holeWall)
 
+// Le fond portait une vue de la ville, rendue en direct dans une texture.
+// Elle n'a jamais été visible : à trente mètres sous une margelle étroite,
+// le puits se lit noir. On la remplace par ce qu'on y voyait réellement.
 const holeFloor = new THREE.Mesh(
   new THREE.CircleGeometry(HOLE_RADIUS * 0.82, 64),
-  new THREE.MeshBasicMaterial({ map: cityTarget.texture, toneMapped: false })
+  new THREE.MeshBasicMaterial({ color: 0x0a0c10, toneMapped: false })
 )
 holeFloor.rotation.x = -Math.PI * 0.5
 holeFloor.position.y = -HOLE_DEPTH + 0.05
@@ -4437,61 +4357,6 @@ scene.add(holeMesh)
 // Rend la ville dans la texture du fond. Tout le décor de l'espace blanc est
 // masqué le temps de la passe, puis rétabli : une seule scène sert aux deux
 // mondes, il n'y en a pas de seconde à maintenir.
-// Le puits est à quinze mètres DERRIÈRE la voiture : la majorité du temps il
-// n'est pas à l'écran du tout. On payait quand même la ville entière, chaque
-// image, pour une texture que personne ne regardait.
-const _cityFrustum = new THREE.Frustum()
-const _cityMatrix = new THREE.Matrix4()
-const _holeSphere = new THREE.Sphere(new THREE.Vector3(), HOLE_RADIUS * 1.2)
-
-function holeOnScreen() {
-  _holeSphere.center.copy(holeMesh.position)
-  // La passe a lieu avant le rendu : c'est `render` qui rafraîchit d'ordinaire
-  // ces matrices, elles porteraient encore l'image précédente.
-  camera.updateMatrixWorld()
-  _cityMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-  _cityFrustum.setFromProjectionMatrix(_cityMatrix)
-  return _cityFrustum.intersectsSphere(_holeSphere)
-}
-
-function renderCityWindow() {
-  if (!holeMesh.visible) return
-  if (!holeOnScreen()) return
-  if (cityViewFrame++ % CITY_VIEW_EVERY !== 0) return
-
-  const hidden = [whiteGround, mediaGroup, titleMesh, titleGround, holeMesh, carGroup]
-  hidden.forEach((o) => (o.visible = false))
-  world.visible = true
-  sky.visible = true
-  scene.fog = cityFog
-  scene.background = null
-
-  // Vue plongeante : on regarde la ville d'en haut, comme par une trappe
-  windowCamera.position.set(cityView.x, 52, cityView.z)
-  windowCamera.rotation.set(
-    -Math.PI / 2 + 0.22,
-    cityView.heading + Math.sin(mediaUniforms.uTime.value * 0.2) * 0.1,
-    0
-  )
-  sky.position.copy(windowCamera.position)
-
-  // Chaque `render` relance la passe d'ombre : celle-ci en ajoutait une
-  // seconde par image, à pleine définition, pour une vignette vue de si loin
-  // qu'aucune ombre n'y est lisible. On garde celle de l'image précédente.
-  const shadowAuto = renderer.shadowMap.autoUpdate
-  renderer.shadowMap.autoUpdate = false
-  renderer.setRenderTarget(cityTarget)
-  renderer.render(scene, windowCamera)
-  renderer.setRenderTarget(null)
-  renderer.shadowMap.autoUpdate = shadowAuto
-
-  hidden.forEach((o) => (o.visible = true))
-  world.visible = false
-  sky.visible = false
-  scene.fog = null
-  scene.background = WHITE_SPACE_COLOR
-}
-
 function placeHole() {
   // Dans le dos de la voiture, donc jamais franchi par accident à l'arrivée
   holeMesh.position.set(
@@ -4889,7 +4754,7 @@ function updatePortalVisual() {
 
   // Le média du projet est relayé au shader : la texture peut changer en cours
   // de route (le poster cède la place à la vidéo dès qu'elle est prête).
-  const source = projectMaterials[b.project][4].map
+  const source = projectMaterials[b.project][PANEL_FACE].map
   const uniforms = portalFrontMaterial.uniforms
   uniforms.uMap.value = source || null
   uniforms.uHasMap.value = source ? 1 : 0
@@ -5668,12 +5533,11 @@ function updateFps(delta) {
   const cost = fpsCost / fpsFrames                 // ms de boucle par image
   const draw = fpsDraw / fpsFrames                 // dont la soumission du rendu
   fpsElement.textContent =
-    `${Math.round(fpsFrames / fpsElapsed)} fps · Q${settings.quality} · ` +
+    `${Math.round(fpsFrames / fpsElapsed)} fps · indice ${deviceScore} · ` +
     `boucle ${cost.toFixed(1)}ms (rendu ${draw.toFixed(1)} · jeu ${(cost - draw).toFixed(1)}) ` +
     `/ image ${interval.toFixed(1)}ms · ` +
     `${info.calls} appels · ${(info.triangles / 1e6).toFixed(2)}M tris · ` +
     `${(pixels / 1e6).toFixed(1)}M px`
-  governQuality(fpsFrames / fpsElapsed, fpsElapsed)
   fpsFrames = 0
   fpsElapsed = 0
   fpsCost = 0
@@ -6084,11 +5948,8 @@ prevBody.copy(body)
 updateWantedHud()
 updateDamageStage() // une partie reprise garde ses dégâts
 applyCameraOrientation()
-// Palier de départ : plus bas sur tactile, voir QUALITY_START
-applyQuality(QUALITY_START)
 updateSun()
 follow()
-updateChunks()
 
 function tick() {
   requestAnimationFrame(tick)
@@ -6119,7 +5980,6 @@ function tick() {
   updatePortalVisual()
   follow()
   updateChunks()
-  renderCityWindow()
   const drawStart = performance.now()
   renderer.render(scene, camera)
   const now = performance.now()
@@ -6129,4 +5989,28 @@ function tick() {
   fpsDraw += now - drawStart
   fpsCost += now - frameStart
 }
-tick()
+
+// Construire la ville et lancer la boucle, les deux seuls postes vraiment
+// coûteux du démarrage. Sur un appareil recalé, ils ne sont jamais payés.
+function startEngine() {
+  updateChunks()
+  tick()
+}
+
+if (deviceTooWeak) {
+  // Le jeu ne démarre pas : l'avertissement couvre l'accueil, et c'est au
+  // joueur de décider. Passer outre reste possible — il saura à quoi s'en
+  // tenir, c'est tout ce qu'on peut lui offrir d'honnête.
+  const gate = document.querySelector('#weak')
+  gate.classList.add('is-visible')
+  document.querySelector('#weak-close').addEventListener(
+    'click',
+    () => {
+      gate.classList.remove('is-visible')
+      startEngine()
+    },
+    { once: true }
+  )
+} else {
+  startEngine()
+}
