@@ -166,9 +166,11 @@ a {
   user-select: none;
 }
 
+/* Sous la signature et le niveau de recherche, qui occupent déjà la colonne
+   de gauche — la notice leur passait dessus. */
 #notice {
   position: fixed;
-  top: 60px;
+  top: 122px;
   left: 8px;
   z-index: 10;
   padding: 6px 12px;
@@ -713,6 +715,12 @@ body.is-busted #minimap {
 
 .hint kbd {
   padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--abs-yellow);
+  color: var(--abs-black);
+  font: 500 11px/1 var(--abs-font);
+}
+
 /* Rappel de la pause à la manette, en bas au centre : les coins sont pris
    par le téléphone et la minimap */
 #pause-hint {
@@ -724,10 +732,11 @@ body.is-busted #minimap {
   align-items: center;
   gap: 8px;
   padding: 7px 13px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font: 600 12px/1 Poppins, ui-sans-serif, system-ui, sans-serif;
+  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.6);
+  box-shadow: 0 0 0 1px rgba(246, 246, 246, 0.35) inset;
+  color: var(--abs-white);
+  font: 400 12px/1 var(--abs-font);
   pointer-events: none;
   user-select: none;
   transform: translateX(-50%);
@@ -823,7 +832,8 @@ body.is-busted #pause-hint {
 #weak {
   position: fixed;
   left: 50%;
-  bottom: 18px;
+  /* Au-dessus du rappel de pause à la manette, qui tient le même ancrage */
+  bottom: 76px;
   z-index: 30;
   display: flex;
   flex-direction: column;

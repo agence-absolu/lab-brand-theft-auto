@@ -2998,9 +2998,14 @@ function step() {
      Le volant ne saute pas d'un bord à l'autre : il rejoint progressivement
      la position demandée, et revient au centre quand on relâche. */
   // La manette donne une consigne continue ; le clavier reste en tout ou rien
-  const stickSteer = axis(driveStick.x) || pad.steer
+  // La course de la manette tactile est adoucie par une courbe : le centre
+  // devient plus fin, les grands angles restent atteignables. Sans elle, le
+  // moindre frémissement du pouce braquait déjà franchement. Le stick d'une
+  // manette physique y échappe — il a la précision qu'un pouce n'a pas.
+  const touchSteer = axis(driveStick.x)
+  const stickSteer = touchSteer ? touchSteer * Math.abs(touchSteer) : pad.steer
   const steerTarget = stickSteer
-    ? -eased
+    ? -stickSteer
     : (pressed.left ? 1 : 0) - (pressed.right ? 1 : 0)
   steerInput += (steerTarget - steerInput) * (1 - Math.exp(-STEER_SMOOTH * FIXED_DT))
 
@@ -5209,6 +5214,14 @@ const phoneHint = document.querySelector('#phone-hint')
 const phoneHintLabel = phoneHint.querySelector('.hint-label')
 const phoneContactHint = phoneHint.querySelector('.hint--contact')
 
+// « Masquer » le remet en fond perdu, « afficher » le fait remonter :
+// l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
+// Partagée par la touche Tab et par la croix haut de la manette.
+function togglePhone() {
+  phonePinned = !phonePinned
+  phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
+}
+
 window.addEventListener('keydown', (event) => {
   if (event.code !== 'Tab' || paused) return // menu ouvert : Tab navigue
   event.preventDefault() // sinon le focus part dans le panneau de réglages
@@ -5221,15 +5234,6 @@ window.addEventListener('keydown', (event) => {
     moveFocus(gameOverElement, event.shiftKey ? -1 : 1)
     return
   }
-  // « Masquer » le remet en fond perdu, « afficher » le fait remonter :
-  // l'appareil reste toujours à l'écran, c'est sa mise en avant qui bascule.
-  phonePinned = !phonePinned
-  phoneHintLabel.textContent = phonePinned ? 'masquer le téléphone' : 'afficher le téléphone'
-}
-
-window.addEventListener('keydown', (event) => {
-  if (event.code !== 'Tab') return
-  event.preventDefault() // sinon le focus part dans le GUI
   togglePhone()
 })
 
@@ -5913,9 +5917,9 @@ document.querySelector('#splash-restart').addEventListener('click', () => {
   closeSplash()
 })
 
-window.addEventListener('keydown', (event) => {
-  if (event.code !== 'Escape') return
-  // La confirmation passe avant : Échap l'annule au lieu de basculer l'accueil
+// Bascule de l'accueil, partagée par Échap et par le bouton Menu de la
+// manette. La confirmation passe avant : Échap l'annule au lieu de basculer.
+function toggleMenu() {
   if (confirmOpen) closeContact()
   else if (paused) closeSplash()
   else openSplash()
