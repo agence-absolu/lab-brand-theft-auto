@@ -279,7 +279,7 @@ function clampAboveGround(p) {
   if (p.y < floor) p.y = floor
 }
 
-// Regard au clavier : les flèches orientent la caméra. Dès qu'on les relâche,
+// Regard au clavier : ZQSD/WASD orientent la caméra. Dès qu'on les relâche,
 // elle revient d'elle-même derrière la voiture — elle la suit par défaut, on
 // ne la « pilote » que ponctuellement pour jeter un œil autour.
 const YAW_RATE = 1.9       // rad/s
@@ -290,7 +290,7 @@ const LOOK_IDLE = 0.45     // secondes sans entrée avant le retour automatique
 const FOLLOW_SMOOTH = 3.2  // vitesse de réalignement derrière la voiture
 const DEFAULT_PITCH = settings.cameraPitch
 
-// Les flèches ne pilotent pas l'angle directement mais une vitesse de
+// ZQSD/WASD ne pilotent pas l'angle directement mais une vitesse de
 // rotation, elle-même lissée : la caméra démarre et s'arrête en douceur au
 // lieu de claquer d'un cran à chaque appui.
 let yawVelocity = 0
@@ -301,10 +301,10 @@ function updateLook(delta) {
   if (portal || gameOver || falling || paused) return // séquences qui gardent la caméra
 
   const turn =
-    (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0) -
+    ((keys.has('KeyA') || keys.has('KeyQ')) ? 1 : 0) - (keys.has('KeyD') ? 1 : 0) -
     (axis(lookStick.x) || pad.lookX)
   const tilt =
-    (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0) -
+    (keys.has('KeyS') ? 1 : 0) - ((keys.has('KeyW') || keys.has('KeyZ')) ? 1 : 0) -
     (axis(lookStick.y) || pad.lookY)
   if (turn || tilt) {
     lookIdle = 0
@@ -366,7 +366,7 @@ function updateFollowCamera(delta) {
     return
   }
 
-  if (lookIdle < LOOK_IDLE) return // une flèche vient d'être pressée : on la laisse faire
+  if (lookIdle < LOOK_IDLE) return // une touche de regard vient d'être pressée : on la laisse faire
 
   const k = 1 - Math.exp(-FOLLOW_SMOOTH * delta)
 
@@ -631,6 +631,48 @@ function edgeMaterial(color) {
 
 const billboardEdgeMaterial = edgeMaterial('#1E1E1E')
 const brandEdgeMaterial = edgeMaterial('#364B9E')
+
+// Flèche de repérage : une grosse flèche jaune extrudée, pointe en bas, qui
+// clignote au-dessus de chaque panneau. Elle désigne le panneau de loin, là
+// où la face du caisson n'est lisible que de face.
+const ARROW_SHAPE = (() => {
+  const shape = new THREE.Shape()
+  // Unité : 1 de large, 1 de haut, pointe en bas, pivot au centre.
+  shape.moveTo(0, -0.5)
+  shape.lineTo(0.5, 0.02)
+  shape.lineTo(0.18, 0.02)
+  shape.lineTo(0.18, 0.5)
+  shape.lineTo(-0.18, 0.5)
+  shape.lineTo(-0.18, 0.02)
+  shape.lineTo(-0.5, 0.02)
+  shape.closePath()
+  return shape
+})()
+
+// Extrudée et recentrée sur l'épaisseur : la flèche se tourne alors comme le
+// panneau, sans décalage à compenser dans la matrice d'instance.
+const ARROW_THICKNESS = 0.22
+const arrowGeometry = new THREE.ExtrudeGeometry(ARROW_SHAPE, {
+  depth: ARROW_THICKNESS,
+  bevelEnabled: true,
+  bevelThickness: 0.03,
+  bevelSize: 0.03,
+  bevelSegments: 1,
+})
+arrowGeometry.translate(0, 0, -ARROW_THICKNESS / 2)
+
+// Émissive : le clignotement se joue sur l'intensité, pas sur une lumière.
+const ARROW_COLOR = '#FFD400'
+const arrowMaterial = new THREE.MeshStandardMaterial({
+  color: ARROW_COLOR,
+  emissive: ARROW_COLOR,
+  emissiveIntensity: 1,
+  roughness: 0.35,
+  metalness: 0.1,
+})
+
+const ARROW_BLINK = 2.2 // clignotements par seconde
+const ARROW_BOB = 0.35  // amplitude du flottement vertical, en mètres
 
 // Recadrage `object-fit: cover` : le média garde ses proportions et déborde
 // sur l'axe le plus long, qui est rogné symétriquement. Sans ça une vidéo
@@ -1536,11 +1578,17 @@ function updateChunks() {
 // milliseconde, au moment où l'on construit déjà un chunk entier.
 const panelGroup = new THREE.Group()
 world.add(panelGroup)
+// Les flèches vivent dans leur propre groupe : leur flottement est commun à
+// toutes, un seul `position.y` de groupe suffit à les animer.
+const arrowGroup = new THREE.Group()
+world.add(arrowGroup)
 let panelLogos = [] // { mesh, project, items } pour refreshLabelInstances
 
 function disposePanelPools() {
   panelGroup.children.forEach((mesh) => mesh.dispose())
   panelGroup.clear()
+  arrowGroup.children.forEach((mesh) => mesh.dispose())
+  arrowGroup.clear()
   panelLogos = []
 }
 
@@ -1602,6 +1650,38 @@ function rebuildPanelPools() {
     panelGroup.add(labels)
     panelLogos.push({ mesh: labels, project: projectIndex, items })
   })
+
+  // Une flèche par panneau de projet : un seul appel de dessin.
+  // Seuls les panneaux au sol : ceux en hauteur ne se franchissent pas, rien
+  // à y désigner.
+  const allPanels = []
+  for (const chunk of chunks.values()) {
+    chunk.userData.billboards?.forEach((b) => {
+      if (b.billboard.ground) allPanels.push(b.billboard)
+    })
+  }
+  if (allPanels.length) {
+    const arrows = new THREE.InstancedMesh(arrowGeometry, arrowMaterial, allPanels.length)
+    allPanels.forEach((p, i) => {
+      // Taille tirée du panneau, bornée : visible de loin sur un petit
+      // panneau, pas écrasante sur un grand.
+      const size = THREE.MathUtils.clamp(p.h * 0.32, 0.9, 2)
+      arrows.setMatrixAt(
+        i,
+        _matrix.compose(
+          _position.set(
+            p.x + p.nx * (p.thick / 2),
+            city.sidewalkHeight + p.y + p.h / 2 + size * 0.65,
+            p.z + p.nz * (p.thick / 2)
+          ),
+          _quat.setFromEuler(_euler.set(0, p.angle, 0)),
+          _scale.set(size, size, size)
+        )
+      )
+    })
+    arrows.castShadow = true
+    arrowGroup.add(arrows)
+  }
 
   // Un panneau en cours de franchissement est repris par portalMesh : il doit
   // rester masqué dans son lot, que celui-ci vienne d'être refait ou non.
@@ -2681,7 +2761,7 @@ canvas.addEventListener('pointerdown', function retryLandscape() {
   lockLandscape()
 })
 
-/* ---------- Contrôleur de déplacement : Z Q S D ---------- */
+/* ---------- Contrôleur de déplacement : flèches directionnelles ---------- */
 // Approche classique de character controller : une position autoritaire qui
 // n'est JAMAIS en pénétration, déplacée à pas de temps fixe par une vélocité
 // résolue en "collide and slide".
@@ -2752,7 +2832,7 @@ let steerInput = 0 // position lissée du volant, dans [-1, 1]
 // repart instantanément dans l'axe et le rebond latéral est invisible.
 const _lateral = new THREE.Vector3()
 
-// KeyZ/KeyQ et KeyW/KeyA : fonctionne en AZERTY comme en QWERTY.
+// Les flèches directionnelles pilotent la voiture ; ZQSD/WASD la caméra.
 // Clavier et tactile sont en tout ou rien ; les gâchettes de la manette
 // dosent l'accélération et le freinage.
 const pressed = {
@@ -2760,21 +2840,21 @@ const pressed = {
     return this.throttleLevel > 0
   },
   get throttleLevel() {
-    if (keys.has('KeyW') || keys.has('KeyZ') || axis(driveStick.y) > 0.2) return 1
+    if (keys.has('ArrowUp') || axis(driveStick.y) > 0.2) return 1
     return pad.throttle
   },
   get brake() {
     return this.brakeLevel > 0
   },
   get brakeLevel() {
-    if (keys.has('KeyS') || axis(driveStick.y) < -0.2) return 1
+    if (keys.has('ArrowDown') || axis(driveStick.y) < -0.2) return 1
     return pad.brake
   },
   get left() {
-    return keys.has('KeyA') || keys.has('KeyQ') || axis(driveStick.x) < -0.2
+    return keys.has('ArrowLeft') || axis(driveStick.x) < -0.2
   },
   get right() {
-    return keys.has('KeyD') || axis(driveStick.x) > 0.2
+    return keys.has('ArrowRight') || axis(driveStick.x) > 0.2
   },
   get handbrake() {
     return keys.has('Space') || pad.handbrake
@@ -6284,6 +6364,15 @@ function updatePadCursor(delta) {
   padCursor.update(delta)
 }
 
+// Clignotement : une sinusoïde redressée sur l'intensité émissive, doublée
+// d'un flottement vertical du groupe. Une seule valeur pour toutes les
+// flèches, elles battent donc ensemble.
+function updateArrows(elapsed) {
+  const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 2 * ARROW_BLINK)
+  arrowMaterial.emissiveIntensity = 0.25 + pulse * 2.2
+  arrowGroup.position.y = Math.sin(elapsed * 2.1) * ARROW_BOB
+}
+
 /* ---------- Boucle ---------- */
 // Timer remplace Clock, déprécié. La différence tient à l'appel : Clock
 // calculait le delta à la lecture, Timer veut un update() par image, après
@@ -6328,6 +6417,7 @@ function tick() {
   updateDamageSprite(delta)
   updatePortalCamera(delta)
   updatePortalVisual()
+  updateArrows(timer.getElapsed())
   follow()
   updateChunks()
   const drawStart = performance.now()
