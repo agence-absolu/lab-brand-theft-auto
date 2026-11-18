@@ -200,32 +200,7 @@ body.is-debug #fps {
   transform: none;
 }
 
-/* Mire de visée : un simple point au centre de l'écran, cerné de sombre pour
-   rester lisible sur un ciel clair comme sur une façade. */
-#reticle {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 15;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--abs-white);
-  box-shadow: 0 0 0 2px rgba(30, 30, 30, 0.55);
-  pointer-events: none;
-  opacity: 0.7;
-  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
-}
-
-/* Au survol d'une cible, le point passe au jaune de charte et enfle : c'est
-   la couleur de l'action, celle des CTA. */
-#reticle.is-active {
-  opacity: 1;
-  background: var(--abs-yellow);
-  transform: scale(1.8);
-}
-
+/* Étiquette de la cible visée au centre de l'écran. */
 #reticle-label {
   display: flex;
   align-items: center;
@@ -234,7 +209,7 @@ body.is-debug #fps {
   top: 50%;
   left: 50%;
   z-index: 15;
-  margin-top: 52px; /* entre le point et la flèche de cap, sans les chevaucher */
+  margin-top: 52px; /* sous le centre, sans chevaucher la flèche de cap */
   padding: 7px 14px;
   border-radius: 8px;
   background: var(--abs-black);
@@ -429,7 +404,6 @@ body.is-debug #fps {
 }
 
 /* Pendant la capture, l'interface de jeu s'efface : seul le cinématique reste */
-body.is-busted #reticle,
 body.is-busted #reticle-label,
 body.is-busted #fps,
 body.is-busted #brand,
@@ -1393,7 +1367,6 @@ html.is-pad-input * {
 #wanted,
 #minimap,
 #sticks,
-#reticle,
 #phone-hint {
   transition: opacity 0.6s ease;
 }
@@ -1408,7 +1381,6 @@ body.is-booting #fps,
 body.is-booting #wanted,
 body.is-booting #minimap,
 body.is-booting #sticks,
-body.is-booting #reticle,
 body.is-booting #phone-hint {
   opacity: 0;
 }

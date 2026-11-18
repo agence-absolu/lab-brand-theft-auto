@@ -4896,7 +4896,6 @@ function updateMagnet(delta) {
 // l'ouverture d'un nouvel onglet n'est jamais bloquée.
 const ctaRaycaster = new THREE.Raycaster()
 const _pointer = new THREE.Vector2()
-const reticleElement = document.querySelector('#reticle')
 const reticleLabel = document.querySelector('#reticle-label')
 
 // Seul l'espace blanc propose des cibles : en ville, on franchit un panneau
@@ -4935,13 +4934,12 @@ function activate(target) {
 let aimed = null
 let validateKey = 'Entrée' // touche affichée dans l'étiquette, selon la manette
 function updateReticle() {
-  // Toujours affiché : il sert aussi de repère de direction en ville, où il
-  // n'y a simplement rien à pointer.
+  // Le centre de l'écran reste le point de visée, mais plus rien ne le marque :
+  // seule l'étiquette paraît, et seulement quand il y a une cible à valider.
   const hit = pickAt(0, 0)
   // L'aimant sert de repli : on peut valider une cible simplement approchée
   aimed = hit?.object || magnetTarget || null
 
-  reticleElement.classList.toggle('is-active', Boolean(aimed))
   reticleLabel.classList.toggle('is-active', Boolean(aimed))
   if (aimed) reticleLabel.innerHTML = `<kbd>${validateKey}</kbd>${labelFor(aimed)}`
 }

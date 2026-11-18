@@ -114,6 +114,28 @@ export const PROJECT_MEDIA = {
   "/projects/light/noirmoutier-tourisme/12-video-ile-6.webp",
   "/projects/light/noirmoutier-tourisme/13-07-iuage2.webp",
   "/projects/light/noirmoutier-tourisme/14-frame-448-1.webp"
+ ],
+ "sao-tome-et-principe": [
+  "/projects/light/sao-tome-et-principe/00-screen-video-ecran1.webp",
+  "/projects/light/sao-tome-et-principe/01-2-image.webp",
+  "/projects/light/sao-tome-et-principe/02-placeholder-video-2.webp",
+  "/projects/light/sao-tome-et-principe/03-3-2-image-0.webp",
+  "/projects/light/sao-tome-et-principe/04-4-1-image-0.webp",
+  "/projects/light/sao-tome-et-principe/05-placeholder-video-nature.webp",
+  "/projects/light/sao-tome-et-principe/06-placeholder-video-maillage-sao-tome.webp",
+  "/projects/light/sao-tome-et-principe/07-6-1-image.webp",
+  "/projects/light/sao-tome-et-principe/08-placeholder-map-sao-tome.webp",
+  "/projects/light/sao-tome-et-principe/09-placeholder-hebergement-sao-tome.webp"
+ ],
+ "le-monde-de-noe": [
+  "/projects/light/le-monde-de-noe/00-la-nature-a-une-mission-a-vous-confier.webp",
+  "/projects/light/le-monde-de-noe/01-monde-de-noe-ecran.webp",
+  "/projects/light/le-monde-de-noe/02-3-2-image.webp",
+  "/projects/light/le-monde-de-noe/03-4-2-image.webp",
+  "/projects/light/le-monde-de-noe/04-4-1-image.webp",
+  "/projects/light/le-monde-de-noe/05-5-1-image.webp",
+  "/projects/light/le-monde-de-noe/06-5-2-image.webp",
+  "/projects/light/le-monde-de-noe/07-noe-coucou.webp"
  ]
 }
 
@@ -161,5 +183,18 @@ export const PROJECT_STREAMS = {
   "/projects/light/noirmoutier-tourisme/video-05.mp4",
   "/projects/light/noirmoutier-tourisme/video-06.mp4",
   "/projects/light/noirmoutier-tourisme/video-07.mp4"
+ ],
+ "sao-tome-et-principe": [
+  "/projects/light/sao-tome-et-principe/video-00.mp4",
+  "/projects/light/sao-tome-et-principe/video-01.mp4",
+  "/projects/light/sao-tome-et-principe/video-02.mp4",
+  "/projects/light/sao-tome-et-principe/video-03.mp4",
+  "/projects/light/sao-tome-et-principe/video-04.mp4",
+  "/projects/light/sao-tome-et-principe/video-05.mp4"
+ ],
+ "le-monde-de-noe": [
+  "/projects/light/le-monde-de-noe/video-00.mp4",
+  "/projects/light/le-monde-de-noe/video-01.mp4",
+  "/projects/light/le-monde-de-noe/video-02.mp4"
  ]
 }
