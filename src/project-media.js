@@ -136,6 +136,17 @@ export const PROJECT_MEDIA = {
   "/projects/light/le-monde-de-noe/05-5-1-image.webp",
   "/projects/light/le-monde-de-noe/06-5-2-image.webp",
   "/projects/light/le-monde-de-noe/07-noe-coucou.webp"
+ ],
+ "les-arcs": [
+  "/projects/light/les-arcs/00-placeholder-video-les-arcs.webp",
+  "/projects/light/les-arcs/01-placeholder-video-2-les-arcs.webp",
+  "/projects/light/les-arcs/02-3-1-image.webp",
+  "/projects/light/les-arcs/03-3-2-image-1.webp",
+  "/projects/light/les-arcs/04-palceholder-snow-angels-les-arcs.webp",
+  "/projects/light/les-arcs/05-4-2-image-0.webp",
+  "/projects/light/les-arcs/06-5-image.webp",
+  "/projects/light/les-arcs/07-6-1-image-0.webp",
+  "/projects/light/les-arcs/08-6-2-image.webp"
  ]
 }
 
@@ -196,5 +207,10 @@ export const PROJECT_STREAMS = {
   "/projects/light/le-monde-de-noe/video-00.mp4",
   "/projects/light/le-monde-de-noe/video-01.mp4",
   "/projects/light/le-monde-de-noe/video-02.mp4"
+ ],
+ "les-arcs": [
+  "/projects/light/les-arcs/video-00.mp4",
+  "/projects/light/les-arcs/video-01.mp4",
+  "/projects/light/les-arcs/video-02.mp4"
  ]
 }

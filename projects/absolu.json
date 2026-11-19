@@ -257,12 +257,12 @@
     "Stratégie digitale"
    ],
    "videos": [
-    "/sites/default/files/media-local-video/2026/1-video_0.mp4",
-    "/sites/default/files/media-local-video/2026/3.1-video_0.mp4",
-    "/sites/default/files/media-local-video/2026/4.2-video.mp4",
-    "/sites/default/files/media-local-video/2026/5-video.mp4",
-    "/sites/default/files/media-local-video/2026/6.2-video.mp4",
-    "/sites/default/files/media-local-video/2026/7-video.mp4"
+    "/sites/default/files/media-local-video/2026/1-video_1.mp4",
+    "/sites/default/files/media-local-video/2026/3.1-video_1.mp4",
+    "/sites/default/files/media-local-video/2026/4.2-video_0.mp4",
+    "/sites/default/files/media-local-video/2026/5-video_0.mp4",
+    "/sites/default/files/media-local-video/2026/6.2-video_0.mp4",
+    "/sites/default/files/media-local-video/2026/7-video_0.mp4"
    ],
    "images": [
     "/sites/default/files/media-video-local-placeholder/2026/screen-video-ecran1.png",
@@ -289,9 +289,9 @@
     "Stratégie digitale"
    ],
    "videos": [
-    "/sites/default/files/media-local-video/2026/1-video-1.mp4",
-    "/sites/default/files/media-local-video/2026/3.1-video.mp4",
-    "/sites/default/files/media-local-video/2026/5.3-video.mp4"
+    "/sites/default/files/media-local-video/2026/1-video-2.mp4",
+    "/sites/default/files/media-local-video/2026/3.1-video-1.mp4",
+    "/sites/default/files/media-local-video/2026/5.3-video-1.mp4"
    ],
    "images": [
     "/sites/default/files/media-video-local-placeholder/2026/la-nature-a-une-mission-a-vous-confier.png",
@@ -302,6 +302,34 @@
     "/sites/default/files/media-image/2026/5.1-image.jpg",
     "/sites/default/files/media-image/2026/5.2-image.jpg",
     "/sites/default/files/media-video-local-placeholder/2026/noe-coucou.png"
+   ]
+  },
+  {
+   "slug": "les-arcs",
+   "name": "Les Arcs",
+   "title": "Refonte de l'écosystème digital et expérience utilisateur 4 saisons",
+   "url": "https://agence-absolu.com/projets/les-arcs",
+   "tags": [
+    "Développement web",
+    "UX Design",
+    "Création digitale",
+    "Accessibilité & éco-conception"
+   ],
+   "videos": [
+    "/sites/default/files/media-local-video/2026/1-video-1_0.mp4",
+    "/sites/default/files/media-local-video/2026/2-video_0.mp4",
+    "/sites/default/files/media-local-video/2026/4.1-image.mp4"
+   ],
+   "images": [
+    "/sites/default/files/media-video-local-placeholder/2026/placeholder-video-les-arcs.png",
+    "/sites/default/files/media-video-local-placeholder/2026/placeholder-video-2-les-arcs.png",
+    "/sites/default/files/media-image/2026/3.1-image.jpg",
+    "/sites/default/files/media-image/2026/3.2-image_1.jpg",
+    "/sites/default/files/media-video-local-placeholder/2026/palceholder-snow-angels-les-arcs.png",
+    "/sites/default/files/media-image/2026/4.2-image_0.jpg",
+    "/sites/default/files/media-image/2026/5-image.jpg",
+    "/sites/default/files/media-image/2026/6.1-image_0.jpg",
+    "/sites/default/files/media-image/2026/6.2-image.jpg"
    ]
   }
  ]

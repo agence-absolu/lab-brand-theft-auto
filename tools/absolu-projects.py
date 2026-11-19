@@ -20,7 +20,7 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")
 SLUGS = ["martinique-tourisme", "parrot-world", "vins-de-loire", "mr-bricolage",
          "aluclos", "le-guerandais", "noirmoutier-tourisme",
-         "sao-tome-et-principe", "le-monde-de-noe"]
+         "sao-tome-et-principe", "le-monde-de-noe", "les-arcs"]
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC = ROOT / "public" / "projects"
